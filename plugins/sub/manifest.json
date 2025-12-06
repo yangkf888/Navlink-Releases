@@ -1,0 +1,10 @@
+{
+    "id": "sub",
+    "name": "订阅管理",
+    "version": "1.0.0",
+    "description": "跟踪各类订阅服务的到期时间，提供智能提醒",
+    "type": "node",
+    "entry": "backend-nodejs/server.js",
+    "healthCheck": "/api/health",
+    "frontend": "frontend/dist"
+}

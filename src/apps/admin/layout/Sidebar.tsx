@@ -1,0 +1,252 @@
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+    LayoutDashboard,
+    Link as LinkIcon,
+    Puzzle,
+    Users,
+    Settings,
+    FileText,
+    BarChart,
+    ChevronLeft,
+    ChevronRight,
+    ChevronDown,
+    ChevronUp,
+    Shield,
+    Building2,
+    Store,
+    Search
+} from 'lucide-react';
+import { Button } from '../../../components/ui/Button';
+
+interface MenuItem {
+    id: string;
+    label: string;
+    icon?: any;
+    path: string | null;
+    isSection?: boolean;
+    children?: MenuItem[];
+}
+
+interface Props {
+    collapsed: boolean;
+    onToggle: () => void;
+}
+
+const menuItems = [
+    { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard, path: '/admin/dashboard' },
+    {
+        id: 'content',
+        label: '内容管理',
+        icon: FileText,
+        path: null,
+        isSection: true,
+        children: [
+            { id: 'basic', label: '全局外观', icon: FileText, path: '/admin/settings/basic' },
+            { id: 'topnav', label: '顶部导航', icon: LinkIcon, path: '/admin/settings/topnav' },
+            { id: 'hero', label: '首屏搜索', icon: FileText, path: '/admin/settings/hero' },
+            { id: 'promo', label: '热门/推广', icon: FileText, path: '/admin/settings/promo' },
+            { id: 'categories', label: '内容分类', icon: FileText, path: '/admin/settings/categories' },
+            { id: 'sidebar', label: '侧边栏', icon: FileText, path: '/admin/settings/sidebar' },
+        ]
+    },
+    {
+        id: 'system',
+        label: '系统管理',
+        icon: Settings,
+        path: null,
+        isSection: true,
+        children: [
+            // 插件快速入口
+            { id: 'plugin-market', label: '应用商城', icon: Store, path: '/admin/plugin-market' },
+            { id: 'plugins', label: '插件管理', icon: Puzzle, path: '/admin/plugins' },
+            { id: 'ai', label: 'AI配置', icon: Settings, path: '/admin/settings/ai' },
+            { id: 'health', label: '链接健康', icon: Settings, path: '/admin/settings/health' },
+            { id: 'media', label: '资源管理', icon: Settings, path: '/admin/settings/media' },
+            { id: 'data', label: '数据管理', icon: Settings, path: '/admin/settings/data' },
+            { id: 'users', label: '用户管理', icon: Users, path: '/admin/users' },
+            { id: 'permissions', label: '权限管理', icon: Shield, path: '/admin/permissions' },
+            { id: 'tenants', label: '租户管理', icon: Building2, path: '/admin/tenants' },
+            { id: 'logs', label: '系统日志', icon: FileText, path: '/admin/logs' },
+            { id: 'monitor', label: '监控面板', icon: BarChart, path: '/admin/monitor' },
+        ]
+    },
+];
+
+export default function Sidebar({ collapsed, onToggle }: Props) {
+    const location = useLocation();
+    const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']); // 默认展开所有分组
+
+    const toggleSection = (sectionId: string) => {
+        setExpandedSections(prev =>
+            prev.includes(sectionId)
+                ? prev.filter(id => id !== sectionId)
+                : [...prev, sectionId]
+        );
+    };
+
+    // 扁平化菜单项（用于收缩模式）
+    const getFlattenedItems = () => {
+        const flattened: MenuItem[] = [];
+        menuItems.forEach(item => {
+            if (item.children) {
+                // 如果是分组，只添加有 icon 的子项
+                item.children.forEach(child => {
+                    if (child.icon && child.path) {
+                        flattened.push(child);
+                    }
+                });
+            } else {
+                flattened.push(item);
+            }
+        });
+        return flattened;
+    };
+
+    const itemsToShow = collapsed ? getFlattenedItems() : menuItems;
+
+    return (
+        <aside
+            className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 h-screen sticky top-0 z-40 ${collapsed ? 'w-16' : 'w-64'
+                }`}
+        >
+            {/* Logo & 品牌 */}
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+                {!collapsed && (
+                    <Link to="/admin/dashboard" className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-blue-600">NavLink</span>
+                    </Link>
+                )}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onToggle}
+                    className="h-9 w-9 hover:bg-gray-100 rounded-lg text-gray-500"
+                >
+                    {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                </Button>
+            </div>
+
+            {/* 搜索框 */}
+            {!collapsed && (
+                <div className="p-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="搜索..."
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* 导航菜单 */}
+            <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
+                {itemsToShow.map(item => {
+                    // 收缩模式下，直接显示所有Item（扁平化后的）
+                    if (collapsed) {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                            <Link
+                                key={item.id}
+                                to={item.path!}
+                                className={`flex items-center justify-center w-full h-10 rounded-lg transition-all duration-200 ${isActive
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                    }`}
+                                title={item.label}
+                            >
+                                {Icon && <Icon size={20} />}
+                            </Link>
+                        );
+                    }
+
+                    // 展开模式：保持原有逻辑（分组折叠）
+                    if (item.isSection) {
+                        const isExpanded = expandedSections.includes(item.id);
+                        const hasActiveChild = item.children?.some(child => child.path === location.pathname);
+
+                        return (
+                            <div key={item.id} className="mb-2">
+                                {/* 分组标题 */}
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => toggleSection(item.id)}
+                                    className={`w-auto flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-all duration-200 justify-start h-auto font-normal ${hasActiveChild
+                                        ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm hover:bg-blue-100'
+                                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                                        }`}
+                                    style={{ width: 'calc(100% - 16px)' }}
+                                >
+                                    {item.icon && <item.icon size={20} className="flex-shrink-0" />}
+                                    <span className="text-sm font-semibold flex-1 text-left">{item.label}</span>
+                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </Button>
+
+                                {/* 子菜单 */}
+                                {isExpanded && item.children && (
+                                    <div className="mt-1 space-y-1">
+                                        {item.children.map((child) => {
+                                            if (!child.path) return null; // Skip separators
+                                            const ChildIcon = child.icon;
+                                            const isActive = location.pathname === child.path;
+
+                                            return (
+                                                <Link
+                                                    key={child.id}
+                                                    to={child.path!}
+                                                    className={`flex items-center gap-3 px-4 py-2 mx-2 rounded-lg transition-all duration-200 ${isActive
+                                                        ? 'bg-blue-600 text-white font-medium shadow-sm hover:bg-blue-700 active:bg-blue-800'
+                                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200'
+                                                        }`}
+                                                >
+                                                    {ChildIcon && <ChildIcon size={18} />}
+                                                    <span className="text-sm">{child.label}</span>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
+
+                    // 非分组菜单项（如仪表盘）
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                        <Link
+                            key={item.id}
+                            to={item.path!}
+                            className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-all duration-200 ${isActive
+                                ? 'bg-blue-600 text-white font-medium shadow-sm hover:bg-blue-700 active:bg-blue-800'
+                                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200'
+                                }`}
+                        >
+                            {Icon && <Icon size={20} />}
+                            <span className="text-sm font-medium">{item.label}</span>
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            {/* 用户信息 */}
+            <div className="border-t border-gray-200 p-4 overflow-x-hidden">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        A
+                    </div>
+                    {!collapsed && (
+                        <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Administrator</div>
+                            <div className="text-xs text-gray-500">超级管理员</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </aside>
+    );
+}

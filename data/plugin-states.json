@@ -1,0 +1,6 @@
+{
+  "docker": true,
+  "sub": true,
+  "vps": true,
+  "vps-2": true
+}

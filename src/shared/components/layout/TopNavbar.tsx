@@ -1,0 +1,281 @@
+import React, { useState, useEffect } from 'react';
+import type { SiteConfig } from '../../types';
+import { Icon } from '../common/Icon';
+import { FloatingMenu } from './FloatingMenu';
+import { Button } from '../../../components/ui/Button';
+
+const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick, onLogout, isAuthenticated = false, onSearchClick, forceDarkText }: {
+    config: SiteConfig,
+    toggleSidebar: any,
+    mobileOpen: boolean,
+    onUserClick: () => void,
+    onLogout: () => void,
+    isAuthenticated?: boolean,
+    onSearchClick: () => void,
+    forceDarkText?: boolean
+}) => {
+    // ... (state logic remains same)
+    const [hoverId, setHoverId] = useState<string | null>(null);
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const [menuTimer, setMenuTimer] = useState<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (menuTimer) clearTimeout(menuTimer);
+        };
+    }, [menuTimer]);
+
+
+    // Overlay Logic remains same...
+    const isOverlayMode = config.hero?.overlayNavbar !== false;
+    const navColor = config.theme?.navbarBgColor || '#5d33f0';
+
+    // ... (color logic remains same)
+    const shouldUseTransparent = isOverlayMode && !isScrolled && navColor !== 'hero';
+
+    let navBgStyle: React.CSSProperties = {};
+    let navClass = '';
+    let textColorClass = 'text-white';
+
+    if (shouldUseTransparent) {
+        navClass = 'bg-transparent';
+        textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+    } else {
+        if (navColor === 'hero') {
+            if (!isOverlayMode) {
+                navBgStyle = { backgroundColor: config.hero?.backgroundColor || '#5d33f0' };
+                textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+            } else {
+                if (isScrolled) {
+                    navBgStyle = {
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+                        color: '#1f2937'
+                    };
+                    textColorClass = 'text-gray-800';
+                } else {
+                    navBgStyle = {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                    };
+                    textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+                }
+            }
+        } else if (navColor === 'transparent') {
+            navBgStyle = {
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                color: '#1f2937'
+            };
+            textColorClass = 'text-gray-800';
+        } else {
+            navBgStyle = { backgroundColor: navColor };
+            textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+        }
+    }
+
+    const visibleNavItems = config.topNav?.filter(item => isAuthenticated || !item.hidden) || [];
+    const isDarkText = textColorClass.includes('text-gray-800') || textColorClass.includes('text-black');
+
+    const linkColorClass = isDarkText
+        ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+        : 'text-white/80 hover:text-white hover:bg-white/10';
+
+    const logoColorClass = isDarkText ? 'text-gray-800' : 'text-white';
+    const quoteColorClass = isDarkText ? 'text-gray-500' : 'text-white/70';
+    const iconButtonClass = isDarkText ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white';
+    const mobileMenuButtonClass = isDarkText ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white';
+    const borderColorClass = isDarkText ? 'border-gray-200' : 'border-white/20';
+
+    const IconComponent = Icon as any;
+
+    return (
+        <nav
+            className={`
+                w-full ${isOverlayMode ? 'fixed' : 'sticky'} top-0 left-0 z-40 lg:z-50 transition-all duration-300
+                ${shouldUseTransparent ? '' : 'shadow-md'}
+                ${navClass} ${textColorClass} py-2 px-4 md:px-8
+            `}
+            style={navBgStyle}
+        >
+            <div className="flex items-center justify-between">
+                {/* Left side: Logo + Navigation */}
+                <div className="flex items-center gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={toggleSidebar}
+                        className={`lg:hidden ${mobileMenuButtonClass} hover:bg-black/5 dark:hover:bg-white/10`}
+                    >
+                        <IconComponent icon="fa-solid fa-bars" className="text-xl" />
+                    </Button>
+
+                    <div className="flex items-center gap-2 mr-8">
+                        {config.logoUrl && (
+                            <img src={config.logoUrl} alt="Logo" className="h-8 w-auto" />
+                        )}
+                        <span className={`text-xl font-bold ml-1 hidden sm:block ${logoColorClass}`}>Navlink</span>
+                    </div>
+
+                    <div className="hidden lg:flex items-center space-x-0 text-sm font-medium">
+                        {visibleNavItems.map((link) => (
+                            <div
+                                key={link.id}
+                                className="relative group"
+                                onMouseEnter={() => setHoverId(link.id)}
+                                onMouseLeave={() => setHoverId(null)}
+                            >
+                                <a
+                                    key={link.id}
+                                    href={link.url}
+                                    className={`flex items-center gap-2 px-2 py-2 text-sm font-medium rounded-lg transition-all ${linkColorClass}`}
+                                >
+                                    {link.icon && <i className={link.icon}></i>}
+                                    <span>{link.title}</span>
+                                    {link.children && link.children.length > 0 && <i className="fa-solid fa-angle-down text-xs mt-0.5"></i>}
+                                </a>
+                                {/* Submenu */}
+                                {link.children && link.children.length > 0 && hoverId === link.id && (
+                                    <div className="absolute top-full left-0 bg-white text-gray-700 shadow-lg rounded-lg py-2 min-w-[140px] animate-fade-in">
+                                        {link.children.map(sub => (
+                                            <a
+                                                key={sub.id}
+                                                href={sub.url}
+                                                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors text-sm"
+                                            >
+                                                {sub.icon && <i className={`${sub.icon} text-gray-400 w-5 text-center`}></i>}
+                                                <span>{sub.title}</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right side: Quote + User/Search */}
+                <div className="flex items-center space-x-4">
+                    <span className={`hidden md:block text-xs mr-4 truncate max-w-[500px] ${quoteColorClass}`} title={config.headerQuote}>
+                        {config.headerQuote || '对你竖大拇指的人，不一定是在夸你，也可能是用炮在瞄你。'}
+                    </span>
+                    <div className={`flex items-center gap-6 pl-6 sm:border-l ${borderColorClass}`}>
+                        <div
+                            className="relative"
+                            onMouseEnter={() => {
+                                if (menuTimer) clearTimeout(menuTimer);
+                                setShowUserMenu(true);
+                            }}
+                            onMouseLeave={() => {
+                                const timer = setTimeout(() => setShowUserMenu(false), 500);
+                                setMenuTimer(timer);
+                            }}
+                        >
+                            <Button
+                                variant="ghost"
+                                className={`relative group px-1 ${isAuthenticated
+                                    ? 'text-green-500 hover:text-green-600'
+                                    : iconButtonClass
+                                    } hover:bg-transparent`}
+                                onClick={onUserClick}
+                            >
+                                {/* User Icon - changes style based on login status */}
+                                <IconComponent
+                                    icon={isAuthenticated ? "fa-solid fa-user-check" : "fa-regular fa-user"}
+                                    className="text-lg"
+                                />
+
+                                {/* Status Badge - green dot when logged in */}
+                                {isAuthenticated && (
+                                    <span className="absolute top-1 right-0 w-2 h-2 bg-green-400 rounded-full border border-white/20 shadow-sm animate-pulse"></span>
+                                )}
+
+                                {/* Tooltip - only show when dropdown is not visible */}
+                                {!showUserMenu && (
+                                    <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 normal-case font-normal">
+                                        {isAuthenticated ? '已登录 · 管理' : '点击登录'}
+                                        {/* Arrow */}
+                                        <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                                    </div>
+                                )}
+                            </Button>
+
+                            {/* Dropdown Menu - show for both authenticated and unauthenticated users */}
+                            {showUserMenu && (
+                                <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden animate-fade-in z-50">
+                                    {isAuthenticated ? (
+                                        // 已登录用户显示后台和退出
+                                        <>
+                                            <a
+                                                href="/admin/dashboard"
+                                                onClick={() => setShowUserMenu(false)}
+                                                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 block"
+                                            >
+                                                <IconComponent icon="fa-solid fa-cog" className="text-gray-400" />
+                                                <span>后台管理</span>
+                                            </a>
+                                            <div className="border-t border-gray-100"></div>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setShowUserMenu(false);
+                                                    onLogout();
+                                                }}
+                                                className="w-full px-4 py-2.5 justify-start text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors flex items-center gap-2 rounded-none h-auto"
+                                            >
+                                                <IconComponent icon="fa-solid fa-right-from-bracket" className="text-red-500" />
+                                                <span>退出登录</span>
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        // 未登录用户显示登录按钮
+                                        <a
+                                            href="/admin/login"
+                                            onClick={() => setShowUserMenu(false)}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2 block"
+                                        >
+                                            <IconComponent icon="fa-solid fa-right-to-bracket" className="text-blue-500" />
+                                            <span>登录后台</span>
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`${iconButtonClass} hover:bg-black/5 dark:hover:bg-white/10`}
+                            onClick={onSearchClick}
+                            aria-label="Open search"
+                        >
+                            <IconComponent icon="fa-solid fa-magnifying-glass" className="text-lg" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mobile Floating Menu */}
+            <div className="lg:hidden">
+                <FloatingMenu items={visibleNavItems.filter(item => item.showOnMobile)} />
+            </div>
+        </nav>
+    );
+};
+
+export default TopNavbar;

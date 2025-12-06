@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>插件架构测试 - NavLink</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+        }
+        header {
+            background: #1890ff;
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1890ff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 15px 0;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        pre {
+            background: #f0f2f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        .success { color: #52c41a; }
+        .error { color: #ff4d4f; }
+        .info { color: #1890ff; }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+        }
+        .tab.active {
+            background: white;
+            border-bottom: 2px solid #1890ff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🚀 插件架构测试 - 统一路由 + 服务注册</h1>
+        <p>测试新架构:固定端口 + ServiceRegistry + /plugin/* 统一路由</p>
+    </header>
+
+    <div class="container">
+        <!-- API测试 -->
+        <div class="card">
+            <h2>📡 API路由测试</h2>
+            <div class="test-section">
+                <p><strong>统一路由格式:</strong> <code>/plugin/{pluginId}/api/*</code></p>
+                <button onclick="testAPI('/plugin/vps/api/health')">测试 VPS 健康检查</button>
+                <button onclick="testAPI('/plugin/docker/api/health')">测试 Docker 健康检查</button>
+                <button onclick="testAPI('/plugin/sub/api/health')">测试 Sub 健康检查</button>
+                <button onclick="testRegistry()">查看注册中心</button>
+                <pre id="api-result"></pre>
+            </div>
+        </div>
+
+        <!-- iframe集成测试 -->
+        <div class="card">
+            <h2>🖼️ iframe无缝集成测试</h2>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('vps')">VPS管理</button>
+                <button class="tab" onclick="switchTab('docker')">Docker管理</button>
+                <button class="tab" onclick="switchTab('sub')">订阅管理</button>
+            </div>
+            
+            <div id="vps-tab" class="tab-content active">
+                <p class="info">✨ 注意: 这是通过iframe嵌入的VPS插件,但看起来像一个整体</p>
+                <iframe src="http://127.0.0.1:10004/"></iframe>
+            </div>
+            
+            <div id="docker-tab" class="tab-content">
+                <p class="info">✨ Docker插件 - 固定端口 10001</p>
+                <iframe src="http://127.0.0.1:10001/"></iframe>
+            </div>
+            
+            <div id="sub-tab" class="tab-content">
+                <p class="info">✨ 订阅管理插件 - 固定端口 10003</p>
+                <iframe src="http://127.0.0.1:10003/"></iframe>
+            </div>
+        </div>
+
+        <!-- 架构优势说明 -->
+        <div class="card">
+            <h2>✅ 新架构优势</h2>
+            <ul style="line-height: 1.8; padding-left: 20px;">
+                <li><strong>固定端口:</strong> VPS=10004, Docker=10001, Sub=10003 - 永不漂移</li>
+                <li><strong>统一路由:</strong> <code>/plugin/{id}/*</code> - 新增插件零配置</li>
+                <li><strong>自动注册:</strong> 插件启动后自动向Gateway报告,无需手动配置</li>
+                <li><strong>健康检查:</strong> 30秒自动检测,异常自动重启</li>
+                <li><strong>iframe无缝:</strong> 样式完全融合,用户感知不到边界</li>
+                <li><strong>开发便捷:</strong> 可直连端口调试 <code>curl http://127.0.0.1:10004/api/servers</code></li>
+            </ul>
+        </div>
+
+        <!-- 对比表 -->
+        <div class="card">
+            <h2>📊 新旧方案对比</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 10px; text-align: left;">项目</th>
+                        <th style="padding: 10px; text-align: left;">旧方案(动态端口)</th>
+                        <th style="padding: 10px; text-align: left;">新方案(固定端口+注册中心)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">端口</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">❌ 10001→10027...</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">✅ VPS=10004固定</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">路由配置</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">❌ 每个插件手动配置</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">✅ /plugin/*通配</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">服务发现</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">❌ 手动查日志</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">✅ 自动注册+健康检查</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">调试体验</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">❌ 频繁出现路径/端口问题</td>
+                        <td style="padding: 10px; border-top: 1px solid #e0e0e0;">✅ 直连测试,快速定位</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function testAPI(url) {
+            const result = document.getElementById('api-result');
+            result.textContent = '请求中...';
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+                result.className = response.ok ? 'success' : 'error';
+            } catch (error) {
+                result.textContent = `错误: ${error.message}`;
+                result.className = 'error';
+            }
+        }
+
+        async function testRegistry() {
+            // 需要登录token,这里简化展示
+            const result = document.getElementById('api-result');
+            result.textContent = '服务注册中心需要管理员权限访问\n使用命令测试: curl -H "Authorization: Bearer <token>" http://127.0.0.1:3001/api/registry/services';
+            result.className = 'info';
+        }
+
+        function switchTab(tabName) {
+            // 隐藏所有tab
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 显示当前tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

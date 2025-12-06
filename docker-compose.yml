@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  navlink:
+    container_name: navlink-app
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Add other env vars here if needed, e.g. JWT_SECRET
+    volumes:
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+      - ./logs:/app/logs
+    # Ensure user permissions match if running on Linux
+    # user: "1000:1000" 

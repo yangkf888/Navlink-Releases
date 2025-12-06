@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2024-12-05T00:00:00Z",
+  "plugins": [
+    {
+      "id": "sub",
+      "name": "订阅转换",
+      "description": "支持多种订阅格式转换,包括 Clash、V2Ray、Surge 等",
+      "version": "1.2.0",
+      "author": "NavLink Team",
+      "category": "网络工具",
+      "icon": "🔄",
+      "downloadUrl": "https://github.com/your-org/navlink-plugins/releases/download/sub-v1.2.0/sub.zip",
+      "homepage": "https://github.com/your-org/navlink-plugin-sub",
+      "requirements": {
+        "node": ">=16.0.0"
+      },
+      "changelog": [
+        {
+          "version": "1.2.0",
+          "date": "2024-12-01",
+          "changes": ["新增 Hysteria2 支持", "优化转换速度"]
+        }
+      ]
+    },
+    {
+      "id": "vps",
+      "name": "VPS监控",
+      "description": "实时监控VPS服务器状态,包括CPU、内存、网络等",
+      "version": "1.0.5",
+      "author": "NavLink Team",
+      "category": "监控工具",
+      "icon": "📊",
+      "downloadUrl": "https://github.com/your-org/navlink-plugins/releases/download/vps-v1.0.5/vps.zip",
+      "homepage": "https://github.com/your-org/navlink-plugin-vps",
+      "requirements": {
+        "node": ">=16.0.0"
+      }
+    },
+    {
+      "id": "docker",
+      "name": "Docker管理",
+      "description": "可视化管理Docker容器、镜像和网络",
+      "version": "2.1.0",
+      "author": "NavLink Team",
+      "category": "开发工具",
+      "icon": "🐳",
+      "downloadUrl": "https://github.com/your-org/navlink-plugins/releases/download/docker-v2.1.0/docker.zip",
+      "homepage": "https://github.com/your-org/navlink-plugin-docker",
+      "requirements": {
+        "docker": ">=20.10.0"
+      }
+    },
+    {
+      "id": "rss",
+      "name": "RSS订阅",
+      "description": "聚合RSS订阅源,提供统一的阅读体验",
+      "version": "1.1.2",
+      "author": "Community",
+      "category": "内容聚合",
+      "icon": "📰",
+      "downloadUrl": "https://github.com/your-org/navlink-plugins/releases/download/rss-v1.1.2/rss.zip",
+      "homepage": "https://github.com/your-org/navlink-plugin-rss"
+    },
+    {
+      "id": "ai-chat",
+      "name": "AI助手",
+      "description": "集成多个AI模型,提供智能对话功能",
+      "version": "1.0.0",
+      "author": "Community",
+      "category": "AI工具",
+      "icon": "🤖",
+      "downloadUrl": "https://github.com/your-org/navlink-plugins/releases/download/ai-chat-v1.0.0/ai-chat.zip",
+      "homepage": "https://github.com/your-org/navlink-plugin-ai-chat",
+      "requirements": {
+        "node": ">=18.0.0"
+      }
+    }
+  ]
+}

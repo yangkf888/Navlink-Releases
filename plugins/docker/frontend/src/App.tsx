@@ -1,0 +1,929 @@
+/**
+ * Docker 应用 - 容器管理系统
+ * 功能：管理Docker服务器、容器、镜像、网络、卷等资源
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useConfig } from '@/shared/context/ConfigContext';
+import { useLayout } from '@/shared/context/LayoutContext';
+import { useDockerServers, useDockerContainers, useDockerImages, useDockerSystemInfo, useDockerNetworks, useDockerVolumes, useDockerAuditLogs } from './hooks/useDocker';
+import { DockerServer, AuditLog } from './types/docker';
+
+import LoginDialog from '@/shared/components/common/LoginDialog';
+import { Icon } from '@/shared/components/common/Icon';
+import { useDialogs } from '@/shared/hooks/useDialogs';
+import { ConfirmDialog } from '@/shared/components/common/ConfirmDialog';
+import DockerSidebar, { DockerView } from './components/DockerSidebar';
+import GlobalDashboard from './components/GlobalDashboard';
+import ServerDashboardView from './components/ServerDashboardView';
+import ServerTabs from './components/ServerTabs';
+import { ContainerFormModal } from './components/ContainerFormModal';
+import { LogViewerModal } from './components/LogViewerModal';
+import { ShellModal } from './components/ShellModal';
+import { ContainerList } from './components/views/ContainerList';
+import { ImageList } from './components/views/ImageList';
+import { NetworkList } from './components/views/NetworkList';
+import { VolumeList } from './components/views/VolumeList';
+
+// 不再需要从URL获取token，直接使用主应用的认证状态
+
+
+function DockerApp() {
+  const { config, isLoaded, isAuthenticated, logout } = useConfig();
+  const { servers, loading: serversLoading, error: serversError, loadServers, createServer, updateServer, deleteServer, setDefault, testConnection } = useDockerServers();
+  const {
+    confirmDialog,
+    showConfirm,
+    hideConfirm,
+    alertDialog,
+    showAlert,
+    hideAlert,
+    promptDialog,
+    showPrompt,
+    hidePrompt
+  } = useDialogs();
+
+  const [showLogin, setShowLogin] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // collapsed state is now managed by LayoutContext
+  const [activeView, setActiveView] = useState<DockerView>('overview');
+  const [selectedServer, setSelectedServer] = useState<DockerServer | null>(null);
+  const [showServerForm, setShowServerForm] = useState(false);
+  const [editingServer, setEditingServer] = useState<DockerServer | null>(null);
+  const [newServerData, setNewServerData] = useState({
+    name: '',
+    description: '',
+    connection_type: 'local' as 'local' | 'tcp' | 'tls' | 'ssh',
+    host: '',
+    port: 2375,
+    ssh_user: 'root',
+    ssh_password: '',
+    ssh_private_key: '',
+    ssh_port: 22
+  });
+
+  // New Modal States
+  const [showContainerModal, setShowContainerModal] = useState(false);
+  const [containerModalMode, setContainerModalMode] = useState<'create' | 'run'>('create');
+  const [selectedImageForRun, setSelectedImageForRun] = useState<string>('');
+
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [selectedContainerId, setSelectedContainerId] = useState<string>('');
+  const [selectedContainerName, setSelectedContainerName] = useState<string>('');
+
+  const [showShellModal, setShowShellModal] = useState(false);
+
+  // Docker Hooks
+  const {
+    containers,
+    loading: containersLoading,
+    error: containersError,
+    startContainer,
+    stopContainer,
+    restartContainer,
+    removeContainer,
+    loadContainers,
+    getContainerLogs,
+    createContainer
+  } = useDockerContainers(selectedServer?.id || null);
+
+  const { images, loading: imagesLoading, error: imagesError, removeImage, pruneImages, loadImages, pullImage } = useDockerImages(selectedServer?.id || null);
+  const { info, loading: infoLoading, loadInfo } = useDockerSystemInfo(selectedServer?.id || null);
+  const { networks, loading: networksLoading, error: networksError, loadNetworks } = useDockerNetworks(selectedServer?.id || null);
+  const { volumes, loading: volumesLoading, error: volumesError, removeVolume, pruneVolumes, loadVolumes } = useDockerVolumes(selectedServer?.id || null);
+
+  // Track if we have performed the initial redirect to default server
+  const hasInitialRedirect = React.useRef(false);
+
+  // Dynamic Sidebar Injection
+  const { setSidebarContent } = useLayout();
+
+  useEffect(() => {
+    console.log('DockerApp: Injecting Sidebar Content');
+    setSidebarContent(
+      <DockerSidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        mobileOpen={false} // Managed by Layout Sidebar
+        onMobileClose={() => { }}
+      />
+    );
+    return () => setSidebarContent(null);
+  }, [activeView, setActiveView, setSidebarContent]);
+
+  // 自动选择默认服务器
+  useEffect(() => {
+    // Only run this logic if we haven't redirected yet or if we are in a state that needs initialization
+    if (!hasInitialRedirect.current && servers.length > 0) {
+      if (!selectedServer) {
+        // 检查是否有默认服务器
+        const defaultServer = servers.find(s => s.is_default === 1);
+        if (defaultServer) {
+          setSelectedServer(defaultServer);
+          // User wants "Overview" (Global Dashboard) to be the default view even if a default server is selected.
+          // So we DO NOT switch to 'dashboard' here.
+          // However, we still want to select the server so it's highlighted in the sidebar if they navigate to server-specific views.
+
+          hasInitialRedirect.current = true;
+        } else if (activeView !== 'overview' && activeView !== 'servers') {
+          // 如果没有默认服务器且不在总览/服务器管理页，显示容器列表
+          setActiveView('containers');
+          hasInitialRedirect.current = true;
+        } else {
+          // If we are on overview/servers and no default server, we consider initial redirect "done" (user stays on overview)
+          hasInitialRedirect.current = true;
+        }
+      } else {
+        hasInitialRedirect.current = true;
+      }
+    } else if (servers.length === 0 && activeView !== 'overview' && activeView !== 'servers') {
+      // 没有服务器时也显示容器列表（虽然会被空状态覆盖，但逻辑上正确）
+      setActiveView('containers');
+    }
+  }, [servers, selectedServer, activeView]);
+
+  // Resolve Navbar Color for CSS Variable
+  let navBgColor = config.theme?.navbarBgColor || '#5d33f0';
+  if (navBgColor === 'hero') {
+    navBgColor = config.hero?.backgroundColor || '#5d33f0';
+  }
+
+  // Load editing server data into form
+  useEffect(() => {
+    if (editingServer) {
+      setNewServerData({
+        name: editingServer.name || '',
+        description: editingServer.description || '',
+        connection_type: editingServer.connection_type || 'local',
+        host: editingServer.host || '',
+        port: editingServer.port || 2375,
+        ssh_user: editingServer.ssh_user || 'root',
+        ssh_password: editingServer.ssh_password || '',
+        ssh_private_key: editingServer.ssh_private_key || '',
+        ssh_port: editingServer.ssh_port || 22
+      });
+    } else {
+      // Reset form when not editing
+      setNewServerData({
+        name: '',
+        description: '',
+        connection_type: 'local',
+        host: '',
+        port: 2375,
+        ssh_user: 'root',
+        ssh_password: '',
+        ssh_private_key: '',
+        ssh_port: 22
+      });
+    }
+  }, [editingServer, showServerForm]);
+
+  // Construct dynamic theme styles
+  const themeStyles = `
+    :root {
+        --theme-primary: ${config.theme?.primaryColor || '#f1404b'};
+        --theme-bg: ${config.theme?.backgroundColor || '#f1f2f3'};
+        --theme-text: ${config.theme?.textColor || '#444444'};
+        --theme-nav-bg: ${navBgColor};
+        --hero-bg: ${config.hero?.backgroundColor || '#5d33f0'};
+    }
+    body {
+        background-color: var(--theme-bg);
+        color: var(--theme-text);
+    }
+  `;
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  const handleCreateServer = async () => {
+    try {
+      if (editingServer) {
+        // Update existing server
+        await updateServer(editingServer.id, newServerData);
+        showAlert('更新成功', '服务器已成功更新', 'success');
+      } else {
+        // Create new server
+        await createServer(newServerData);
+        showAlert('创建成功', '服务器已成功添加', 'success');
+      }
+      setShowServerForm(false);
+      setEditingServer(null);
+      setNewServerData({
+        name: '',
+        description: '',
+        connection_type: 'local',
+        host: '',
+        port: 2375,
+        ssh_user: 'root',
+        ssh_password: '',
+        ssh_private_key: '',
+        ssh_port: 22
+      });
+    } catch (error: any) {
+      showAlert(editingServer ? '更新失败' : '创建失败', error.message, 'error');
+    }
+  };
+
+  const handleDeleteServer = async (serverId: string) => {
+    showConfirm('确认删除', '确定要删除此服务器吗？此操作无法撤销。', async () => {
+      try {
+        await deleteServer(serverId);
+        if (selectedServer?.id === serverId) {
+          setSelectedServer(null);
+        }
+        showAlert('删除成功', '服务器已删除', 'success');
+      } catch (error: any) {
+        showAlert('删除失败', error.message, 'error');
+      } finally {
+        hideConfirm();
+      }
+    });
+  };
+
+  const handleContainerAction = async (action: 'start' | 'stop' | 'restart' | 'delete', containerId: string) => {
+    const executeAction = async () => {
+      hideConfirm(); // Close dialog immediately
+      try {
+        if (action === 'start') await startContainer(containerId);
+        else if (action === 'stop') await stopContainer(containerId);
+        else if (action === 'restart') await restartContainer(containerId);
+        else if (action === 'delete') await removeContainer(containerId);
+      } catch (error) {
+        console.error(`Failed to ${action} container:`, error);
+        showAlert('操作失败', error instanceof Error ? error.message : '未知错误', 'error');
+      }
+    };
+
+    if (action === 'delete') {
+      showConfirm('确认删除', '确定要删除此容器吗？此操作无法撤销。', executeAction);
+    } else if (action === 'stop') {
+      showConfirm('确认停止', '确定要停止此容器吗？', executeAction, 'primary');
+    } else {
+      executeAction();
+    }
+  };
+
+  const handleCreateContainer = async (data: any) => {
+    try {
+      await createContainer(data);
+      setShowContainerModal(false);
+      showAlert('创建成功', '容器已成功创建', 'success');
+    } catch (error: any) {
+      showAlert('创建失败', error.message, 'error');
+    }
+  };
+
+  const openLogViewer = (containerId: string, containerName: string) => {
+    setSelectedContainerId(containerId);
+    setSelectedContainerName(containerName);
+    setShowLogModal(true);
+  };
+
+  const openShell = (containerId: string, containerName: string) => {
+    setSelectedContainerId(containerId);
+    setSelectedContainerName(containerName);
+    setShowShellModal(true);
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleString('zh-CN');
+  };
+
+  // Hero Background Style Logic
+  const hasBgImage = config.backgroundImage && config.backgroundImage.trim().length > 5;
+  const heroBgStyle = hasBgImage ? {
+    backgroundImage: `url(${config.backgroundImage})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  } : {};
+
+  const handleUserIconClick = () => {
+    if (isAuthenticated) {
+      setShowLogin(true);
+    } else {
+      window.location.href = '/login';
+    }
+  };
+
+
+  return (
+    <div className="flex flex-col h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] font-sans overflow-hidden">
+      <style>{themeStyles}</style>
+
+      {/* Shared Top Navbar */}
+      {/* Global Overlays */}
+      {showLogin && (
+        <LoginDialog
+          onClose={() => setShowLogin(false)}
+          onLogin={() => setShowLogin(false)}
+        />
+      )}
+
+      {/* Top Navbar */}
+
+
+      <div className="flex flex-1 overflow-hidden relative">
+
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto bg-gray-50/50 w-full relative" id="main-content">
+          <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8">
+
+            {/* Global Dashboard */}
+            {activeView === 'overview' && (
+              <GlobalDashboard
+                servers={servers}
+                onSelectServer={(server) => {
+                  setSelectedServer(server);
+                  setActiveView('dashboard');
+                }}
+                onEditServer={(server) => {
+                  setEditingServer(server);
+                  setShowServerForm(true);
+                }}
+                onDeleteServer={(serverId) => {
+                  const server = servers.find(s => s.id === serverId);
+                  if (server) {
+                    showConfirm('确认删除', `确定要删除服务器 "${server.name}" 吗？`, async () => {
+                      try {
+                        await deleteServer(serverId);
+                        hideConfirm();
+                        showAlert('删除成功', '服务器已成功删除', 'success');
+                      } catch (error: any) {
+                        hideConfirm();
+                        showAlert('删除失败', error.message, 'error');
+                      }
+                    });
+                  }
+                }}
+                onSetDefault={async (serverId) => {
+                  try {
+                    await setDefault(serverId);
+                    showAlert('设置成功', '默认服务器已更新', 'success');
+                  } catch (error: any) {
+                    showAlert('设置失败', error.message, 'error');
+                  }
+                }}
+                onAddServer={() => setShowServerForm(true)}
+              />
+            )}
+
+            {/* Loading State (Initial only) */}
+            {serversLoading && servers.length === 0 && (
+              <div className="flex justify-center py-20">
+                <div className="w-10 h-10 border-4 border-[var(--theme-primary)] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {serversError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center m-8">
+                <Icon icon="fa-solid fa-triangle-exclamation" className="text-4xl text-red-500 mb-4" />
+                <h3 className="text-lg font-bold text-red-700 mb-2">无法加载服务器列表</h3>
+                <p className="text-red-600">{serversError}</p>
+                <button onClick={() => loadServers()} className="mt-4 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition">
+                  重试
+                </button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!serversLoading && servers.length === 0 && activeView !== 'overview' && activeView !== 'servers' && (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <Icon icon="fa-solid fa-server" className="text-6xl text-gray-300 mb-4" />
+                <p className="text-gray-500 text-lg">请先添加Docker服务器</p>
+                <button
+                  onClick={() => setShowServerForm(true)}
+                  className="mt-4 px-6 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:brightness-110 transition"
+                >
+                  添加服务器
+                </button>
+              </div>
+            )}
+
+            {/* Server Views */}
+            {selectedServer && (
+              <>
+                {/* Dashboard View */}
+                {activeView === 'dashboard' && (
+                  <ServerDashboardView
+                    info={info}
+                    loading={infoLoading}
+                    serverId={selectedServer.id}
+                    serverName={selectedServer.name}
+                    tabs={
+                      <ServerTabs
+                        servers={servers}
+                        selectedServerId={selectedServer.id}
+                        onSelect={setSelectedServer}
+                        onAddServer={() => setShowServerForm(true)}
+                      />
+                    }
+                  />
+                )}
+
+                {/* Containers View */}
+                {activeView === 'containers' && (
+                  <ContainerList
+                    containers={containers}
+                    loading={containersLoading}
+                    error={containersError}
+                    servers={servers}
+                    selectedServerId={selectedServer.id}
+                    onSelectServer={setSelectedServer}
+                    onAddServer={() => setShowServerForm(true)}
+                    onRefresh={loadContainers}
+                    onCreate={() => {
+                      setContainerModalMode('create');
+                      setSelectedImageForRun('');
+                      setShowContainerModal(true);
+                    }}
+                    onAction={handleContainerAction}
+                    onOpenShell={openShell}
+                    onOpenLogs={openLogViewer}
+                  />
+                )}
+
+                {/* Images View */}
+                {activeView === 'images' && (
+                  <ImageList
+                    images={images}
+                    loading={imagesLoading}
+                    error={imagesError}
+                    servers={servers}
+                    selectedServerId={selectedServer.id}
+                    onSelectServer={setSelectedServer}
+                    onAddServer={() => setShowServerForm(true)}
+                    onRefresh={loadImages}
+                    onPullImage={() => {
+                      showPrompt(
+                        '下载镜像',
+                        '请输入要下载的镜像名称 (例如: nginx:latest)',
+                        async (value) => {
+                          if (!value.trim()) return;
+                          try {
+                            await pullImage(value.trim());
+                            showAlert('下载成功', `镜像 ${value} 已成功下载`, 'success');
+                          } catch (e: any) {
+                            showAlert('下载失败', e.message, 'error');
+                          } finally {
+                            hidePrompt();
+                          }
+                        },
+                        '',
+                        'image:tag'
+                      );
+                    }}
+                    onPruneImages={pruneImages}
+                    onUpdateImage={(repoTag) => {
+                      showConfirm('确认更新', `确定要拉取最新版本的 ${repoTag} 吗？`, async () => {
+                        try {
+                          await pullImage(repoTag);
+                          showAlert('更新成功', '镜像已更新到最新版本', 'success');
+                        } catch (e: any) {
+                          showAlert('更新失败', e.message, 'error');
+                        } finally {
+                          hideConfirm();
+                        }
+                      }, 'primary');
+                    }}
+                    onRunImage={(tag, id) => {
+                      setContainerModalMode('run');
+                      setSelectedImageForRun(tag !== '<none>:<none>' ? tag : id);
+                      setShowContainerModal(true);
+                    }}
+                    onDeleteImage={(id) => {
+                      showConfirm('确认删除', '确定要删除此镜像吗？', async () => {
+                        await removeImage(id, true);
+                        hideConfirm();
+                      });
+                    }}
+                  />
+                )}
+
+                {/* Networks View */}
+                {activeView === 'networks' && (
+                  <NetworkList
+                    networks={networks}
+                    loading={networksLoading}
+                    error={networksError}
+                    servers={servers}
+                    selectedServerId={selectedServer.id}
+                    onSelectServer={setSelectedServer}
+                    onAddServer={() => setShowServerForm(true)}
+                    onRefresh={loadNetworks}
+                  />
+                )}
+
+                {/* Volumes View */}
+                {activeView === 'volumes' && (
+                  <VolumeList
+                    volumes={volumes}
+                    loading={volumesLoading}
+                    error={volumesError}
+                    servers={servers}
+                    selectedServerId={selectedServer.id}
+                    onSelectServer={setSelectedServer}
+                    onAddServer={() => setShowServerForm(true)}
+                    onRefresh={loadVolumes}
+                    onPruneVolumes={pruneVolumes}
+                    onDeleteVolume={(name) => {
+                      showConfirm('确认删除', '确定要删除此卷吗？', async () => {
+                        await removeVolume(name, true);
+                        hideConfirm();
+                      });
+                    }}
+                  />
+                )}
+              </>
+            )}
+
+            {/* Servers List View */}
+            {activeView === 'servers' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold text-gray-800">服务器列表</h2>
+                  <button
+                    onClick={() => setShowServerForm(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--theme-primary)] text-white rounded-lg text-sm hover:brightness-110 transition shadow-lg shadow-red-100"
+                  >
+                    <Icon icon="fa-solid fa-plus" />
+                    <span>添加服务器</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {servers.map(server => (
+                    <div key={server.id} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className={`w-3 h-3 rounded-full ${server.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`}></span>
+                            <span className="font-bold text-lg text-gray-800">{server.name}</span>
+                            {server.is_default === 1 && <span className="text-xs bg-[var(--theme-primary)] text-white px-2 py-0.5 rounded">默认</span>}
+                          </div>
+                          <div className="text-sm text-gray-600 flex items-center gap-4">
+                            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-500 text-xs">{server.connection_type}</span>
+                            <span>{server.connection_type === 'local' ? '本地环境' : `${server.host}:${server.port}`}</span>
+                            <span className="text-gray-400">|</span>
+                            <span>延迟: {server.latency}ms</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-end md:justify-start">
+                          <button
+                            onClick={async () => {
+                              try {
+                                console.log('Testing connection for server:', server.id);
+                                const result = await testConnection(server.id);
+                                console.log('Test connection result in App:', result);
+
+                                if (result.success) {
+                                  showAlert('连接成功', `延迟: ${result.latency}ms`, 'success');
+                                } else {
+                                  console.error('Test connection failed with result:', result);
+                                  showAlert('连接失败', result.error || '未知错误', 'error');
+                                }
+                              } catch (error: any) {
+                                console.error('Connection test failed with error:', error);
+                                showAlert('连接失败', error.message || '未知错误', 'error');
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+                          >
+                            测试
+                          </button>
+                          {server.is_default !== 1 && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await setDefault(server.id);
+                                  showAlert('设置成功', '默认服务器已更新', 'success');
+                                } catch (error: any) {
+                                  showAlert('设置失败', error.message, 'error');
+                                }
+                              }}
+                              className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition flex items-center gap-1"
+                              title="设为默认"
+                            >
+                              <Icon icon="fa-solid fa-star" className="text-xs" />
+                              <span>设为默认</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setEditingServer(server);
+                              setShowServerForm(true);
+                            }}
+                            className="px-3 py-1.5 text-sm bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition flex items-center gap-1"
+                            title="编辑"
+                          >
+                            <Icon icon="fa-solid fa-pen" className="text-xs" />
+                            <span>编辑</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              showConfirm('确认删除', `确定要删除服务器 "${server.name}" 吗？`, async () => {
+                                try {
+                                  await deleteServer(server.id);
+                                  hideConfirm();
+                                  showAlert('删除成功', '服务器已成功删除', 'success');
+                                } catch (error: any) {
+                                  hideConfirm();
+                                  showAlert('删除失败', error.message, 'error');
+                                }
+                              });
+                            }}
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition flex items-center gap-1"
+                            title="删除"
+                          >
+                            <Icon icon="fa-solid fa-trash" className="text-xs" />
+                            <span>删除</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+
+      {/* 添加服务器对话框 */}
+      {
+        showServerForm && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl animate-fade-in-up">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">{editingServer ? '编辑服务器' : '添加Docker服务器'}</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">服务器名称</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                    value={newServerData.name}
+                    onChange={(e) => setNewServerData({ ...newServerData, name: e.target.value })}
+                    placeholder="例如：生产环境服务器"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">连接类型</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                    value={newServerData.connection_type}
+                    onChange={(e) => setNewServerData({ ...newServerData, connection_type: e.target.value as any })}
+                  >
+                    <option value="local">本地Docker (Socket)</option>
+                    <option value="tcp">远程Docker (TCP)</option>
+                    <option value="ssh">远程Docker (SSH隧道)</option>
+                  </select>
+                </div>
+                {newServerData.connection_type !== 'local' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">主机地址</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                        placeholder={newServerData.connection_type === 'ssh' ? '43.247.132.232' : '192.168.1.100'}
+                        value={newServerData.host}
+                        onChange={(e) => setNewServerData({ ...newServerData, host: e.target.value })}
+                      />
+                    </div>
+
+                    {newServerData.connection_type === 'ssh' ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">SSH用户名</label>
+                            <input
+                              type="text"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                              placeholder="root"
+                              value={newServerData.ssh_user}
+                              onChange={(e) => setNewServerData({ ...newServerData, ssh_user: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">SSH端口</label>
+                            <input
+                              type="number"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                              value={newServerData.ssh_port}
+                              onChange={(e) => setNewServerData({ ...newServerData, ssh_port: parseInt(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">SSH密码</label>
+                          <input
+                            type="password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                            placeholder="留空使用SSH私钥认证"
+                            value={newServerData.ssh_password}
+                            onChange={(e) => setNewServerData({ ...newServerData, ssh_password: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">SSH私钥（可选）</label>
+                          <textarea
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition font-mono text-xs"
+                            placeholder="粘贴SSH私钥内容（例如：-----BEGIN OPENSSH PRIVATE KEY-----）"
+                            rows={6}
+                            value={newServerData.ssh_private_key}
+                            onChange={(e) => setNewServerData({ ...newServerData, ssh_private_key: e.target.value })}
+                          />
+                        </div>
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <Icon icon="fa-solid fa-info-circle" className="text-blue-500 mt-0.5" />
+                            <div className="text-xs text-blue-700">
+                              <p className="font-semibold mb-1">SSH认证方式（优先级）：</p>
+                              <ul className="list-disc list-inside space-y-1 opacity-80">
+                                <li>1. SSH私钥（如果提供）</li>
+                                <li>2. SSH密码（如果提供）</li>
+                                <li>3. 系统SSH Agent（作为后备）</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">端口</label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent outline-none transition"
+                          value={newServerData.port}
+                          onChange={(e) => setNewServerData({ ...newServerData, port: parseInt(e.target.value) })}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleCreateServer}
+                  className="flex-1 px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:brightness-110 transition shadow-lg shadow-red-100"
+                >
+                  {editingServer ? '更新' : '添加'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowServerForm(false);
+                    setEditingServer(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+      {/* Confirm Dialog */}
+      {
+        confirmDialog && confirmDialog.isOpen && (
+          <ConfirmDialog
+            isOpen={confirmDialog.isOpen}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={hideConfirm}
+            confirmVariant={confirmDialog.variant}
+          />
+        )
+      }
+      {/* Alert Dialog */}
+      {alertDialog && alertDialog.isOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-fade-in">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={hideAlert} />
+          <div className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${alertDialog.variant === 'error' ? 'bg-red-100 text-red-600' :
+                alertDialog.variant === 'success' ? 'bg-green-100 text-green-600' :
+                  'bg-blue-100 text-blue-600'
+                }`}>
+                <Icon icon={
+                  alertDialog.variant === 'error' ? 'fa-solid fa-circle-xmark' :
+                    alertDialog.variant === 'success' ? 'fa-solid fa-circle-check' :
+                      'fa-solid fa-circle-info'
+                } className="text-xl" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">{alertDialog.title}</h3>
+            </div>
+            <p className="text-gray-600 mb-6 pl-13">{alertDialog.message}</p>
+            <div className="flex justify-end">
+              <button
+                onClick={hideAlert}
+                className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Prompt Dialog */}
+      {promptDialog && promptDialog.isOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-fade-in">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={hidePrompt} />
+          <div className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <Icon icon="fa-solid fa-pen-to-square" className="text-xl" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">{promptDialog.title}</h3>
+            </div>
+            <p className="text-gray-600 mb-4 pl-13">{promptDialog.message}</p>
+            <div className="pl-13 mb-6">
+              <input
+                type="text"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                placeholder={promptDialog.placeholder}
+                defaultValue={promptDialog.defaultValue}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    promptDialog.onConfirm((e.target as HTMLInputElement).value);
+                  }
+                }}
+                id="prompt-input"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={hidePrompt}
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('prompt-input') as HTMLInputElement;
+                  if (input) promptDialog.onConfirm(input.value);
+                }}
+                className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature Modals */}
+      {selectedServer && (
+        <>
+          <ContainerFormModal
+            isOpen={showContainerModal}
+            onClose={() => setShowContainerModal(false)}
+            onSubmit={handleCreateContainer}
+            images={images}
+            networks={networks}
+            initialImage={selectedImageForRun}
+          />
+          <LogViewerModal
+            isOpen={showLogModal}
+            onClose={() => setShowLogModal(false)}
+            containerId={selectedContainerId}
+            containerName={selectedContainerName}
+            fetchLogs={async (id, tail) => {
+              const res = await getContainerLogs(id, tail);
+              return res.logs;
+            }}
+          />
+          <ShellModal
+            isOpen={showShellModal}
+            onClose={() => setShowShellModal(false)}
+            containerId={selectedContainerId}
+            containerName={selectedContainerName}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function DockerAppWithProvider() {
+  return <DockerApp />;
+}

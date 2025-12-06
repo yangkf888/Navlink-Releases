@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+.DS_Store
+# Do not copy local data or plugins into the image
+# We want a fresh image, data/plugins will be mounted via volumes
+data/*
+plugins/*
+logs/*
+tmp/*
+tmp_packages/*
+# Keep empty directories structure if needed, or use mkdir in Dockerfile (preferred)
