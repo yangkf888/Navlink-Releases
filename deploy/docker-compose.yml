@@ -1,0 +1,25 @@
+services:
+  navlink:
+    # 使用 GitHub Container Registry 的公开镜像
+    image: ghcr.io/txwebroot/navlink:latest
+    container_name: navlink-app
+    restart: unless-stopped
+
+    # 从 .env 文件加载配置
+    env_file:
+      - .env
+
+    ports:
+      - "3001:3001"
+
+    volumes:
+      # 数据持久化
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+      - ./logs:/app/logs
+
+# 说明：
+# 1. 首次安装：cp .env.example .env
+# 2. 编辑 .env 文件，设置密钥
+# 3. 启动：docker compose up -d
+# 4. 访问：http://localhost:3001

@@ -1,19 +1,26 @@
-version: '3.8'
-
 services:
-  navlink:
-    container_name: navlink-app
+  navlink2:
+    container_name: navlink2-app
     build: .
     restart: unless-stopped
+    # 加载 .env 文件中的环境变量（包括 PLUGIN_REGISTRY_URL 等）
+    env_file:
+      - .env
     ports:
       - "3001:3001"
     environment:
       - NODE_ENV=production
       - PORT=3001
-      # Add other env vars here if needed, e.g. JWT_SECRET
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-please-change-in-production}
+      - SESSION_SECRET=${SESSION_SECRET:-your-super-secret-session-key-please-change-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your-32-character-encryption-key}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
+      # 应用商城 GitHub Token（访问私有仓库）
+      # 如果您的插件仓库是公开的，可以删除此行
+      - PLUGIN_REGISTRY_TOKEN=${PLUGIN_REGISTRY_TOKEN:-}
     volumes:
+      # 使用相对路径 - 数据存储在当前目录（navlink2卷）
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
-    # Ensure user permissions match if running on Linux
-    # user: "1000:1000" 

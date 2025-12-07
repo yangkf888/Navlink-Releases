@@ -5,11 +5,14 @@ dist
 .env
 .env.local
 .DS_Store
-# Do not copy local data or plugins into the image
-# We want a fresh image, data/plugins will be mounted via volumes
-data/*
+# Do not copy plugins into the image - they will be mounted via volumes
+# Plugins are loaded dynamically at runtime
 plugins/*
+data/*
 logs/*
 tmp/*
 tmp_packages/*
-# Keep empty directories structure if needed, or use mkdir in Dockerfile (preferred)
+# Build artifacts
+*.log
+.vscode
+.idea

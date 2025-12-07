@@ -10,9 +10,8 @@ import PluginLayout from './components/layout/PluginLayout';
 import { PluginIframe } from './components/PluginIframe';
 import PluginGuard from './components/PluginGuard';
 
-// 直接导入插件组件（移除iframe架构）
-import DockerApp from '../plugins/docker/frontend/src/App.tsx';
-import SubApp from '../plugins/sub/frontend/src/App.tsx';
+// 所有插件都使用 iframe 架构，不直接导入插件代码
+// 这样主应用可以在没有任何插件的情况下构建和运行
 
 function App() {
     return (
@@ -25,23 +24,26 @@ function App() {
                             <Route path="/store" element={<AppStore />} />
                             <Route path="/admin/*" element={<AdminApp />} />
 
-                            {/* Unified Plugin Layout */}
+                            {/* 所有插件使用统一的 iframe 架构 */}
                             <Route element={<PluginLayout />}>
-                                {/* VPS仍使用iframe（独立Go应用），但也加上Guard */}
+                                {/* VPS 插件 */}
                                 <Route path="/apps/vps" element={
                                     <PluginGuard pluginId="vps">
                                         <PluginIframe pluginId="vps" title="VPS管理" />
                                     </PluginGuard>
                                 } />
-                                {/* Docker和Sub直接集成，无需iframe */}
+
+                                {/* Docker 插件 - 改回 iframe 架构 */}
                                 <Route path="/apps/docker" element={
                                     <PluginGuard pluginId="docker">
-                                        <DockerApp />
+                                        <PluginIframe pluginId="docker" title="Docker管理" />
                                     </PluginGuard>
                                 } />
+
+                                {/* Sub 插件 - 改回 iframe 架构 */}
                                 <Route path="/apps/sub" element={
                                     <PluginGuard pluginId="sub">
-                                        <SubApp />
+                                        <PluginIframe pluginId="sub" title="订阅管理" />
                                     </PluginGuard>
                                 } />
                             </Route>

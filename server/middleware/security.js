@@ -56,7 +56,17 @@ export const helmetConfig = helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite需要unsafe-eval
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "ws:", "wss:"],
+            connectSrc: [
+                "'self'",
+                "ws:",
+                "wss:",
+                // Iconify 图标库 API
+                "https://api.iconify.design",
+                "https://api.unisvg.com",
+                "https://api.simplesvg.com",
+                // 允许其他外部 API（如热搜等）
+                "https:"
+            ],
             fontSrc: ["'self'", "data:", "https://cdnjs.cloudflare.com"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
