@@ -1,0 +1,37 @@
+{
+    "plugins": [
+        {
+            "id": "docker",
+            "name": "Docker Manager",
+            "version": "1.0.0",
+            "description": "Manage Docker containers, images, networks, and volumes.",
+            "author": "NavLink Team",
+            "category": "System",
+            "icon": "🐳",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/docker-1.0.0.zip",
+            "homepage": "https://github.com/txwebroot/NavLink"
+        },
+        {
+            "id": "sub",
+            "name": "订阅管理",
+            "version": "1.0.0",
+            "description": "跟踪各类订阅服务的到期时间，提供智能提醒",
+            "author": "NavLink Team",
+            "category": "Productivity",
+            "icon": "📅",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub-1.0.0.zip",
+            "homepage": "https://github.com/txwebroot/NavLink"
+        },
+        {
+            "id": "vps",
+            "name": "VPS Manager",
+            "version": "1.0.0",
+            "description": "High-performance VPS management using Go (v2.0 Update)",
+            "author": "NavLink Team",
+            "category": "System",
+            "icon": "🚀",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps-1.0.0.zip",
+            "homepage": "https://github.com/txwebroot/NavLink"
+        }
+    ]
+}
