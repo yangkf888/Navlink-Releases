@@ -23,6 +23,17 @@
             "homepage": "https://github.com/txwebroot/NavLink"
         },
         {
+            "id": "sub2",
+            "name": "订阅管理 2",
+            "version": "1.0.0",
+            "description": "跟踪各类订阅服务的到期时间，提供智能提醒（测试版）",
+            "author": "NavLink Team",
+            "category": "Productivity",
+            "icon": "📅",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub2-1.0.0.zip",
+            "homepage": "https://github.com/txwebroot/NavLink"
+        },
+        {
             "id": "vps",
             "name": "VPS Manager",
             "version": "1.0.0",
