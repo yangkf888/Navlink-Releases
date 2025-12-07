@@ -38,8 +38,13 @@ RUN mkdir -p data plugins logs tmp_packages
 # We use a non-root user 'node' (uid 1000) provided by the alpine image
 RUN chown -R node:node /app
 
-# Switch to non-root user
-USER node
+# 安装 su-exec（用于 entrypoint 脚本中切换用户）
+USER root
+RUN apk add --no-cache su-exec
+
+# 复制 entrypoint 脚本
+COPY scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # 关联 GitHub 仓库（使镜像显示在仓库页面）
 LABEL org.opencontainers.image.source="https://github.com/txwebroot/NavLink"
@@ -66,6 +71,9 @@ ENV JWT_SECRET="navlink-default-jwt-secret-please-change-in-production-2024" \
 # 默认管理员账号
 ENV DEFAULT_ADMIN_USERNAME="admin" \
     DEFAULT_ADMIN_PASSWORD="admin123"
+
+# 使用 entrypoint 脚本（自动修复权限并切换用户）
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start the server
 CMD ["node", "server.js"]
