@@ -44,10 +44,23 @@ USER node
 # Expose backend port
 EXPOSE 3001
 
-# 预设应用商城配置（编译到镜像中，用户完全看不到）
-# 注意：这些值会被 docker-compose.yml 或 .env 中的同名变量覆盖
-ENV PLUGIN_REGISTRY_URL="https://raw.githubusercontent.com/txwebroot/NavLink/refs/heads/main/Navlink-plugins/plugin-registry.json"
-ENV PLUGIN_REGISTRY_TOKEN="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"
+# 预设所有必需的环境变量（可被 docker-compose 覆盖）
+# 插件商城配置
+ENV PLUGIN_REGISTRY_URL="https://raw.githubusercontent.com/txwebroot/NavLink/refs/heads/main/Navlink-plugins/plugin-registry.json" \
+    PLUGIN_REGISTRY_TOKEN="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"
+
+# 核心配置
+ENV NODE_ENV="production" \
+    PORT="3001"
+
+# 安全密钥（默认值，生产环境应该覆盖）
+ENV JWT_SECRET="navlink-default-jwt-secret-please-change-in-production-2024" \
+    SESSION_SECRET="navlink-default-session-secret-please-change-in-production-2024" \
+    ENCRYPTION_KEY="navlink-default-encryption-key-32"
+
+# 默认管理员账号
+ENV DEFAULT_ADMIN_USERNAME="admin" \
+    DEFAULT_ADMIN_PASSWORD="admin123"
 
 # Start the server
 CMD ["node", "server.js"]

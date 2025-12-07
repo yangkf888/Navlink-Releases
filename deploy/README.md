@@ -8,59 +8,59 @@
 - Docker Compose 2.0+
 - 2GB 可用内存
 - 5GB 可用磁盘
+- GitHub Personal Access Token（因为镜像仓库是私有的）
 
 ### 安装步骤
 
-#### 1. 解压安装包
+#### 1. 获取部署文件
+
+**方式 A：** 直接下载
 
 ```bash
-unzip navlink-v1.0.0.zip
-cd navlink-install
+curl -O https://raw.githubusercontent.com/txwebroot/NavLink/main/deploy/docker-compose.yml
 ```
 
-#### 2. 配置环境变量
+**方式 B：** 从安装包解压
 
 ```bash
-# 从模板创建配置文件
-cp .env.example .env
-
-# 编辑配置（必须修改密钥！）
-vim .env
+unzip navlink-deploy.zip
+cd navlink-deploy
 ```
 
-**必须修改的配置**：
+#### 2. 登录 GitHub Container Registry
+
+因为镜像仓库是私有的，需要先登录 GHCR：
 
 ```bash
-# 安全密钥（使用随机字符串）
-JWT_SECRET=<修改为32位随机字符串>
-SESSION_SECRET=<修改为32位随机字符串>
-ENCRYPTION_KEY=<修改为32位随机字符串>
-
-# 管理员密码（建议修改）
-DEFAULT_ADMIN_PASSWORD=<设置强密码>
+# 使用您的 GitHub Personal Access Token
+echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u txwebroot --password-stdin
 ```
 
-**快速生成密钥**：
+**如何获取 GitHub Token**：
+1. 访问 https://github.com/settings/tokens
+2. 点击 "Generate new token" → "Generate new token (classic)"
+3. 勾选 `read:packages` 权限
+4. 复制生成的 Token
+
+#### 3. 拉取镜像
 
 ```bash
-# macOS/Linux
-openssl rand -base64 32
-
-# 或使用
-head -c 32 /dev/urandom | base64
+docker-compose pull
 ```
 
-#### 3. 启动服务
+#### 4. 启动服务
 
 ```bash
-docker compose up -d
+docker-compose up -d
 ```
 
-#### 4. 访问应用
+#### 5. 访问应用
 
 - **主页**: http://localhost:3001
 - **管理后台**: http://localhost:3001/admin
-- **默认账号**: admin / 您设置的密码
+- **默认账号**: admin / admin123
+
+⚠️ **重要**：首次登录后请立即修改管理员密码！
 
 ---
 
