@@ -106,12 +106,13 @@ package_plugin() {
         cp "$plugin_dir/LICENSE" "$temp_plugin_dir/"
     fi
     
-    # 打包为 zip
+    # 打包为 zip（不包含顶层目录，像 pack-plugin.sh 一样）
     local output_file="$(pwd)/$OUTPUT_DIR/${plugin_name}-${version}.zip"
     echo "  创建压缩包: $output_file"
     
-    cd "$TEMP_DIR"
-    zip -r "$output_file" "$plugin_name" -q
+    # 进入插件目录，打包当前目录内容（不包含插件名目录）
+    cd "$temp_plugin_dir"
+    zip -r "$output_file" . -q
     cd - > /dev/null
     
     # 清理临时文件
