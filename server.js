@@ -352,15 +352,15 @@ app.post('/api/plugins/rescan',
     });
 
 // ==========================================================================
-// 配置管理 - 使用 ConfigService
+// 配置管理 - 使用 SiteConfigDAO (单表 JSON 存储)
 // ==========================================================================
-import configService from './server/services/ConfigService.js';
+import siteConfigDAO from './server/database/dao/SiteConfigDAO.js';
 
 // 获取配置 - 添加缓存
 app.get('/api/config', cacheMiddleware({ ttl: 300, keyPrefix: 'config:' }), async (req, res) => {
     try {
-        const configData = await configService.getFullConfig();
-        res.json(configData);
+        const configData = await siteConfigDAO.getConfig();
+        res.json(configData || {});
     } catch (error) {
         serverLogger.error('Failed to get config:', error);
         res.status(500).json({ error: 'Failed to load configuration' });
@@ -370,8 +370,12 @@ app.get('/api/config', cacheMiddleware({ ttl: 300, keyPrefix: 'config:' }), asyn
 // 保存配置 - 失效缓存
 app.post('/api/config', authenticateToken, requireAdmin, invalidateCacheMiddleware(['config:*']), async (req, res) => {
     try {
-        await configService.updateConfig(req.body);
-        res.json({ success: true });
+        const success = await siteConfigDAO.save(req.body);
+        if (success) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ error: 'Failed to save configuration' });
+        }
     } catch (error) {
         serverLogger.error('Failed to save config:', error);
         res.status(500).json({ error: 'Failed to save configuration' });
