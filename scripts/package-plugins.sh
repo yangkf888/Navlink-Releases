@@ -63,9 +63,11 @@ package_plugin() {
     local plugin_type=$(cat "$plugin_dir/manifest.json" | grep -o '"type"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)".*/\1/')
     
     if [ "$plugin_type" = "node" ]; then
-        # Node.js 插件
+        # Node.js 插件 - 排除 node_modules（会在安装后重新构建）
         if [ -d "$plugin_dir/backend-nodejs" ]; then
-            cp -r "$plugin_dir/backend-nodejs" "$temp_plugin_dir/"
+            mkdir -p "$temp_plugin_dir/backend-nodejs"
+            # 复制除 node_modules 外的所有文件
+            rsync -a --exclude='node_modules' --exclude='*.log' "$plugin_dir/backend-nodejs/" "$temp_plugin_dir/backend-nodejs/"
         fi
         
         if [ -d "$plugin_dir/frontend/dist" ]; then
@@ -73,10 +75,7 @@ package_plugin() {
             cp -r "$plugin_dir/frontend/dist" "$temp_plugin_dir/frontend/"
         fi
         
-        # 复制 package.json（如果存在）
-        if [ -f "$plugin_dir/backend-nodejs/package.json" ]; then
-            cp "$plugin_dir/backend-nodejs/package.json" "$temp_plugin_dir/"
-        fi
+        # package.json 已在上面的 rsync 中复制，无需单独复制
         
     elif [ "$plugin_type" = "binary" ]; then
         # 二进制插件（如 Go）
@@ -125,7 +124,7 @@ package_plugin() {
 }
 
 # 打包所有指定的插件
-plugins_to_package=("docker" "sub" "sub2" "vps" "vps-2")
+plugins_to_package=("docker" "sub" "vps" "vps-2")
 
 for plugin in "${plugins_to_package[@]}"; do
     package_plugin "$plugin"

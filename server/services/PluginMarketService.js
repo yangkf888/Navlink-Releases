@@ -151,7 +151,41 @@ export class PluginMarketService {
                 throw new Error('Plugin ID mismatch');
             }
 
-            // 4.1 确保二进制文件有执行权限
+            //  4.1 为 Node.js 插件安装依赖
+            if (manifest.type === 'node') {
+                const backendDir = path.join(pluginDir, 'backend-nodejs');
+                const packageJsonPath = path.join(backendDir, 'package.json');
+
+                // 检查是否有 package.json
+                try {
+                    await fs.access(packageJsonPath);
+                    console.log(`[PluginMarket] Installing dependencies for ${pluginId}...`);
+
+                    // 运行 npm install
+                    const { spawn } = await import('child_process');
+                    await new Promise((resolve, reject) => {
+                        const npm = spawn('npm', ['install', '--production'], {
+                            cwd: backendDir,
+                            shell: true
+                        });
+
+                        npm.on('close', (code) => {
+                            if (code === 0) {
+                                console.log(`[PluginMarket] ✓ Dependencies installed for ${pluginId}`);
+                                resolve();
+                            } else {
+                                reject(new Error(`npm install failed with code ${code}`));
+                            }
+                        });
+
+                        npm.on('error', reject);
+                    });
+                } catch (err) {
+                    console.warn(`[PluginMarket] No package.json found for ${pluginId}, skipping npm install`);
+                }
+            }
+
+            // 4.2 确保二进制文件有执行权限
             if (manifest.type === 'binary' && manifest.entry) {
                 const binaryPath = path.join(pluginDir, manifest.entry);
                 try {
