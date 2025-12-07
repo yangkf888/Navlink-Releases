@@ -112,21 +112,28 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const saveConfig = async (newConfig: SiteConfig) => {
         try {
+            console.log('[ConfigContext] 开始保存配置到服务器...');
             await api.saveConfig(newConfig);
-            // Update local storage as backup
+            console.log('[ConfigContext] ✅ 配置保存成功');
+
             // Update local storage as backup
             localStorage.setItem('nav_site_config', JSON.stringify(newConfig));
             // Dispatch local event for other components in same window
             window.dispatchEvent(new CustomEvent('nav-config-updated', { detail: newConfig }));
+
+            // 显示成功提示
+            setToast({ message: '✅ 配置已保存', type: 'success' });
         } catch (err) {
-            console.error('Save failed:', err);
+            console.error('[ConfigContext] ❌ 保存配置失败:', err);
+
             if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
                 console.warn('[ConfigContext] 认证失败，自动退出登录');
                 localStorage.removeItem('auth_token');
                 setIsAuthenticated(false);
-                setToast({ message: '登录已过期，请重新登录', type: 'error' });
+                setToast({ message: '❌ 登录已过期，请重新登录', type: 'error' });
             } else {
-                setToast({ message: 'Failed to save changes', type: 'error' });
+                const errorMsg = err instanceof ApiError ? err.message : '网络错误';
+                setToast({ message: `❌ 保存失败: ${errorMsg}`, type: 'error' });
             }
             throw err;
         }
@@ -134,8 +141,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const setConfig = (newConfig: SiteConfig | ((prev: SiteConfig) => SiteConfig)) => {
         const finalConfig = typeof newConfig === 'function' ? newConfig(config) : newConfig;
+        console.log('[ConfigContext] 配置已更新(本地),等待1秒后自动保存...');
         setConfigState(finalConfig);
-        // Optimistic update to local storage
         // Optimistic update to local storage
         localStorage.setItem('nav_site_config', JSON.stringify(finalConfig));
         // Dispatch local event for other components in same window
@@ -177,18 +184,29 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const suppressSave = React.useRef(true);
 
     useEffect(() => {
-        if (!isLoaded) return;
+        if (!isLoaded) {
+            console.log('[ConfigContext] 配置未加载完成,跳过自动保存');
+            return;
+        }
 
         // Prevent save on initial load
         if (suppressSave.current) {
+            console.log('[ConfigContext] 首次加载,跳过自动保存');
             suppressSave.current = false;
             return;
         }
 
-        if (!isAuthenticated) return; // Don't auto-save if not logged in
+        if (!isAuthenticated) {
+            console.warn('[ConfigContext] ⚠️ 未登录,无法自动保存配置!');
+            setToast({ message: '⚠️ 请先登录才能保存配置', type: 'error' });
+            return;
+        }
 
+        console.log('[ConfigContext] 配置变化检测到,1秒后自动保存...');
         const timer = setTimeout(() => {
-            saveConfig(config).catch(() => {
+            console.log('[ConfigContext] 触发自动保存...');
+            saveConfig(config).catch((err) => {
+                console.error('[ConfigContext] 自动保存失败:', err);
                 // Error is already handled in saveConfig (toast)
             });
         }, 1000);
