@@ -41,6 +41,11 @@ RUN chown -R node:node /app
 # Switch to non-root user
 USER node
 
+# 关联 GitHub 仓库（使镜像显示在仓库页面）
+LABEL org.opencontainers.image.source="https://github.com/txwebroot/NavLink"
+LABEL org.opencontainers.image.description="NavLink - 智能导航与插件管理系统"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
 # Expose backend port
 EXPOSE 3001
 
