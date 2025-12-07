@@ -125,7 +125,7 @@ package_plugin() {
 }
 
 # 打包所有指定的插件
-plugins_to_package=("docker" "sub" "sub2" "vps")
+plugins_to_package=("docker" "sub" "sub2" "vps" "vps-2")
 
 for plugin in "${plugins_to_package[@]}"; do
     package_plugin "$plugin"
