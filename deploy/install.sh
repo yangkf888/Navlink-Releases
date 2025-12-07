@@ -82,8 +82,16 @@ fi
 echo -e "${GREEN}✓${NC} 配置文件下载完成"
 echo ""
 
+# 创建必需的目录
+echo -e "${YELLOW}3. 创建数据目录...${NC}"
+mkdir -p data plugins logs
+chmod 777 data plugins logs
+
+echo -e "${GREEN}✓${NC} 数据目录创建完成"
+echo ""
+
 # 拉取镜像
-echo -e "${YELLOW}3. 拉取 Docker 镜像...${NC}"
+echo -e "${YELLOW}4. 拉取 Docker 镜像...${NC}"
 docker-compose pull
 
 if [ $? -ne 0 ]; then

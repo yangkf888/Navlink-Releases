@@ -42,19 +42,34 @@ echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u txwebroot --password-stdin
 3. 勾选 `read:packages` 权限
 4. 复制生成的 Token
 
-#### 3. 拉取镜像
+#### 3. 创建数据目录（重要！）
+
+**必须先创建目录并设置权限**，否则会出现权限错误：
+
+```bash
+# 创建必需的目录
+mkdir -p data plugins logs
+
+# 设置目录权限（允许容器内的 node 用户写入）
+chmod 777 data plugins logs
+```
+
+> [!IMPORTANT]
+> 这一步很关键！如果跳过，容器会因为无法创建数据库文件而不断重启。
+
+#### 4. 拉取镜像
 
 ```bash
 docker-compose pull
 ```
 
-#### 4. 启动服务
+#### 5. 启动服务
 
 ```bash
 docker-compose up -d
 ```
 
-#### 5. 访问应用
+#### 6. 访问应用
 
 - **主页**: http://localhost:3001
 - **管理后台**: http://localhost:3001/admin
