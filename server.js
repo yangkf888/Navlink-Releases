@@ -9,6 +9,7 @@ import { PluginMarketService } from './server/services/PluginMarketService.js';
 import { ServiceRegistry } from './server/core/ServiceRegistry.js';
 import { createPluginRouter, handlePluginWebSocket } from './server/core/PluginRouter.js';
 import { initAuthDB } from './server/database/initAuthDB.js';
+import { initConfigDB } from './server/database/initConfigDB.js';
 import { AuthService } from './server/services/AuthService.js';
 import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
@@ -876,6 +877,10 @@ app.get('*', (req, res, next) => {
     // 初始化认证数据库
     await initAuthDB();
     authLogger.info('Database initialized');
+
+    // 初始化配置数据库
+    initConfigDB();
+    serverLogger.info('Config database initialized');
 
     await pluginManager.scanPlugins();
 
