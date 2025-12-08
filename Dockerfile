@@ -7,8 +7,12 @@ COPY package*.json ./
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source code and plugins (needed for direct import in App.tsx)
+COPY src ./src
+COPY plugins ./plugins
+COPY index.html vite.config.ts tsconfig.json tsconfig.node.json ./
+COPY public ./public
+
 # Build the frontend (Vite -> dist)
 RUN npm run build
 

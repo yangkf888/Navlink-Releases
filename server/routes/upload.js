@@ -6,6 +6,7 @@ import https from 'https';
 import fs from 'fs/promises';
 import { UPLOAD_DIR, DATA_DIR } from '../config.js';
 import { ensureUploadDir } from '../utils/fileHelper.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -34,12 +35,6 @@ const upload = multer({
         }
     }
 });
-
-// Middleware to mock auth (since we are using simple auth in server.js)
-const authenticateToken = (req, res, next) => {
-    // For now, just allow. In real implementation, verify JWT.
-    next();
-};
 
 // API: Upload Image
 router.post('/upload', authenticateToken, upload.single('image'), (req, res) => {

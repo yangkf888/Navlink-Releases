@@ -723,13 +723,23 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 
 // --- Plugin Frontend API Proxy ---
 // 处理插件前端的API调用: /apps/:pluginId/api/* -> /api/apps/:pluginId/api/*
-app.use('/apps/:pluginId/api', authenticateToken, (req, res, next) => {
+app.use('/apps/:pluginId/api', optionalAuth, (req, res, next) => {
     const pluginId = req.params.pluginId;
     const plugin = pluginManager.getActivePlugin(pluginId);
 
     if (!plugin) {
         console.error(`[Plugin Frontend Proxy] Plugin ${pluginId} not found or not running`);
         return res.status(404).json({ error: `Plugin ${pluginId} not running` });
+    }
+
+    // 如果没有认证用户，使用默认用户上下文
+    if (!req.user) {
+        req.user = {
+            id: 'user_1001',
+            tenantId: 'default',
+            role: 'user',
+            username: 'default-user'
+        };
     }
 
     // 进程内插件：代理到本机的 /api/plugins/:pluginId
@@ -781,12 +791,22 @@ app.use('/apps/:pluginId/api', authenticateToken, (req, res, next) => {
 });
 
 // 处理插件前端的WebSocket连接: /apps/:pluginId/ws
-app.use('/apps/:pluginId/ws', authenticateToken, (req, res, next) => {
+app.use('/apps/:pluginId/ws', optionalAuth, (req, res, next) => {
     const pluginId = req.params.pluginId;
     const plugin = pluginManager.getActivePlugin(pluginId);
 
     if (!plugin) {
         return res.status(404).json({ error: `Plugin ${pluginId} not running` });
+    }
+
+    // 如果没有认证用户，使用默认用户上下文
+    if (!req.user) {
+        req.user = {
+            id: 'user_1001',
+            tenantId: 'default',
+            role: 'user',
+            username: 'default-user'
+        };
     }
 
     console.log(`[Plugin Frontend WS Proxy] Proxying WebSocket for ${pluginId}`);

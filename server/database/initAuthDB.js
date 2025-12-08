@@ -20,6 +20,13 @@ export async function initAuthDB() {
             fs.mkdirSync(dataDir, { recursive: true });
         }
 
+        // 确保 uploads 子目录存在
+        const uploadsDir = path.join(dataDir, 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+            console.log('[AuthDB] Created uploads directory:', uploadsDir);
+        }
+
         const db = new sqlite3.Database(DB_PATH, async (err) => {
             if (err) {
                 console.error('[AuthDB] Failed to open database:', err);

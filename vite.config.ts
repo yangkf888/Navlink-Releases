@@ -12,22 +12,19 @@ export default defineConfig({
         proxy: {
             // 所有API请求代理到Gateway
             '/api': {
-                target: 'http://127.0.0.1:3001',
+                target: 'http://127.0.0.1:3002',
                 changeOrigin: true,
                 secure: false,
                 ws: true
             },
             '/uploads': {
-                target: 'http://127.0.0.1:3001',
+                target: 'http://127.0.0.1:3002',
                 changeOrigin: true,
                 secure: false
             },
-            // 关键：代理所有/apps请求到Gateway
-            // 这样iframe的src="/apps/docker/"会被代理，避免跨端口问题
-            // 仅VPS插件需要代理（因为它是独立iframe加载）
-            // Docker和Sub插件已集成到主应用，需由前端路由处理，不可代理到后端
+            // 仅VPS插件使用iframe架构（独立Go应用）
             '/apps/vps': {
-                target: 'http://127.0.0.1:3001',
+                target: 'http://127.0.0.1:3002',
                 changeOrigin: true,
                 secure: false,
                 ws: true,
