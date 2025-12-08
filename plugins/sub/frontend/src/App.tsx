@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLayout } from '@/shared/context/LayoutContext';
 import { Subscription } from './types/subscription';
 import { SubscriptionForm } from './components/SubscriptionForm';
 import { Modal } from './components/Modal';
@@ -41,7 +40,6 @@ function SubApp() {
     const { subscriptions, loading, loadSubscriptions, createSubscription, updateSubscription, deleteSubscription } = useSubscriptions();
     const { reminders: customReminders, loading: remindersLoading, createReminder, updateReminder, deleteReminder } = useCustomReminders();
     const { confirmDialog, showConfirm, hideConfirm } = useDialogs();
-    const { setSidebarContent, collapsed } = useLayout();
 
     // View State
     const [activeView, setActiveView] = useState<'dashboard' | 'list' | 'calendar' | 'reminders' | 'settings'>(() => {
@@ -210,75 +208,67 @@ function SubApp() {
         }
     `;
 
-    // Inject Sidebar Content (MOVED UP to avoid Hook Error)
-
+    // 使用 postMessage 发送侧边栏配置到主应用
     useEffect(() => {
-        setSidebarContent(
-            <div className="space-y-1 py-2">
-                <button
-                    onClick={() => setActiveView('dashboard')}
-                    className={`
-                        w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 
-                        ${activeView === 'dashboard' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    title={collapsed ? "仪表盘" : ""}
-                >
-                    <span className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}><i className="fas fa-home"></i></span>
-                    {!collapsed && "仪表盘"}
-                </button>
-                <button
-                    onClick={() => setActiveView('list')}
-                    className={`
-                        w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 
-                        ${activeView === 'list' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    title={collapsed ? "订阅列表" : ""}
-                >
-                    <span className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}><i className="fas fa-list"></i></span>
-                    {!collapsed && "订阅列表"}
-                </button>
-                <button
-                    onClick={() => setActiveView('calendar')}
-                    className={`
-                        w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 
-                        ${activeView === 'calendar' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    title={collapsed ? "日历视图" : ""}
-                >
-                    <span className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}><i className="fas fa-calendar"></i></span>
-                    {!collapsed && "日历视图"}
-                </button>
-                <button
-                    onClick={() => setActiveView('reminders')}
-                    className={`
-                        w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 
-                        ${activeView === 'reminders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    title={collapsed ? "提醒事项" : ""}
-                >
-                    <span className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}><i className="fas fa-bell"></i></span>
-                    {!collapsed && "提醒事项"}
-                </button>
-                <button
-                    onClick={() => setActiveView('settings')}
-                    className={`
-                        w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 
-                        ${activeView === 'settings' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    title={collapsed ? "设置" : ""}
-                >
-                    <span className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}><i className="fas fa-cog"></i></span>
-                    {!collapsed && "设置"}
-                </button>
-            </div>
-        );
-        return () => setSidebarContent(null);
-    }, [activeView, setSidebarContent, collapsed]);
+        // 检查是否在iframe中
+        const isInIframe = window.parent !== window;
+        console.log('[Sub Plugin] isInIframe:', isInIframe, 'activeView:', activeView);
+
+        if (!isInIframe) return;
+
+        const sidebarConfig = {
+            title: '订阅管理',
+            items: [
+                { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
+                { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
+                { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
+                { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
+                { id: 'settings', label: '设置', icon: 'fas fa-cog' }
+            ],
+            activeId: activeView
+        };
+
+        console.log('[Sub Plugin] Sending sidebar config:', sidebarConfig);
+        window.parent.postMessage({
+            type: 'PLUGIN_SET_SIDEBAR',
+            payload: sidebarConfig
+        }, '*');
+    }, [activeView]);
+
+    // 🔑 组件挂载时立即发送一次配置（不等待数据加载）
+    useEffect(() => {
+        const isInIframe = window.parent !== window;
+        if (!isInIframe) return;
+
+        console.log('[Sub Plugin] Component mounted, sending initial config');
+        window.parent.postMessage({
+            type: 'PLUGIN_SET_SIDEBAR',
+            payload: {
+                title: '订阅管理',
+                items: [
+                    { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
+                    { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
+                    { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
+                    { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
+                    { id: 'settings', label: '设置', icon: 'fas fa-cog' }
+                ],
+                activeId: 'dashboard'
+            }
+        }, '*');
+    }, []);
+
+    // 监听来自主应用的侧边栏点击事件
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data.type === 'SIDEBAR_ITEM_CLICKED') {
+                const itemId = event.data.payload.itemId;
+                setActiveView(itemId as any);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
     if (!isLoaded || loading || remindersLoading) {
         return (

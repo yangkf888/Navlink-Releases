@@ -10,9 +10,8 @@ import PluginLayout from './components/layout/PluginLayout';
 import { PluginIframe } from './components/PluginIframe';
 import PluginGuard from './components/PluginGuard';
 
-// 直接导入插件组件（移除iframe架构）
-import DockerApp from '../plugins/docker/frontend/src/App.tsx';
-import SubApp from '../plugins/sub/frontend/src/App.tsx';
+// 使用 iframe 架构支持动态安装插件
+// 通过 postMessage 实现统一UI和动态侧边栏
 
 function App() {
     return (
@@ -25,23 +24,26 @@ function App() {
                             <Route path="/store" element={<AppStore />} />
                             <Route path="/admin/*" element={<AdminApp />} />
 
-                            {/* Unified Plugin Layout */}
+                            {/* 插件使用 iframe 架构 + postMessage 通信 */}
                             <Route element={<PluginLayout />}>
-                                {/* VPS仍使用iframe（独立Go应用），但也加上Guard */}
+                                {/* VPS 插件 */}
                                 <Route path="/apps/vps" element={
                                     <PluginGuard pluginId="vps">
                                         <PluginIframe pluginId="vps" title="VPS管理" />
                                     </PluginGuard>
                                 } />
-                                {/* Docker和Sub直接集成，无需iframe */}
+
+                                {/* Docker 插件 */}
                                 <Route path="/apps/docker" element={
                                     <PluginGuard pluginId="docker">
-                                        <DockerApp />
+                                        <PluginIframe pluginId="docker" title="Docker管理" />
                                     </PluginGuard>
                                 } />
+
+                                {/* Sub 插件 */}
                                 <Route path="/apps/sub" element={
                                     <PluginGuard pluginId="sub">
-                                        <SubApp />
+                                        <PluginIframe pluginId="sub" title="订阅管理" />
                                     </PluginGuard>
                                 } />
                             </Route>

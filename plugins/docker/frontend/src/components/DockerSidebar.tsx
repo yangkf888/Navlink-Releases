@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from '@/shared/components/common/Icon';
 import { useLayout } from '@/shared/context/LayoutContext';
+import type { DockerView } from '../App';
 
 interface DockerSidebarProps {
     activeView: DockerView;

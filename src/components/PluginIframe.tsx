@@ -22,14 +22,13 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
     // 获取token并构建iframe URL
     const token = localStorage.getItem('auth_token');
 
-    // 使用相对路径！
-    // iframe的src是 /apps/docker/?token=xxx
-    // 浏览器会解析为 http://127.0.0.1:5173/apps/docker/?token=xxx
-    // Vite的proxy会将其代理到 http://127.0.0.1:3001/apps/docker/?token=xxx
-    // 这样避免了跨端口问题！
+    // 使用绝对URL直接指向后端！
+    // 这样避免被vite proxy拦截，让主应用的React Router能正常工作
+    const backendPort = import.meta.env.DEV ? '3002' : window.location.port;
     const src = token
-        ? `/apps/${pluginId}/?token=${encodeURIComponent(token)}`
-        : `/apps/${pluginId}/`;
+        ? `http://${window.location.hostname}:${backendPort}/apps/${pluginId}/?token=${encodeURIComponent(token)}`
+        : `http://${window.location.hostname}:${backendPort}/apps/${pluginId}/`;
+
 
 
     useEffect(() => {

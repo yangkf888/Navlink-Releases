@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '@/shared/context/ConfigContext';
-import { useLayout } from '@/shared/context/LayoutContext';
 import { useDockerServers, useDockerContainers, useDockerImages, useDockerSystemInfo, useDockerNetworks, useDockerVolumes, useDockerAuditLogs } from './hooks/useDocker';
 import { DockerServer, AuditLog } from './types/docker';
 
@@ -13,7 +12,7 @@ import LoginDialog from '@/shared/components/common/LoginDialog';
 import { Icon } from '@/shared/components/common/Icon';
 import { useDialogs } from '@/shared/hooks/useDialogs';
 import { ConfirmDialog } from '@/shared/components/common/ConfirmDialog';
-import DockerSidebar, { DockerView } from './components/DockerSidebar';
+import DockerSidebar from './components/DockerSidebar';
 import GlobalDashboard from './components/GlobalDashboard';
 import ServerDashboardView from './components/ServerDashboardView';
 import ServerTabs from './components/ServerTabs';
@@ -26,6 +25,9 @@ import { NetworkList } from './components/views/NetworkList';
 import { VolumeList } from './components/views/VolumeList';
 
 // 不再需要从URL获取token，直接使用主应用的认证状态
+
+// Docker视图类型
+export type DockerView = 'overview' | 'dashboard' | 'containers' | 'images' | 'networks' | 'volumes' | 'servers';
 
 
 function DockerApp() {
@@ -96,21 +98,70 @@ function DockerApp() {
   // Track if we have performed the initial redirect to default server
   const hasInitialRedirect = React.useRef(false);
 
-  // Dynamic Sidebar Injection
-  const { setSidebarContent } = useLayout();
-
+  // 使用 postMessage 发送侧边栏配置到主应用
   useEffect(() => {
-    console.log('DockerApp: Injecting Sidebar Content');
-    setSidebarContent(
-      <DockerSidebar
-        activeView={activeView}
-        onViewChange={setActiveView}
-        mobileOpen={false} // Managed by Layout Sidebar
-        onMobileClose={() => { }}
-      />
-    );
-    return () => setSidebarContent(null);
-  }, [activeView, setActiveView, setSidebarContent]);
+    const isInIframe = window.parent !== window;
+    console.log('[Docker Plugin] isInIframe:', isInIframe, 'activeView:', activeView);
+
+    if (!isInIframe) return;
+
+    const sidebarConfig = {
+      title: 'Docker管理',
+      items: [
+        { id: 'overview', label: '总览', icon: 'fa-solid fa-globe' },
+        { id: 'dashboard', label: '概览', icon: 'fa-solid fa-dashboard' },
+        { id: 'containers', label: '容器', icon: 'fa-solid fa-box' },
+        { id: 'images', label: '镜像', icon: 'fa-solid fa-layer-group' },
+        { id: 'networks', label: '网络', icon: 'fa-solid fa-network-wired' },
+        { id: 'volumes', label: '卷', icon: 'fa-solid fa-database' },
+        { id: 'servers', label: '服务器', icon: 'fa-solid fa-server' }
+      ],
+      activeId: activeView
+    };
+
+    console.log('[Docker Plugin] Sending sidebar config:', sidebarConfig);
+    window.parent.postMessage({
+      type: 'PLUGIN_SET_SIDEBAR',
+      payload: sidebarConfig
+    }, '*');
+  }, [activeView]);
+
+  // 🔑 组件挂载时立即发送一次配置（不等待数据加载）
+  useEffect(() => {
+    const isInIframe = window.parent !== window;
+    if (!isInIframe) return;
+
+    console.log('[Docker Plugin] Component mounted, sending initial config');
+    window.parent.postMessage({
+      type: 'PLUGIN_SET_SIDEBAR',
+      payload: {
+        title: 'Docker管理',
+        items: [
+          { id: 'overview', label: '总览', icon: 'fa-solid fa-globe' },
+          { id: 'dashboard', label: '概览', icon: 'fa-solid fa-dashboard' },
+          { id: 'containers', label: '容器', icon: 'fa-solid fa-box' },
+          { id: 'images', label: '镜像', icon: 'fa-solid fa-layer-group' },
+          { id: 'networks', label: '网络', icon: 'fa-solid fa-network-wired' },
+          { id: 'volumes', label: '卷', icon: 'fa-solid fa-database' },
+          { id: 'servers', label: '服务器', icon: 'fa-solid fa-server' }
+        ],
+        activeId: 'overview'
+      }
+    }, '*');
+  }, []);
+
+  // 监听来自主应用的侧边栏点击事件
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'SIDEBAR_ITEM_CLICKED') {
+        const itemId = event.data.payload.itemId;
+        setActiveView(itemId as DockerView);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // 自动选择默认服务器
   useEffect(() => {

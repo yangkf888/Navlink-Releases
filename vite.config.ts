@@ -21,13 +21,6 @@ export default defineConfig({
                 target: 'http://127.0.0.1:3002',
                 changeOrigin: true,
                 secure: false
-            },
-            // 仅VPS插件使用iframe架构（独立Go应用）
-            '/apps/vps': {
-                target: 'http://127.0.0.1:3002',
-                changeOrigin: true,
-                secure: false,
-                ws: true,
             }
         },
         watch: {
