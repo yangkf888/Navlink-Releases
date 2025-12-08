@@ -33,6 +33,7 @@ export function initConfigDB() {
             search_shortcut TEXT DEFAULT 'Cmd+K',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            config_data TEXT,  -- 存储完整的JSON配置
             CHECK (id = 1)  -- 确保只有一条记录
         );
 
