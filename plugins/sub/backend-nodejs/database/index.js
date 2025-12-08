@@ -57,6 +57,8 @@ function initSchema(db) {
     db.exec(`
         CREATE TABLE IF NOT EXISTS subscriptions (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL DEFAULT 'default',
+            user_id TEXT NOT NULL DEFAULT 'default',
             name TEXT NOT NULL,
             description TEXT DEFAULT '',
             category TEXT DEFAULT '',
@@ -75,6 +77,8 @@ function initSchema(db) {
         -- 自定义提醒表
         CREATE TABLE IF NOT EXISTS custom_reminders (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL DEFAULT 'default',
+            user_id TEXT NOT NULL DEFAULT 'default',
             title TEXT NOT NULL,
             description TEXT DEFAULT '',
             targetDate TEXT NOT NULL,
@@ -93,8 +97,10 @@ function initSchema(db) {
         );
 
         -- 创建索引
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_tenant ON subscriptions(tenant_id, user_id);
         CREATE INDEX IF NOT EXISTS idx_subscriptions_expiry ON subscriptions(expiryDate);
         CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(isActive);
+        CREATE INDEX IF NOT EXISTS idx_reminders_tenant ON custom_reminders(tenant_id, user_id);
         CREATE INDEX IF NOT EXISTS idx_reminders_date ON custom_reminders(targetDate);
         CREATE INDEX IF NOT EXISTS idx_reminders_active ON custom_reminders(isActive);
     `, (err) => {
