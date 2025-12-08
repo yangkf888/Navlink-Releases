@@ -8,7 +8,7 @@ const { encrypt, decrypt } = require('../utils/crypto');
 exports.getGroups = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
-    return await all('SELECT * FROM vps_groups ORDER BY sort_order ASC, created_at DESC');
+    return await all('SELECT * FROM groups ORDER BY sort_order ASC, created_at DESC');
 };
 
 exports.createGroup = async (group) => {
@@ -16,7 +16,7 @@ exports.createGroup = async (group) => {
     const { run } = promisifyDb(db);
     const id = uuidv4();
     await run(
-        'INSERT INTO vps_groups (id, name, description, sort_order) VALUES (?, ?, ?, ?)',
+        'INSERT INTO groups (id, name, description, sort_order) VALUES (?, ?, ?, ?)',
         [id, group.name, group.description || '', group.sort_order || 0]
     );
     return { id, ...group };
@@ -26,7 +26,7 @@ exports.updateGroup = async (id, group) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
     await run(
-        'UPDATE vps_groups SET name = ?, description = ?, sort_order = ? WHERE id = ?',
+        'UPDATE groups SET name = ?, description = ?, sort_order = ? WHERE id = ?',
         [group.name, group.description, group.sort_order, id]
     );
     return { id, ...group };
@@ -35,7 +35,7 @@ exports.updateGroup = async (id, group) => {
 exports.deleteGroup = async (id) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
-    await run('DELETE FROM vps_groups WHERE id = ?', [id]);
+    await run('DELETE FROM groups WHERE id = ?', [id]);
     return { id };
 };
 
@@ -44,7 +44,7 @@ exports.deleteGroup = async (id) => {
 exports.getServers = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
-    const servers = await all('SELECT * FROM vps_servers ORDER BY created_at DESC');
+    const servers = await all('SELECT * FROM servers ORDER BY created_at DESC');
 
     return servers.map(server => {
         const { password, private_key, ...rest } = server;
@@ -59,7 +59,7 @@ exports.getServers = async () => {
 exports.getServerById = async (id, includeSecrets = false) => {
     const db = getDatabase();
     const { get } = promisifyDb(db);
-    const server = await get('SELECT * FROM vps_servers WHERE id = ?', [id]);
+    const server = await get('SELECT * FROM servers WHERE id = ?', [id]);
 
     if (!server) return null;
 
@@ -86,7 +86,7 @@ exports.createServer = async (server) => {
     const encryptedKey = server.private_key ? encrypt(server.private_key) : null;
 
     await run(
-        `INSERT INTO vps_servers (
+        `INSERT INTO servers (
             id, group_id, name, description, host, port, username, password, private_key, auth_type
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -134,7 +134,7 @@ exports.updateServer = async (id, server) => {
 
     if (updates.length === 0) return { id };
 
-    const sql = `UPDATE vps_servers SET ${updates.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE servers SET ${updates.join(', ')} WHERE id = ?`;
     params.push(id);
 
     await run(sql, params);
@@ -144,12 +144,12 @@ exports.updateServer = async (id, server) => {
 exports.deleteServer = async (id) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
-    await run('DELETE FROM vps_servers WHERE id = ?', [id]);
+    await run('DELETE FROM servers WHERE id = ?', [id]);
     return { id };
 };
 
 exports.checkServerConnectivity = async (id) => {
-    const server = await exports.getServerById(id);
+    const server = await exports.getServerById(id, true); // 获取解密后的凭证
     if (!server) throw new Error('Server not found');
 
     return new Promise((resolve) => {
@@ -166,18 +166,62 @@ exports.checkServerConnectivity = async (id) => {
             const latency = Date.now() - start;
             cleanup();
 
+            // TCP连接成功，尝试SSH获取系统信息
+            let systemInfo = {};
+            try {
+                const { NodeSSH } = require('node-ssh');
+                const { getSystemInfo } = require('../utils/sshMonitor');
+
+                const ssh = new NodeSSH();
+                const sshConfig = {
+                    host: server.host,
+                    port: server.port || 22,
+                    username: server.username,
+                    readyTimeout: 10000,
+                    keepaliveInterval: 10000
+                };
+
+                // 根据认证类型设置凭证
+                if (server.auth_type === 'password' && server.password) {
+                    sshConfig.password = server.password;
+                } else if (server.auth_type === 'key' && server.private_key) {
+                    sshConfig.privateKey = server.private_key;
+                }
+
+                console.log(`[VPS Check] Connecting SSH to ${server.host}:${server.port}...`);
+                await ssh.connect(sshConfig);
+                console.log(`[VPS Check] SSH connected, getting system info...`);
+
+                systemInfo = await getSystemInfo(ssh);
+                ssh.dispose();
+
+                if (systemInfo) {
+                    console.log(`[VPS Check] System info retrieved for ${server.host}`);
+                }
+            } catch (sshError) {
+                console.error(`[VPS Check] SSH failed for ${server.host}:`, sshError.message);
+                // SSH失败不影响在线状态，只是没有系统信息
+            }
+
+            // 更新数据库
             await exports.updateServer(id, {
                 status: 'online',
                 latency: latency,
-                last_check_time: new Date().toISOString()
+                last_check_time: new Date().toISOString(),
+                ...systemInfo // 包含 os_info, cpu_info, mem_info, disk_info
             });
 
-            resolve({ id, status: 'online', latency });
+            resolve({
+                id,
+                status: 'online',
+                latency,
+                ...systemInfo
+            });
         });
 
         socket.on('error', async (err) => {
             cleanup();
-            console.error(`[Ping] Error connecting to ${server.host}:`, err.message);
+            console.error(`[VPS Check] Error connecting to ${server.host}:`, err.message);
 
             await exports.updateServer(id, {
                 status: 'offline',
@@ -205,7 +249,7 @@ exports.checkServerConnectivity = async (id) => {
 exports.getSnippets = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
-    return await all('SELECT * FROM vps_snippets ORDER BY category ASC, title ASC');
+    return await all('SELECT * FROM snippets ORDER BY category ASC, title ASC');
 };
 
 exports.createSnippet = async (snippet) => {
@@ -213,7 +257,7 @@ exports.createSnippet = async (snippet) => {
     const { run } = promisifyDb(db);
     const id = uuidv4();
     await run(
-        'INSERT INTO vps_snippets (id, category, title, command, description) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO snippets (id, category, title, command, description) VALUES (?, ?, ?, ?, ?)',
         [id, snippet.category, snippet.title, snippet.command, snippet.description || '']
     );
     return { id, ...snippet };
@@ -223,7 +267,7 @@ exports.updateSnippet = async (id, snippet) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
     await run(
-        'UPDATE vps_snippets SET category = ?, title = ?, command = ?, description = ? WHERE id = ?',
+        'UPDATE snippets SET category = ?, title = ?, command = ?, description = ? WHERE id = ?',
         [snippet.category, snippet.title, snippet.command, snippet.description, id]
     );
     return { id, ...snippet };
@@ -232,7 +276,7 @@ exports.updateSnippet = async (id, snippet) => {
 exports.deleteSnippet = async (id) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
-    await run('DELETE FROM vps_snippets WHERE id = ?', [id]);
+    await run('DELETE FROM snippets WHERE id = ?', [id]);
     return { id };
 };
 
@@ -241,7 +285,7 @@ exports.deleteSnippet = async (id) => {
 exports.getSnippetCategories = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
-    return await all('SELECT * FROM vps_snippet_categories ORDER BY sort_order ASC, created_at DESC');
+    return await all('SELECT * FROM snippet_categories ORDER BY sort_order ASC, created_at DESC');
 };
 
 exports.createSnippetCategory = async (category) => {
@@ -249,7 +293,7 @@ exports.createSnippetCategory = async (category) => {
     const { run } = promisifyDb(db);
     const id = uuidv4();
     await run(
-        'INSERT INTO vps_snippet_categories (id, name, sort_order) VALUES (?, ?, ?)',
+        'INSERT INTO snippet_categories (id, name, sort_order) VALUES (?, ?, ?)',
         [id, category.name, category.sort_order || 0]
     );
     return { id, ...category };
@@ -259,7 +303,7 @@ exports.updateSnippetCategory = async (id, category) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
     await run(
-        'UPDATE vps_snippet_categories SET name = ?, sort_order = ? WHERE id = ?',
+        'UPDATE snippet_categories SET name = ?, sort_order = ? WHERE id = ?',
         [category.name, category.sort_order, id]
     );
     return { id, ...category };
@@ -268,6 +312,6 @@ exports.updateSnippetCategory = async (id, category) => {
 exports.deleteSnippetCategory = async (id) => {
     const db = getDatabase();
     const { run } = promisifyDb(db);
-    await run('DELETE FROM vps_snippet_categories WHERE id = ?', [id]);
+    await run('DELETE FROM snippet_categories WHERE id = ?', [id]);
     return { id };
 };

@@ -2,6 +2,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { VpsServer, VpsGroup } from '../types';
 import { Icon } from './common/Icon';
+import { createGroup, updateGroup, deleteGroup, checkServerStatus } from '../api';
+import { ConfirmModal } from './common/ConfirmModal';
 
 interface GlobalDashboardProps {
     servers: VpsServer[];
@@ -19,6 +21,7 @@ export default function GlobalDashboard({ servers, groups, onConnect, onAddServe
     const [editingGroup, setEditingGroup] = useState<VpsGroup | null>(null);
     const [newGroupName, setNewGroupName] = useState('');
     const [isAddingGroup, setIsAddingGroup] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
     const stats = useMemo(() => {
         const total = servers.length;
@@ -30,26 +33,44 @@ export default function GlobalDashboard({ servers, groups, onConnect, onAddServe
         const osDist: Record<string, number> = {};
         servers.forEach(s => {
             if (s.os_info) {
-                // Simple normalization: take first word (Ubuntu, CentOS, Debian, etc.)
-                const osName = s.os_info.split(' ')[0];
-                osDist[osName] = (osDist[osName] || 0) + 1;
+                try {
+                    const osData = JSON.parse(s.os_info);
+                    const osName = osData.name?.split(' ')[0] || 'Unknown';
+                    osDist[osName] = (osDist[osName] || 0) + 1;
+                } catch {
+                    // Fallback for old format
+                    const osName = s.os_info.split(' ')[0];
+                    osDist[osName] = (osDist[osName] || 0) + 1;
+                }
             } else {
                 osDist['Unknown'] = (osDist['Unknown'] || 0) + 1;
             }
         });
 
         const cpuCores = servers.reduce((acc, s) => {
-            const match = s.cpu_info?.match(/\((\d+)\s+Cores\)/);
-            return acc + (match ? parseInt(match[1]) : 0);
+            if (!s.cpu_info) return acc;
+            try {
+                const cpuData = JSON.parse(s.cpu_info);
+                return acc + (cpuData.cores || 0);
+            } catch {
+                // Fallback for old format
+                const match = s.cpu_info?.match(/\((\d+)\s+Cores\)/);
+                return acc + (match ? parseInt(match[1]) : 0);
+            }
         }, 0);
         const ramTotal = servers.reduce((acc, s) => {
-            const match = s.mem_info?.match(/^(\d+)\s+MB/);
-            return acc + (match ? parseInt(match[1]) : 0);
+            if (!s.mem_info) return acc;
+            try {
+                const memData = JSON.parse(s.mem_info);
+                return acc + (memData.total || 0);
+            } catch {
+                // Fallback for old format
+                const match = s.mem_info?.match(/^(\d+)\s+MB/);
+                return acc + (match ? parseInt(match[1]) : 0);
+            }
         }, 0);
-        // Disk total is hard to sum due to units, skipping for now or just count count
-        const diskTotal = 0;
 
-        return { total, online, offline, unknown, osDist, cpuCores, ramTotal, diskTotal };
+        return { total, online, offline, unknown, osDist, cpuCores, ramTotal };
     }, [servers]);
 
     // Keep latest servers in ref to access inside interval without re-running effect
@@ -66,29 +87,10 @@ export default function GlobalDashboard({ servers, groups, onConnect, onAddServe
                 // Only check if there are servers
                 if (currentServers.length === 0) return;
 
-                const token = localStorage.getItem('auth_token');
-                const res = await fetch(`./api/servers/check?_t=${Date.now()}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ ids: currentServers.map(s => s.id) })
-                });
+                await checkServerStatus(currentServers.map(s => s.id));
 
-                if (res.ok) {
-                    const results = await res.json();
-                    // Check for online servers with missing info
-                    results.forEach((r: any) => {
-                        const server = currentServers.find(s => s.id === r.id);
-                        if (server && r.status === 'online' && (!server.os_info || !server.cpu_info)) {
-                            fetchSystemInfo(server);
-                        }
-                    });
-
-                    // Trigger refresh to update status
-                    onRefresh();
-                }
+                // Trigger refresh to update status (system info is now automatically fetched by backend)
+                onRefresh();
             } catch (error) {
                 console.error('Status check failed:', error);
             }
@@ -103,96 +105,77 @@ export default function GlobalDashboard({ servers, groups, onConnect, onAddServe
         return () => clearInterval(interval);
     }, [onRefresh]); // Only depend on onRefresh (which is now stable)
 
-    const fetchSystemInfo = (server: VpsServer) => {
-        console.log('Fetching system info for', server.name);
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const token = localStorage.getItem('auth_token') || '';
-        const wsUrl = `${protocol}//${window.location.host}/api/plugins/vps/ws?type=terminal&serverId=${server.id}&token=${encodeURIComponent(token)}`;
-        const ws = new WebSocket(wsUrl);
+    // Helper functions to parse JSON system info
+    const parseOSInfo = (osInfoStr?: string) => {
+        if (!osInfoStr) return '-';
+        try {
+            const info = JSON.parse(osInfoStr);
+            // 只显示名称，不显示版本和内核
+            return info.name || '-';
+        } catch {
+            // Fallback for old format
+            return osInfoStr.split('\n').pop()?.trim() || '-';
+        }
+    };
 
-        let buffer = '';
+    const parseCPUInfo = (cpuInfoStr?: string) => {
+        if (!cpuInfoStr) return '-';
+        try {
+            const info = JSON.parse(cpuInfoStr);
+            const model = info.model || 'Unknown';
+            const cores = info.cores || 0;
 
-        ws.onopen = () => {
-            // Send command to get info
-            // We use a complex command to ensure we get clean output
-            const cmd = `
-echo "START_SYSINFO";
-echo "OS:$(grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"' || uname -s)";
-echo "CPU:$(nproc) Cores";
-echo "MEM:$(free -m | awk '/^Mem:/{print $2}') MB";
-echo "DISK:$(df -h / | awk 'NR==2{print $2}')";
-echo "END_SYSINFO";
-exit;
-`;
-            ws.send(cmd);
-        };
-
-        ws.onmessage = (event) => {
-            const data = event.data;
-            if (typeof data === 'string') {
-                buffer += data;
-            } else if (data instanceof Blob) {
-                // Handle Blob if needed, but usually text for terminal
-                const reader = new FileReader();
-                reader.onload = () => {
-                    buffer += reader.result as string;
-                    processBuffer();
-                };
-                reader.readAsText(data);
-            } else if (data instanceof ArrayBuffer) {
-                buffer += new TextDecoder().decode(data);
-                processBuffer();
+            // 显示完整的CPU型号和核心数
+            if (cores > 0) {
+                return `${model} (${cores}核)`;
+            } else {
+                return model;
             }
-            processBuffer();
-        };
+        } catch {
+            // Fallback for old format
+            return cpuInfoStr.split('\n').pop()?.trim() || '-';
+        }
+    };
 
-        const processBuffer = async () => {
-            // Strip ANSI escape codes
-            // eslint-disable-next-line no-control-regex
-            const cleanBuffer = buffer.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+    const parseMemInfo = (memInfoStr?: string) => {
+        if (!memInfoStr) return '-';
+        try {
+            const info = JSON.parse(memInfoStr);
+            const total = info.total || 0;
+            const used = info.used || 0;
+            const percentage = info.usedPercentage || 0;
 
-            if (cleanBuffer.includes('END_SYSINFO')) {
-                ws.close();
+            if (total === 0) return '-';
 
-                // Extract content between markers to avoid matching command echo
-                const startIndex = cleanBuffer.indexOf('START_SYSINFO');
-                const endIndex = cleanBuffer.indexOf('END_SYSINFO');
-
-                if (startIndex !== -1 && endIndex !== -1) {
-                    const content = cleanBuffer.substring(startIndex, endIndex);
-
-                    // Parse info from content using multiline regex
-                    const osMatch = content.match(/^OS:(.+)$/m);
-                    const cpuMatch = content.match(/^CPU:(.+)$/m);
-                    const memMatch = content.match(/^MEM:(.+)$/m);
-                    const diskMatch = content.match(/^DISK:(.+)$/m);
-
-                    const updates: any = {};
-                    if (osMatch) updates.os_info = osMatch[1].trim();
-                    if (cpuMatch) updates.cpu_info = cpuMatch[1].trim();
-                    if (memMatch) updates.mem_info = memMatch[1].trim();
-                    if (diskMatch) updates.disk_info = diskMatch[1].trim();
-
-                    if (Object.keys(updates).length > 0) {
-                        console.log('Updating server info:', updates);
-                        try {
-                            const token = localStorage.getItem('auth_token');
-                            await fetch(`./api/servers/${server.id}`, {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify(updates)
-                            });
-                            onRefresh();
-                        } catch (e) {
-                            console.error('Failed to update server info', e);
-                        }
-                    }
-                }
+            // 格式：百分比 (已用/总量)
+            // 如果大于1024MB，转换为GB显示
+            if (total >= 1024) {
+                const totalGB = (total / 1024).toFixed(1);
+                const usedGB = (used / 1024).toFixed(1);
+                return `${percentage}% (${usedGB}/${totalGB}GB)`;
+            } else {
+                return `${percentage}% (${used}/${total}MB)`;
             }
-        };
+        } catch {
+            // Fallback for old format
+            return memInfoStr.split('\n').pop()?.trim() || '-';
+        }
+    };
+
+    const parseDiskInfo = (diskInfoStr?: string) => {
+        if (!diskInfoStr) return '-';
+        try {
+            const info = JSON.parse(diskInfoStr);
+            const percentage = info.usedPercentage || 0;
+            const used = info.used || '0';
+            const total = info.total || '0';
+
+            // 格式：百分比 (已用/总量)
+            return `${percentage}% (${used}/${total})`;
+        } catch {
+            // Fallback for old format
+            return diskInfoStr.split('\n').pop()?.trim() || '-';
+        }
     };
 
     const filteredServers = useMemo(() => {
@@ -205,12 +188,7 @@ exit;
     const handleAddGroup = async () => {
         if (!newGroupName.trim()) return;
         try {
-            const token = localStorage.getItem('auth_token');
-            await fetch('./api/groups', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token} ` },
-                body: JSON.stringify({ name: newGroupName })
-            });
+            await createGroup({ name: newGroupName });
             onRefresh();
             setNewGroupName('');
             setIsAddingGroup(false);
@@ -221,12 +199,7 @@ exit;
 
     const handleRenameGroup = async (group: VpsGroup, newName: string) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            await fetch(`./api/groups/${group.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token} ` },
-                body: JSON.stringify({ name: newName })
-            });
+            await updateGroup(group.id, { name: newName });
             onRefresh();
             setEditingGroup(null);
         } catch (e) {
@@ -235,13 +208,8 @@ exit;
     };
 
     const handleDeleteGroup = async (groupId: string) => {
-        if (!confirm('确定要删除此分组吗？组内服务器将变为未分组状态。')) return;
         try {
-            const token = localStorage.getItem('auth_token');
-            await fetch(`./api/groups/${groupId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token} ` }
-            });
+            await deleteGroup(groupId);
             onRefresh();
             if (activeTab === groups.find(g => g.id === groupId)?.name) {
                 setActiveTab('All');
@@ -398,47 +366,18 @@ exit;
                                     <td className="px-6 py-4 text-sm text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="fa-brands fa-linux" className="text-gray-400" />
-                                            {(() => {
-                                                const clean = (s: string) => {
-                                                    if (!s) return '-';
-                                                    // Take the last line if multiple lines (removes command echo)
-                                                    const lines = s.trim().split('\n');
-                                                    return lines[lines.length - 1].trim();
-                                                };
-                                                return clean(server.os_info || '');
-                                            })()}
+                                            {parseOSInfo(server.os_info)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-600">
-                                        {(() => {
-                                            const clean = (s: string) => {
-                                                if (!s) return '-';
-                                                const lines = s.trim().split('\n');
-                                                return lines[lines.length - 1].trim();
-                                            };
-                                            return clean(server.cpu_info || '');
-                                        })()}
+                                        {parseCPUInfo(server.cpu_info)}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-600">
-                                        {(() => {
-                                            const clean = (s: string) => {
-                                                if (!s) return '-';
-                                                const lines = s.trim().split('\n');
-                                                return lines[lines.length - 1].trim();
-                                            };
-                                            return clean(server.mem_info || '');
-                                        })()}
+                                        {parseMemInfo(server.mem_info)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900">
-                                            {(() => {
-                                                const clean = (s: string) => {
-                                                    if (!s) return '-';
-                                                    const lines = s.trim().split('\n');
-                                                    return lines[lines.length - 1].trim();
-                                                };
-                                                return clean(server.disk_info || '');
-                                            })()}
+                                            {parseDiskInfo(server.disk_info)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -559,7 +498,7 @@ exit;
                                                         <Icon icon="fa-solid fa-pen" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteGroup(group.id)}
+                                                        onClick={() => setGroupToDelete(group.id)}
                                                         className="text-gray-400 hover:text-red-600 p-1"
                                                         title="删除"
                                                     >
@@ -580,6 +519,14 @@ exit;
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={!!groupToDelete}
+                onClose={() => setGroupToDelete(null)}
+                onConfirm={() => groupToDelete && handleDeleteGroup(groupToDelete)}
+                title="删除分组"
+                message="确定要删除此分组吗？组内服务器将变为未分组状态。"
+            />
         </div>
     );
 }
