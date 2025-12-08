@@ -30,22 +30,23 @@ export default function ServerTerminalView({ serverId, serverName, onClose, serv
     useEffect(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const token = localStorage.getItem('auth_token') || '';
-        const wsUrl = `${protocol}//${window.location.host}/api/apps/vps/ws?type=control&serverId=${serverId}&token=${encodeURIComponent(token)}`;
+        const wsUrl = `${protocol}//${window.location.host}/api/plugins/vps/ws?type=control&serverId=${serverId}&token=${encodeURIComponent(token)}`;
 
-        console.log('Connecting to Control WS:', wsUrl.replace(token, '***'));
         const socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-            console.log('Control WS Connected');
             setIsConnected(true);
             setWs(socket);
-            // Start monitoring
-            socket.send(JSON.stringify({ type: 'monitor:start' }));
         };
 
         socket.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
+
+                if (msg.type === 'control:ready') {
+                    socket.send(JSON.stringify({ type: 'monitor:start' }));
+                }
+
                 if (msg.type === 'monitor:data') {
                     setStats(msg.data);
                 }
@@ -55,7 +56,6 @@ export default function ServerTerminalView({ serverId, serverName, onClose, serv
         };
 
         socket.onclose = () => {
-            console.log('Control WS Closed');
             setIsConnected(false);
             setWs(null);
         };

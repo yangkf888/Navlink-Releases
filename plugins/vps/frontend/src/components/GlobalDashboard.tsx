@@ -106,9 +106,8 @@ export default function GlobalDashboard({ servers, groups, onConnect, onAddServe
     const fetchSystemInfo = (server: VpsServer) => {
         console.log('Fetching system info for', server.name);
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // WebSocket also needs to go through proxy? Or direct?
-        // If we use /vps-plugin-api/ws, we need to handle WS upgrade in proxy.
-        const wsUrl = `${protocol}//${window.location.host}/ws?type=terminal&serverId=${server.id}`;
+        const token = localStorage.getItem('auth_token') || '';
+        const wsUrl = `${protocol}//${window.location.host}/api/plugins/vps/ws?type=terminal&serverId=${server.id}&token=${encodeURIComponent(token)}`;
         const ws = new WebSocket(wsUrl);
 
         let buffer = '';

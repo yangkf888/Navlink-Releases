@@ -81,7 +81,7 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
                 onLoad={handleLoad}
                 onError={handleError}
                 className="w-full h-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                 allow="clipboard-read; clipboard-write"
             />
         </div>

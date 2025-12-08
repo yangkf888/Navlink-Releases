@@ -109,6 +109,7 @@ export class PluginManager {
                 // 注意：这里假设插件导出了 init 方法并返回 express.Router
                 if (pluginModule.default && typeof pluginModule.default.init === 'function') {
                     const router = await pluginModule.default.init(this.context); // 需要在构造函数中传入context
+                    plugin.instance = router; // Store instance for WebSocket upgrades
                     // 挂载路由: /api/plugins/<pluginId> -> Plugin Router
                     // 注意：这里我们使用 /api/plugins/<pluginId> 作为统一前缀
                     // 但为了兼容现有前端代码，我们可能需要保留 /api/<pluginId> 或者让前端改
@@ -165,6 +166,7 @@ export class PluginManager {
                     // 但由于我们是 ESM 环境，import() 应该能处理 CommonJS
                     if (pluginModule.init && typeof pluginModule.init === 'function') {
                         const router = await pluginModule.init(this.context);
+                        plugin.instance = router; // Store instance for WebSocket upgrades
                         if (this.app) {
                             // 状态检查中间件
                             const statusCheckMiddleware = (req, res, next) => {

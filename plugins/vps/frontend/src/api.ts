@@ -2,10 +2,9 @@ import axios from 'axios';
 import { VpsServer, VpsGroup, Snippet, SnippetCategory } from './types';
 
 // Configure axios with base URL
-// When running as standalone plugin, use /api
-// When proxied through Gateway, Gateway will handle /api/apps/vps prefix
+// Direct access to plugin mount point (bypassing self-proxy loop)
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: '/api/plugins/vps/api',
 });
 
 // --- Groups ---

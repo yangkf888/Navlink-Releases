@@ -137,10 +137,10 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(
             }
 
             // Connect WebSocket
-            // Use /api/apps/vps/ws path, which goes through Vite's /api proxy (with ws: true)
+            // Connect through Vite proxy to gateway
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const token = localStorage.getItem('auth_token') || '';
-            const wsUrl = `${protocol}//${window.location.host}/api/apps/vps/ws?type=terminal&serverId=${serverId}&token=${encodeURIComponent(token)}`;
+            const wsUrl = `${protocol}//${window.location.host}/api/plugins/vps/ws?type=terminal&serverId=${serverId}&token=${encodeURIComponent(token)}`;
 
             console.log('Connecting to Terminal WS:', wsUrl.replace(token, '***'));
             const ws = new WebSocket(wsUrl);

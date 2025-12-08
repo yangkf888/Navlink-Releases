@@ -1,5 +1,4 @@
-import React from 'react';
-import { SiteConfig, Category } from '@/shared/types';
+import { Category } from '@/shared/types';
 import { Icon } from '@/shared/components/common/Icon';
 import { useLayout } from '@/shared/context/LayoutContext';
 

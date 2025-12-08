@@ -3,7 +3,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import fs from 'fs';
 import { PluginManager } from './server/core/PluginManager.js';
 import { PluginMarketService } from './server/services/PluginMarketService.js';
 import { ServiceRegistry } from './server/core/ServiceRegistry.js';
@@ -44,6 +44,7 @@ const securityLoggerMiddleware = securityLogger(authLogger);
 
 // Initialize Plugin Manager
 const pluginsDir = path.join(__dirname, 'plugins');
+const DATA_DIR = path.join(process.cwd(), 'data');
 // 构建全局上下文传给插件
 const pluginContext = {
     db: {
@@ -974,18 +975,26 @@ app.get('*', (req, res, next) => {
     });
 
     // Handle WebSocket Upgrades Manually for Dynamic Plugins
-    server.on('upgrade', (req, socket, head) => {
-        console.log(`[WebSocket] Upgrade request received: ${req.url}`);
+    server.on('upgrade', async (req, socket, head) => {
+        console.log('[WebSocket] ===== UPGRADE REQUEST =====');
+        console.log('[WebSocket] URL:', req.url);
+        console.log('[WebSocket] Headers:', JSON.stringify(req.headers, null, 2));
 
-        // 匹配两种路径:
-        // 1. /api/apps/:pluginId/* - 插件API的WebSocket
-        // 2. /apps/:pluginId/ws - 插件前端的WebSocket (如SSH终端)
+        // 匹配多种路径:
+        // 1. /api/apps/:pluginId/* - 兼容旧版插件API的WebSocket
+        // 2. /apps/:pluginId/ws - 兼容旧版插件前端的WebSocket
+        // 3. /api/plugins/:pluginId/ws - 推荐的新版插件WebSocket路径
         let match = req.url.match(/^\/api\/apps\/([^\/]+)(.*)/);
         let pathPrefix = '/api/apps/';
 
         if (!match) {
             match = req.url.match(/^\/apps\/([^\/]+)\/(ws.*)/);
             pathPrefix = '/apps/';
+        }
+
+        if (!match) {
+            match = req.url.match(/^\/api\/plugins\/([^\/]+)\/ws(.*)/);
+            pathPrefix = '/api/plugins/';
         }
 
         if (match) {
@@ -1015,6 +1024,26 @@ app.get('*', (req, res, next) => {
                 if (!user) {
                     console.error(`[WebSocket Upgrade] Invalid token for ${pluginId}`);
                     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                // Check if in-process plugin handles upgrades
+                console.log(`[WebSocket Upgrade] Plugin info for ${pluginId}: mode=${plugin.mode}, port=${plugin.port}, hasInstance=${!!plugin.instance}`);
+                if (plugin.instance) {
+                    console.log(`[WebSocket Upgrade] Instance handler type: ${typeof plugin.instance.handleUpgrade}`);
+                }
+
+                if ((plugin.mode === 'in-process' || !plugin.port) && plugin.instance && typeof plugin.instance.handleUpgrade === 'function') {
+                    console.log(`[WebSocket Upgrade] Delegating to in-process plugin ${pluginId}`);
+                    // Note: Auth has been verified above
+                    plugin.instance.handleUpgrade(req, socket, head);
+                    return;
+                }
+
+                // 如果是进程内插件且没有处理程序，目前不支持通过此方式代理 WebSocket
+                if (plugin.mode === 'in-process' || !plugin.port) {
+                    console.log(`[WebSocket Upgrade] In-process plugin ${pluginId} WS not supported via proxy (Missing instance or handleUpgrade)`);
                     socket.destroy();
                     return;
                 }

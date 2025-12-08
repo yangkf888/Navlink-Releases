@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Package, Play, Settings, Download, Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Package, Play, Settings, Download, Search, CheckCircle } from 'lucide-react';
 import { useConfig } from '../context/ConfigContext';
 import { Button } from '../../components/ui/Button';
 
@@ -201,8 +201,8 @@ export default function AppStore({ isEmbedded = false }: AppStoreProps) {
                         <button
                             onClick={() => setActiveTab('store')}
                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'store'
-                                    ? 'bg-blue-50 text-blue-600'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                 }`}
                         >
                             Marketplace
@@ -210,8 +210,8 @@ export default function AppStore({ isEmbedded = false }: AppStoreProps) {
                         <button
                             onClick={() => setActiveTab('library')}
                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'library'
-                                    ? 'bg-blue-50 text-blue-600'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                 }`}
                         >
                             Library

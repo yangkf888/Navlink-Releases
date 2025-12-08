@@ -38,11 +38,16 @@ import Sidebar from '@/shared/components/layout/Sidebar';
 interface SidebarItem {
     id: string;
     label: string;
-    icon: string;
+    icon?: string; // Icon is optional now
+    children?: SidebarItem[];
+    isOpen?: boolean; // Initial state
+    isLabel?: boolean; // If true, renders as a section header
+    statusColor?: string; // If set, shows a status dot
+    isCategory?: boolean; // If true, renders with smaller font size
 }
 
 interface PluginSidebarConfig {
-    title?: string; // 侧边栏标题
+    title?: string;
     items: SidebarItem[];
     activeId: string;
 }
@@ -56,13 +61,26 @@ const PluginLayout: React.FC = () => {
     // 插件Sidebar配置（通过postMessage接收）
     const [pluginSidebarConfig, setPluginSidebarConfig] = useState<PluginSidebarConfig | null>(null);
     const [collapsed, setCollapsed] = useState(false);
+    const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
     // 设置CSS变量 --theme-primary
     useEffect(() => {
         const primaryColor = config.theme?.primaryColor || '#f1404b';
         document.documentElement.style.setProperty('--theme-primary', primaryColor);
-        console.log('[PluginLayout] Set --theme-primary:', primaryColor);
     }, [config.theme?.primaryColor]);
+
+    // Handle group toggle
+    const toggleGroup = (groupId: string) => {
+        setOpenGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(groupId)) {
+                next.delete(groupId);
+            } else {
+                next.add(groupId);
+            }
+            return next;
+        });
+    };
 
     const handleUserIconClick = () => {
         if (isAuthenticated) {
@@ -81,8 +99,37 @@ const PluginLayout: React.FC = () => {
         const handleMessage = (event: MessageEvent) => {
             // 安全检查：只接受预期的消息
             if (event.data.type === 'PLUGIN_SET_SIDEBAR') {
-                console.log('[PluginLayout] Received sidebar config:', event.data.payload);
                 setPluginSidebarConfig(event.data.payload);
+
+                // Initialize open groups based on activeId or default isOpen
+                const config = event.data.payload as PluginSidebarConfig;
+                if (config.items) {
+                    const initialOpen = new Set<string>();
+                    const findPathToActive = (items: SidebarItem[]): boolean => {
+                        for (const item of items) {
+                            if (item.id === config.activeId) return true;
+                            if (item.children) {
+                                if (findPathToActive(item.children)) {
+                                    initialOpen.add(item.id);
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    };
+                    findPathToActive(config.items);
+
+                    // Also honor isOpen prop
+                    const scanOpen = (items: SidebarItem[]) => {
+                        items.forEach(item => {
+                            if (item.isOpen) initialOpen.add(item.id);
+                            if (item.children) scanOpen(item.children);
+                        });
+                    };
+                    scanOpen(config.items);
+
+                    setOpenGroups(initialOpen);
+                }
             }
         };
 
@@ -91,27 +138,115 @@ const PluginLayout: React.FC = () => {
     }, []);
 
     // 处理Sidebar项点击
-    const handleSidebarItemClick = (itemId: string) => {
-        console.log('[PluginLayout] Sidebar item clicked:', itemId);
+    const handleSidebarItemClick = (itemId: string, isGroup: boolean = false) => {
+        if (isGroup) {
+            toggleGroup(itemId);
+            return;
+        }
 
         // 动态查找iframe（每次点击时都查找，确保能找到）
         const iframe = document.querySelector('iframe');
 
         if (iframe && iframe.contentWindow) {
-            console.log('[PluginLayout] Sending message to iframe');
             // 发送消息给插件
             iframe.contentWindow.postMessage({
                 type: 'SIDEBAR_ITEM_CLICKED',
                 payload: { itemId }
             }, '*');
         } else {
-            console.error('[PluginLayout] iframe not found or contentWindow is null');
+            console.error('iframe not found or contentWindow is null');
         }
     };
 
     // Determine if we should use dark text based on background color
     const bgColor = config.theme?.backgroundColor || '#f1f2f3';
     const useDarkText = isLightColor(bgColor);
+
+    // Render Item Helper
+    const renderSidebarItem = (item: SidebarItem, depth = 0) => {
+        // Label Handling (Section Header) - Now styled like a non-interactive item
+        if (item.isLabel) {
+            if (collapsed) return null; // Hide labels when collapsed
+            return (
+                <div key={item.id} className="w-full flex items-center px-4 py-2 mt-2 text-[14px] font-medium text-gray-600">
+                    {/* Icon */}
+                    {item.icon && (
+                        <div className="w-5 text-center mr-3 flex-shrink-0">
+                            <i className={item.icon}></i>
+                        </div>
+                    )}
+                    {item.label}
+                </div>
+            );
+        }
+
+        const hasChildren = item.children && item.children.length > 0;
+        const isActive = pluginSidebarConfig?.activeId === item.id;
+        const isOpen = openGroups.has(item.id);
+        const paddingLeft = collapsed ? '0' : '16px';
+
+        // Calculate icon wrapper styles
+        const iconWrapperClass = collapsed
+            ? 'text-lg w-auto mr-0'
+            : 'w-5 text-center mr-3'; // Refined spacing: w-5 (20px) + mr-3 (12px) = 32px space.
+        // Item text start = 16 + 32 = 48px.
+        // Label pl-12 (48px) matches.
+
+        // Font size class based on isCategory
+        const labelClass = item.isCategory ? 'text-xs text-gray-500 font-medium' : 'text-[14px] font-medium';
+
+        return (
+            <div key={item.id} className="w-full">
+                <button
+                    onClick={() => handleSidebarItemClick(item.id, hasChildren)}
+                    className={`
+                        w-full flex items-center py-2 transition-all duration-200 group relative
+                        ${labelClass}
+                        ${isActive
+                            ? 'text-[var(--theme-primary)] bg-blue-50/50'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-[var(--theme-primary)]'
+                        }
+                        ${collapsed ? 'justify-center px-0' : ''}
+                    `}
+                    style={{ paddingLeft: collapsed ? 0 : paddingLeft }}
+                    title={collapsed ? item.label : ''}
+                >
+                    {/* Active Indicator Bar */}
+                    {isActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--theme-primary)] rounded-r"></div>
+                    )}
+
+                    {(item.statusColor || item.icon !== '') && (
+                        <div className={`${iconWrapperClass} ${isActive ? 'text-[var(--theme-primary)]' : 'text-gray-400 group-hover:text-[var(--theme-primary)]'} flex items-center justify-center flex-shrink-0`}>
+                            {item.statusColor ? (
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.statusColor }}></div>
+                            ) : (
+                                <i className={item.icon || 'fas fa-circle'}></i>
+                            )}
+                        </div>
+                    )}
+
+                    {!collapsed && (
+                        <>
+                            <span className="flex-1 text-left truncate">{item.label}</span>
+                            {hasChildren && (
+                                <div className={`ml-2 transition-transform duration-200 text-xs text-gray-400 ${isOpen ? 'rotate-90' : ''}`}>
+                                    <i className="fa-solid fa-angle-right"></i>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </button>
+
+                {/* Children */}
+                {hasChildren && isOpen && !collapsed && (
+                    <div className="overflow-hidden transition-all duration-300">
+                        {item.children!.map(child => renderSidebarItem(child, depth + 1))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // 渲染动态Sidebar
     const renderPluginSidebar = () => {
@@ -123,41 +258,21 @@ const PluginLayout: React.FC = () => {
                 {pluginSidebarConfig && (
                     <aside className={`
                         hidden lg:flex flex-col flex-shrink-0
-                        bg-white/80 backdrop-blur-md border-r border-gray-200/50 shadow-sm z-20 pt-2
+                        bg-white border-r border-gray-200 z-20 pt-2
                         transition-all duration-300 ease-in-out
                         ${widthClass}
                     `}>
                         {!collapsed && (
-                            <div className="p-6 pt-4">
-                                <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600">
+                            <div className="p-6 pt-4 mb-2">
+                                <h2 className="text-xl font-bold text-gray-800">
                                     {pluginSidebarConfig.title || '插件'}
                                 </h2>
                             </div>
                         )}
 
-                        <nav className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2">
-                            <div className="space-y-1">
-                                {pluginSidebarConfig.items.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => handleSidebarItemClick(item.id)}
-                                        className={`
-                                            w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
-                                            ${pluginSidebarConfig.activeId === item.id
-                                                ? 'text-white bg-[var(--theme-primary)] shadow-md'
-                                                : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm'
-                                            }
-                                            ${collapsed ? 'justify-center px-0' : ''}
-                                        `}
-                                        title={collapsed ? item.label : ''}
-                                    >
-                                        <div className={`${collapsed ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} ${pluginSidebarConfig.activeId === item.id ? 'text-white' : 'text-gray-400 group-hover:text-[var(--theme-primary)]'} flex items-center justify-center`}>
-                                            <i className={item.icon}></i>
-                                        </div>
-                                        {!collapsed && item.label}
-                                        {!collapsed && <div className="ml-auto opacity-0 group-hover:opacity-50 text-xs"><i className="fa-solid fa-angle-right"></i></div>}
-                                    </button>
-                                ))}
+                        <nav className="flex-1 overflow-y-auto custom-scrollbar">
+                            <div className="space-y-0.5">
+                                {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
                             </div>
                         </nav>
 
@@ -202,29 +317,8 @@ const PluginLayout: React.FC = () => {
 
                             {pluginSidebarConfig ? (
                                 <nav className="flex-1 overflow-y-auto custom-scrollbar py-2">
-                                    <div className="space-y-1 px-2">
-                                        {pluginSidebarConfig.items.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => {
-                                                    handleSidebarItemClick(item.id);
-                                                    setMobileOpen(false);
-                                                }}
-                                                className={`
-                                                    w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
-                                                    ${pluginSidebarConfig.activeId === item.id
-                                                        ? 'text-white bg-[var(--theme-primary)] shadow-md'
-                                                        : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm'
-                                                    }
-                                                `}
-                                            >
-                                                <div className={`w-6 text-center mr-2 ${pluginSidebarConfig.activeId === item.id ? 'text-white' : 'text-gray-400 group-hover:text-[var(--theme-primary)]'} flex items-center justify-center`}>
-                                                    <i className={item.icon}></i>
-                                                </div>
-                                                {item.label}
-                                                <div className="ml-auto opacity-0 group-hover:opacity-50 text-xs"><i className="fa-solid fa-angle-right"></i></div>
-                                            </button>
-                                        ))}
+                                    <div className="space-y-1">
+                                        {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
                                     </div>
                                 </nav>
                             ) : (
