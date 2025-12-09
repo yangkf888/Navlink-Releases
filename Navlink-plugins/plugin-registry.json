@@ -32,17 +32,6 @@
             "icon": "🚀",
             "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps-1.0.0.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
-        },
-        {
-            "id": "vps-2",
-            "name": "VPS Manager 2",
-            "version": "1.0.0",
-            "description": "VPS 管理插件第二版",
-            "author": "NavLink Team",
-            "category": "System",
-            "icon": "🚀",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps-2-1.0.0.zip",
-            "homepage": "https://github.com/txwebroot/NavLink"
         }
     ]
 }
