@@ -1,45 +1,31 @@
+```json
 {
     "plugins": [
         {
             "id": "docker",
             "name": "Docker Manager",
-            "version": "1.0.0",
-            "description": "Manage Docker containers, images, networks, and volumes.",
+            "version": "2.0.0",
+            "description": "Manage Docker containers, images, networks, and volumes. (Optimized Build)",
             "author": "NavLink Team",
             "category": "System",
             "icon": "🐳",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/docker-1.0.0.zip",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/docker.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
         },
         {
             "id": "sub",
             "name": "订阅管理",
-            "version": "1.0.0",
-            "description": "跟踪各类订阅服务的到期时间，提供智能提醒",
+            "version": "2.0.0",
+            "description": "跟踪各类订阅服务的到期时间，提供智能提醒 (优化版)",
             "author": "NavLink Team",
             "category": "Productivity",
             "icon": "📅",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub-1.0.0.zip",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
         },
         {
             "id": "vps",
             "name": "VPS Manager",
-            "version": "1.0.0",
-            "description": "High-performance VPS management using Go (v2.0 Update)",
-            "author": "NavLink Team",
-            "category": "System",
-            "icon": "🚀",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps-1.0.0.zip",
-            "homepage": "https://github.com/txwebroot/NavLink"
-        },
-        {
-            "id": "vps2",
-            "name": "VPS Manager v2",
-            "version": "2.0.0",
-            "description": "VPS管理 - 优化打包版本，体积更小",
-            "author": "NavLink Team",
-            "category": "System",
             "icon": "🚀",
             "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps2.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
