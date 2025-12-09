@@ -5,10 +5,11 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "dev:backend": "node server.js",
+        "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\" --names \"frontend,backend\" --prefix-colors \"blue,green\"",
         "build": "vite build",
         "preview": "vite preview",
-        "start": "node server.js",
-        "dev:all": "concurrently \"npm run start\" \"npm run dev\"",
+        "package-plugins": "node scripts/package-plugins.cjs",
         "test": "vitest",
         "test:run": "vitest run",
         "test:ui": "vitest --ui",

@@ -51,3 +51,4 @@ plugins/*/sub
 tmp/
 temp/
 *.tmp
+dist-plugins/
