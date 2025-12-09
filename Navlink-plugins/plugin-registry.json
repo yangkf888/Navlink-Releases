@@ -22,17 +22,16 @@
             "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
         },
-    },
-    {
-        "id": "vps",
-        "name": "VPS Manager",
-        "version": "2.0.0",
-        "description": "High-performance VPS management (v2.0 Optimized Build)",
-        "author": "NavLink Team",
-        "category": "System",
-        "icon": "�",
-        "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps.zip",
-        "homepage": "https://github.com/txwebroot/NavLink"
-    }
-]
+        {
+            "id": "vps",
+            "name": "VPS Manager",
+            "version": "2.0.0",
+            "description": "High-performance VPS management (v2.0 Optimized Build)",
+            "author": "NavLink Team",
+            "category": "System",
+            "icon": "🚀",
+            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps.zip",
+            "homepage": "https://github.com/txwebroot/NavLink"
+        }
+    ]
 }
