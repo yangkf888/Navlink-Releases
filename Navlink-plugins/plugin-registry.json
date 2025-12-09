@@ -22,34 +22,17 @@
             "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub.zip",
             "homepage": "https://github.com/txwebroot/NavLink"
         },
-        {
-            "id": "vps",
-            "name": "VPS Manager",
-            "icon": "🚀",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps2.zip",
-            "homepage": "https://github.com/txwebroot/NavLink"
-        },
-        {
-            "id": "docker2",
-            "name": "Docker Manager v2",
-            "version": "2.0.0",
-            "description": "Docker管理 - 优化打包版本，体积更小",
-            "author": "NavLink Team",
-            "category": "System",
-            "icon": "🐳",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/docker2.zip",
-            "homepage": "https://github.com/txwebroot/NavLink"
-        },
-        {
-            "id": "sub2",
-            "name": "订阅管理 v2",
-            "version": "2.0.0",
-            "description": "订阅管理 - 优化打包版本，体积更小",
-            "author": "NavLink Team",
-            "category": "Productivity",
-            "icon": "📅",
-            "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/sub2.zip",
-            "homepage": "https://github.com/txwebroot/NavLink"
-        }
-    ]
+    },
+    {
+        "id": "vps",
+        "name": "VPS Manager",
+        "version": "2.0.0",
+        "description": "High-performance VPS management (v2.0 Optimized Build)",
+        "author": "NavLink Team",
+        "category": "System",
+        "icon": "�",
+        "downloadUrl": "https://raw.githubusercontent.com/txwebroot/NavLink/main/Navlink-plugins/vps.zip",
+        "homepage": "https://github.com/txwebroot/NavLink"
+    }
+]
 }
