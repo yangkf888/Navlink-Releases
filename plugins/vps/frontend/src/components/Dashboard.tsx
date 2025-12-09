@@ -21,10 +21,8 @@ export default function Dashboard({ stats }: DashboardProps) {
     };
 
     const formatSpeed = (bytesPerSec: number) => {
-        return formatBytes(bytesPerSec * 1024) + '/s'; // Backend sends KB/s? No, backend sends raw bytes diff?
-        // Wait, backend sends (bytes - prev) / seconds. So it is bytes/sec.
-        // But let's check backend logic: (rx - prevNetRx) / duration.
-        // /proc/net/dev is bytes. So it is B/s.
+        // Backend sends bytes/sec, formatBytes will handle the conversion
+        return formatBytes(bytesPerSec) + '/s';
     };
 
     if (!stats) {

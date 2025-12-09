@@ -259,28 +259,65 @@ wss.on('connection', async (ws, req) => {
                     // --- Monitoring ---
                     if (msg.type === 'monitor:start') {
                         if (monitorInterval) clearInterval(monitorInterval);
+
+                        // Store previous network stats for speed calculation
+                        let prevNetStats = null;
+                        let prevNetTime = Date.now();
+
                         monitorInterval = setInterval(async () => {
                             try {
                                 const cpuResult = await ssh.execCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"); // Simple CPU usage
                                 const memResult = await ssh.execCommand("free -m | grep Mem | awk '{print $3,$2}'"); // Used Total
-                                const netResult = await ssh.execCommand("cat /proc/net/dev | grep eth0"); // Needs parsing
+                                const diskResult = await ssh.execCommand("df -h / | tail -1 | awk '{print $5}'"); // Disk usage percentage
+
+                                // Get network stats - try eth0 first, then other interfaces
+                                let netResult = await ssh.execCommand("cat /proc/net/dev | grep -E '(eth0|ens|enp)' | head -1");
 
                                 // Simplified stats parsing
                                 const cpuUsage = parseFloat(cpuResult.stdout) || 0;
                                 const memParts = memResult.stdout.trim().split(' ');
-                                const memUsed = parseInt(memParts[0]);
-                                const memTotal = parseInt(memParts[1]);
-                                const memUsage = Math.round((memUsed / memTotal) * 100);
-                                // const [memUsed, memTotal] = memResult.stdout.trim().split(' ').map(Number);
-                                // const memUsage = memTotal ? Math.round((memUsed / memTotal) * 100) : 0;
+                                const memUsed = parseInt(memParts[0]) || 0;
+                                const memTotal = parseInt(memParts[1]) || 0;
 
-                                // console.log('[VPS WS] Monitor data - CPU:', cpuUsage, 'MEM:', memUsage + '%');
+                                // Parse disk usage (remove % sign)
+                                const diskUsage = parseInt(diskResult.stdout.replace('%', '')) || 0;
+
+                                // Parse network stats
+                                let netUp = 0;
+                                let netDown = 0;
+
+                                if (netResult.stdout) {
+                                    // Format: interface: rxBytes rxPackets ... txBytes txPackets ...
+                                    const parts = netResult.stdout.trim().split(/\s+/);
+                                    if (parts.length >= 10) {
+                                        const rxBytes = parseInt(parts[1]) || 0;  // Received bytes
+                                        const txBytes = parseInt(parts[9]) || 0;  // Transmitted bytes
+
+                                        // Calculate speed if we have previous data
+                                        if (prevNetStats) {
+                                            const now = Date.now();
+                                            const timeDiff = (now - prevNetTime) / 1000; // seconds
+
+                                            if (timeDiff > 0) {
+                                                netDown = Math.max(0, (rxBytes - prevNetStats.rx) / timeDiff); // bytes/sec
+                                                netUp = Math.max(0, (txBytes - prevNetStats.tx) / timeDiff); // bytes/sec
+                                            }
+                                        }
+
+                                        // Update previous stats
+                                        prevNetStats = { rx: rxBytes, tx: txBytes };
+                                        prevNetTime = Date.now();
+                                    }
+                                }
+
+                                // console.log('[VPS WS] Monitor data - CPU:', cpuUsage.toFixed(1) + '%', 'MEM:', memUsed + '/' + memTotal + 'MB', 'DISK:', diskUsage + '%', 'NET:', 'Down=' + netDown.toFixed(0) + 'B/s', 'Up=' + netUp.toFixed(0) + 'B/s');
                                 ws.send(JSON.stringify({
                                     type: 'monitor:data',
                                     data: {
-                                        cpu: { usage: cpuUsage },
-                                        mem: { used: memUsed, total: memTotal, usedPercentage: memUsage },
-                                        net: { up: 0, down: 0 } // Todo: calculate diff
+                                        cpu: cpuUsage,  // Changed: direct number instead of {usage: number}
+                                        mem: { used: memUsed, total: memTotal },
+                                        disk: diskUsage,  // Added: disk usage
+                                        net: { up: netUp, down: netDown } // bytes/sec
                                     }
                                 }));
                             } catch (e) {
