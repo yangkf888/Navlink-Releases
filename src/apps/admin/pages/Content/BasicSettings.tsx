@@ -1,10 +1,17 @@
 import React from 'react';
+
 import { useConfig } from '@/shared/context/ConfigContext';
+
 import { Icon } from '@/shared/components/common/Icon';
+
 import { Label, Input, TextArea } from '@/shared/components/ui/AdminInput';
+
 import { Button, ToggleButton, ButtonGroup } from '@/shared/components/ui/AdminButton';
+
 import { useDialogs } from '@/shared/hooks/useDialogs';
+
 import { AlertDialog } from '@/shared/components/common/AlertDialog';
+
 
 export const BasicSettings: React.FC = () => {
     const { config, setConfig } = useConfig();
@@ -171,13 +178,13 @@ export const BasicSettings: React.FC = () => {
                     <div>
                         <Label className="mb-2">背景类型</Label>
                         <ButtonGroup>
-                            <ToggleButton 
+                            <ToggleButton
                                 active={!isImageMode}
                                 onClick={() => update(c => ({ ...c, backgroundImage: '' }))}
                             >
                                 纯色背景
                             </ToggleButton>
-                            <ToggleButton 
+                            <ToggleButton
                                 active={isImageMode}
                                 onClick={() => {
                                     if (!config.backgroundImage) update(c => ({ ...c, backgroundImage: ' ' }));
@@ -249,14 +256,14 @@ export const BasicSettings: React.FC = () => {
                                 <p className="text-xs text-gray-400">首屏时导航栏是否悬浮在背景上</p>
                             </div>
                             <ButtonGroup>
-                                <ToggleButton 
+                                <ToggleButton
                                     active={config.hero.overlayNavbar !== false}
                                     onClick={() => update(c => ({ ...c, hero: { ...c.hero, overlayNavbar: true } }))}
                                     size="sm"
                                 >
                                     沉浸式
                                 </ToggleButton>
-                                <ToggleButton 
+                                <ToggleButton
                                     active={config.hero.overlayNavbar === false}
                                     onClick={() => update(c => ({ ...c, hero: { ...c.hero, overlayNavbar: false } }))}
                                     size="sm"

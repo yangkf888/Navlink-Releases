@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Edit, Save, X } from 'lucide-react';
 
 interface Permission {
     key: string;
@@ -37,11 +37,14 @@ const ROLE_NAMES: { [key: string]: string } = {
     user: '普通用户',
 };
 
-export default function Permissions() {
+function PermissionsPage() {
     const [roles, setRoles] = useState<string[]>([]);
     const [rolePermissions, setRolePermissions] = useState<{ [role: string]: string[] }>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [editMode, setEditMode] = useState(false);
+    const [editedPermissions, setEditedPermissions] = useState<{ [role: string]: string[] }>({});
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         loadPermissions();
@@ -73,6 +76,62 @@ export default function Permissions() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEdit = () => {
+        setEditedPermissions({ ...rolePermissions });
+        setEditMode(true);
+    };
+
+    const togglePermission = (role: string, permKey: string) => {
+        setEditedPermissions(prev => {
+            const rolePerm = prev[role] || [];
+            if (rolePerm.includes(permKey)) {
+                return {
+                    ...prev,
+                    [role]: rolePerm.filter(p => p !== permKey)
+                };
+            } else {
+                return {
+                    ...prev,
+                    [role]: [...rolePerm, permKey]
+                };
+            }
+        });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+
+            // 为每个角色更新权限
+            for (const role of roles) {
+                await fetch(`/api/roles/${role}/permissions`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        permissions: editedPermissions[role] || []
+                    })
+                });
+            }
+
+            setRolePermissions(editedPermissions);
+            setEditMode(false);
+            alert('✅ 权限更新成功！');
+        } catch (error: any) {
+            alert('❌ 权限更新失败：' + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setEditMode(false);
+        setEditedPermissions({});
     };
 
     // 按类别分组权限
@@ -111,11 +170,43 @@ export default function Permissions() {
     return (
         <div className="space-y-6">
             {/* 页面标题 */}
-            <div className="flex items-center gap-3">
-                <Shield className="text-blue-600" size={32} />
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">权限管理</h1>
-                    <p className="text-sm text-gray-500 mt-1">查看系统角色和权限配置</p>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Shield className="text-blue-600" size={32} />
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">权限管理</h1>
+                        <p className="text-sm text-gray-500 mt-1">{editMode ? '编辑权限配置' : '查看系统角色和权限配置'}</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    {editMode ? (
+                        <>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Save size={20} />
+                                {saving ? '保存中...' : '保存修改'}
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50"
+                            >
+                                <X size={20} />
+                                取消
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={handleEdit}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        >
+                            <Edit size={20} />
+                            编辑权限
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -188,13 +279,24 @@ export default function Permissions() {
                                                 <span className="text-xs text-gray-400 ml-2">({perm.key})</span>
                                             </td>
                                             {roles.map(role => {
-                                                const hasPermission = rolePermissions[role]?.includes(perm.key);
+                                                const hasPermission = editMode
+                                                    ? editedPermissions[role]?.includes(perm.key)
+                                                    : rolePermissions[role]?.includes(perm.key);
                                                 return (
                                                     <td key={role} className="px-6 py-4 text-center">
-                                                        {hasPermission ? (
-                                                            <CheckCircle className="inline text-green-600" size={20} />
+                                                        {editMode ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={hasPermission}
+                                                                onChange={() => togglePermission(role, perm.key)}
+                                                                className="w-5 h-5 text-blue-600 cursor-pointer rounded focus:ring-2 focus:ring-blue-500"
+                                                            />
                                                         ) : (
-                                                            <XCircle className="inline text-gray-300" size={20} />
+                                                            hasPermission ? (
+                                                                <CheckCircle className="inline text-green-600" size={20} />
+                                                            ) : (
+                                                                <XCircle className="inline text-gray-300" size={20} />
+                                                            )
                                                         )}
                                                     </td>
                                                 );
@@ -220,3 +322,6 @@ export default function Permissions() {
         </div>
     );
 }
+
+// 导出组件（权限保护已在路由层统一处理）
+export default PermissionsPage;

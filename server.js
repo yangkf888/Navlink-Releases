@@ -15,7 +15,7 @@ import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
 import { authenticateToken, requireAdmin, optionalAuth, requirePermission } from './server/middleware/auth.js';
 import { enforceTenantIsolation, injectTenantId, checkTenantStatus, requireSuperAdmin } from './server/middleware/tenantIsolation.js';
-import { PERMISSIONS, getRolePermissions, getAllRoles } from './server/config/permissions.js';
+import { PERMISSIONS, getRolePermissions, getAllRoles, updateRolePermissions } from './server/config/permissions.js';
 import logger, { createLogger, LogQuery } from './server/utils/logger.js';
 import config, { validateConfig, displayConfig } from './server/config/env.js';
 import {
@@ -501,6 +501,47 @@ app.get('/api/user/permissions', authenticateToken, (req, res) => {
     });
 });
 
+// 更新指定角色的权限
+app.put('/api/roles/:role/permissions', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { role } = req.params;
+        const { permissions } = req.body;
+
+        // 验证角色存在
+        if (!getAllRoles().includes(role)) {
+            return res.status(404).json({ error: 'Role not found' });
+        }
+
+        // 验证permissions是数组
+        if (!Array.isArray(permissions)) {
+            return res.status(400).json({ error: 'Permissions must be an array' });
+        }
+
+        // 更新权限
+        const success = updateRolePermissions(role, permissions);
+
+        if (success) {
+            serverLogger.info(`Role permissions updated`, {
+                admin: req.user.username,
+                role,
+                permissionCount: permissions.length,
+                context: 'System'
+            });
+
+            res.json({
+                success: true,
+                role,
+                permissions
+            });
+        } else {
+            throw new Error('Failed to update permissions');
+        }
+    } catch (error) {
+        serverLogger.error('Failed to update role permissions', { error: error.message });
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/plugins/:id/stop', authenticateToken, requireAdmin, async (req, res) => {
     try {
         await pluginManager.stopPlugin(req.params.id);
@@ -699,6 +740,45 @@ app.get('/api/logs/files', authenticateToken, requireAdmin, async (req, res) => 
         res.json(files);
     } catch (error) {
         serverLogger.error('Failed to list log files', { error: error.message });
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 清理所有日志文件
+app.delete('/api/logs/clear', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const logsDir = path.join(__dirname, 'logs');
+
+        // 确保logs目录存在
+        if (!fs.existsSync(logsDir)) {
+            return res.json({ success: true, message: '日志目录不存在，无需清理' });
+        }
+
+        // 读取所有文件
+        const files = fs.readdirSync(logsDir);
+        let deletedCount = 0;
+
+        // 删除所有.log文件
+        for (const file of files) {
+            if (file.endsWith('.log')) {
+                const filePath = path.join(logsDir, file);
+                fs.unlinkSync(filePath);
+                deletedCount++;
+            }
+        }
+
+        serverLogger.info(`Log files cleared by admin`, {
+            admin: req.user.username,
+            deletedCount,
+            context: 'System'
+        });
+
+        res.json({
+            success: true,
+            message: `已清理 ${deletedCount} 个日志文件`
+        });
+    } catch (error) {
+        serverLogger.error('Failed to clear log files', { error: error.message });
         res.status(500).json({ error: error.message });
     }
 });

@@ -1,16 +1,28 @@
 
 import React, { useState } from 'react';
+
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+
 import { useConfig } from '@/shared/context/ConfigContext';
+
 import { Icon } from '@/shared/components/common/Icon';
+
 import { Label, Input } from '@/shared/components/ui/AdminInput';
+
 import { Button } from '@/shared/components/ui/AdminButton';
+
 import { useDialogs } from '@/shared/hooks/useDialogs';
+
 import { AlertDialog } from '@/shared/components/common/AlertDialog';
+
 import { Accordion } from '@/shared/components/ui/Accordion';
+
 import { removeItem } from '@/shared/utils/url';
+
 import { LinkEditModal } from '@/apps/navlink/components/home/LinkEditModal';
+
 import { LinkItem } from '@/shared/types';
+
 
 // Promo Item Editor Component  
 const PromoItemEditor: React.FC<{
@@ -443,88 +455,88 @@ export const PromoSettings: React.FC = () => {
 
     return (
         <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="space-y-6">
-            <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h3 className="text-lg font-bold text-gray-800">热门/推广 Tab</h3>
-                <Button onClick={() => update(c => ({ ...c, promo: [...c.promo, { id: Date.now().toString(), name: '新标签', items: [] }] }))}>+ 添加</Button>
-            </div>
-            <Droppable droppableId="promo-tabs" type="PROMO_TAB">
-                {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
-                        {config.promo.map((tab, tabIdx) => (
-                            <Draggable key={tab.id} draggableId={tab.id} index={tabIdx}>
-                                {(provided) => (
-                                    <div ref={provided.innerRef} {...provided.draggableProps}>
-                                        <Accordion
-                                            title={
-                                                <div className="flex items-center gap-2">
-                                                    <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1" onClick={e => e.stopPropagation()}>
-                                                        <Icon icon="fa-solid fa-grip-vertical" />
-                                                    </div>
-                                                    <span>{tab.name}</span>
-                                                </div>
-                                            }
-                                            actions={<Button variant="danger" onClick={(e) => { e.stopPropagation(); update(c => ({ ...c, promo: removeItem(c.promo, tabIdx) })); }}><Icon icon="fa-solid fa-trash" /></Button>}
-                                        >
-                                            <div className="mb-4 grid grid-cols-2 gap-4">
-                                                <div><Label>名称</Label><Input value={tab.name} onChange={e => { const n = [...config.promo]; n[tabIdx].name = e.target.value; update(c => ({ ...c, promo: n })) }} /></div>
-                                                <div><Label>链接</Label><Input value={tab.url || ''} onChange={e => { const n = [...config.promo]; n[tabIdx].url = e.target.value; update(c => ({ ...c, promo: n })) }} /></div>
-                                            </div>
-                                            <div className="space-y-3">
-                                                <Droppable droppableId={`promo-${tabIdx}`} type="PROMO_ITEM">
-                                                    {(provided) => (
-                                                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
-                                                            {tab.items.map((item, itemIdx) => (
-                                                                <Draggable key={item.id} draggableId={item.id} index={itemIdx}>
-                                                                    {(provided) => (
-                                                                        <div
-                                                                            ref={provided.innerRef}
-                                                                            {...provided.draggableProps}
-                                                                            {...provided.dragHandleProps}
-                                                                        >
-                                                                            <PromoItemEditor
-                                                                                item={item}
-                                                                                tabIdx={tabIdx}
-                                                                                itemIdx={itemIdx}
-                                                                                config={config}
-                                                                                update={update}
-                                                                                onDelete={() => {
-                                                                                    const n = [...config.promo];
-                                                                                    n[tabIdx].items = removeItem(n[tabIdx].items, itemIdx);
-                                                                                    update(c => ({ ...c, promo: n }));
-                                                                                }}
-                                                                                onMove={(targetTabIdx) => {
-                                                                                    const n = [...config.promo];
-                                                                                    const [movedItem] = n[tabIdx].items.splice(itemIdx, 1);
-                                                                                    n[targetTabIdx].items.push(movedItem);
-                                                                                    update(c => ({ ...c, promo: n }));
-                                                                                }}
-                                                                                onCrossSectionMove={(targetSection, targetId, targetSubId) => {
-                                                                                    handleCrossSectionMove(tabIdx, itemIdx, targetSection, targetId, targetSubId);
-                                                                                }}
-                                                                                currentTabName={tab.name}
-                                                                            />
-                                                                        </div>
-                                                                    )}
-                                                                </Draggable>
-                                                            ))}
-                                                            {provided.placeholder}
+            <div className="space-y-6">
+                <div className="flex justify-between items-center border-b pb-2 mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">热门/推广 Tab</h3>
+                    <Button onClick={() => update(c => ({ ...c, promo: [...c.promo, { id: Date.now().toString(), name: '新标签', items: [] }] }))}>+ 添加</Button>
+                </div>
+                <Droppable droppableId="promo-tabs" type="PROMO_TAB">
+                    {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
+                            {config.promo.map((tab, tabIdx) => (
+                                <Draggable key={tab.id} draggableId={tab.id} index={tabIdx}>
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.draggableProps}>
+                                            <Accordion
+                                                title={
+                                                    <div className="flex items-center gap-2">
+                                                        <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1" onClick={e => e.stopPropagation()}>
+                                                            <Icon icon="fa-solid fa-grip-vertical" />
                                                         </div>
-                                                    )}
-                                                </Droppable>
-                                                <Button variant="secondary" className="w-full border-dashed justify-center" onClick={() => { const n = [...config.promo]; n[tabIdx].items.push({ id: Date.now().toString(), title: '新项', url: '#', color: '#f00', icon: 'fa-solid fa-star', isAd: false }); update(c => ({ ...c, promo: n })) }}>
-                                                    <Icon icon="fa-solid fa-plus" /> 添加内容</Button>
-                                            </div>
-                                        </Accordion>
-                                    </div>
-                                )}
-                            </Draggable>
-                        ))}
-                        {provided.placeholder}
-                    </div>
-                )}
-            </Droppable>
-        </div>
+                                                        <span>{tab.name}</span>
+                                                    </div>
+                                                }
+                                                actions={<Button variant="danger" onClick={(e) => { e.stopPropagation(); update(c => ({ ...c, promo: removeItem(c.promo, tabIdx) })); }}><Icon icon="fa-solid fa-trash" /></Button>}
+                                            >
+                                                <div className="mb-4 grid grid-cols-2 gap-4">
+                                                    <div><Label>名称</Label><Input value={tab.name} onChange={e => { const n = [...config.promo]; n[tabIdx].name = e.target.value; update(c => ({ ...c, promo: n })) }} /></div>
+                                                    <div><Label>链接</Label><Input value={tab.url || ''} onChange={e => { const n = [...config.promo]; n[tabIdx].url = e.target.value; update(c => ({ ...c, promo: n })) }} /></div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <Droppable droppableId={`promo-${tabIdx}`} type="PROMO_ITEM">
+                                                        {(provided) => (
+                                                            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                                                                {tab.items.map((item, itemIdx) => (
+                                                                    <Draggable key={item.id} draggableId={item.id} index={itemIdx}>
+                                                                        {(provided) => (
+                                                                            <div
+                                                                                ref={provided.innerRef}
+                                                                                {...provided.draggableProps}
+                                                                                {...provided.dragHandleProps}
+                                                                            >
+                                                                                <PromoItemEditor
+                                                                                    item={item}
+                                                                                    tabIdx={tabIdx}
+                                                                                    itemIdx={itemIdx}
+                                                                                    config={config}
+                                                                                    update={update}
+                                                                                    onDelete={() => {
+                                                                                        const n = [...config.promo];
+                                                                                        n[tabIdx].items = removeItem(n[tabIdx].items, itemIdx);
+                                                                                        update(c => ({ ...c, promo: n }));
+                                                                                    }}
+                                                                                    onMove={(targetTabIdx) => {
+                                                                                        const n = [...config.promo];
+                                                                                        const [movedItem] = n[tabIdx].items.splice(itemIdx, 1);
+                                                                                        n[targetTabIdx].items.push(movedItem);
+                                                                                        update(c => ({ ...c, promo: n }));
+                                                                                    }}
+                                                                                    onCrossSectionMove={(targetSection, targetId, targetSubId) => {
+                                                                                        handleCrossSectionMove(tabIdx, itemIdx, targetSection, targetId, targetSubId);
+                                                                                    }}
+                                                                                    currentTabName={tab.name}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </Draggable>
+                                                                ))}
+                                                                {provided.placeholder}
+                                                            </div>
+                                                        )}
+                                                    </Droppable>
+                                                    <Button variant="secondary" className="w-full border-dashed justify-center" onClick={() => { const n = [...config.promo]; n[tabIdx].items.push({ id: Date.now().toString(), title: '新项', url: '#', color: '#f00', icon: 'fa-solid fa-star', isAd: false }); update(c => ({ ...c, promo: n })) }}>
+                                                        <Icon icon="fa-solid fa-plus" /> 添加内容</Button>
+                                                </div>
+                                            </Accordion>
+                                        </div>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
+                        </div>
+                    )}
+                </Droppable>
+            </div>
         </DragDropContext>
     );
 };

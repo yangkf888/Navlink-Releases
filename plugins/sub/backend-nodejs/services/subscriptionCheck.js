@@ -218,6 +218,10 @@ async function setupSubscriptionCheckSchedule() {
         if (cron.validate(cronExpression)) {
             subscriptionCheckJob = cron.schedule(cronExpression, () => runSubscriptionCheck(false));
             console.log('[订阅检查] 定时任务已设置: 每小时检查一次');
+
+            // 启动时立即执行一次检查，处理之前可能错过的续订
+            console.log('[订阅检查] 服务启动，立即执行一次完整检查...');
+            setImmediate(() => runSubscriptionCheck(false));
         } else {
             console.error('[订阅检查] 无效的cron表达式:', cronExpression);
         }

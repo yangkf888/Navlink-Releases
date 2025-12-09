@@ -37,14 +37,10 @@ export const useSubscriptions = () => {
     // 创建订阅
     const createSubscription = async (subscription: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('Not authenticated');
-
             const response = await fetch(`${API_BASE}/subscriptions`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(subscription)
             });
@@ -62,14 +58,10 @@ export const useSubscriptions = () => {
     // 更新订阅
     const updateSubscription = async (id: string, updates: Partial<Subscription>) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('Not authenticated');
-
             const response = await fetch(`${API_BASE}/subscriptions/${id}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(updates)
             });
@@ -87,14 +79,8 @@ export const useSubscriptions = () => {
     // 删除订阅
     const deleteSubscription = async (id: string) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('Not authenticated');
-
             const response = await fetch(`${API_BASE}/subscriptions/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                method: 'DELETE'
             });
 
             if (!response.ok) throw new Error('Failed to delete subscription');
@@ -108,14 +94,10 @@ export const useSubscriptions = () => {
     // 批量更新（用于启用/禁用等操作）
     const batchUpdate = async (ids: string[], updates: Partial<Subscription>) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('Not authenticated');
-
             const response = await fetch(`${API_BASE}/subscriptions/batch`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ ids, updates })
             });

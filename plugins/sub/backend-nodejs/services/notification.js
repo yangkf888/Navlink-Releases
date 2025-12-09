@@ -12,20 +12,31 @@ try {
  * 发送Bark通知
  */
 async function sendBarkNotification(settings, title, content) {
+    console.log('[Bark Debug] Settings:', JSON.stringify(settings.bark, null, 2));
+
     if (!settings.bark?.enabled || !settings.bark?.server || !settings.bark?.deviceKey) {
+        console.log('[Bark] Skipped - Missing required fields:', {
+            enabled: settings.bark?.enabled,
+            server: settings.bark?.server,
+            deviceKey: settings.bark?.deviceKey ? '***' : undefined
+        });
         return { platform: 'bark', skipped: true };
     }
 
     try {
         const barkUrl = `${settings.bark.server}/${settings.bark.deviceKey}`;
-
-        const barkResponse = await axios.post(barkUrl, {
+        const payload = {
             title: title,
             body: content,
             sound: settings.bark.sound || 'default',
             badge: settings.bark.badge || 1,
             group: settings.bark.group || '订阅通知'
-        }, {
+        };
+
+        console.log('[Bark] Sending to URL:', barkUrl);
+        console.log('[Bark] Payload:', JSON.stringify(payload, null, 2));
+
+        const barkResponse = await axios.post(barkUrl, payload, {
             timeout: 10000
         });
 
@@ -39,7 +50,12 @@ async function sendBarkNotification(settings, title, content) {
     } catch (error) {
         console.error(`[Bark] 发送失败 (${title}):`, error.message);
         if (error.response) {
-            console.error('[Bark] 响应错误:', error.response.data);
+            console.error('[Bark] 响应状态:', error.response.status);
+            console.error('[Bark] 响应数据:', error.response.data);
+        } else if (error.request) {
+            console.error('[Bark] 请求已发出但无响应');
+        } else {
+            console.error('[Bark] 请求配置错误:', error.config);
         }
         return { platform: 'bark', success: false, error: error.message };
     }

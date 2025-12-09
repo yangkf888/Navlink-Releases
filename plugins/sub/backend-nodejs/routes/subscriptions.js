@@ -90,11 +90,52 @@ router.post('/', async (req, res) => {
 // API: 更新订阅 (验证租户所有权)
 router.put('/:id', async (req, res) => {
     try {
+        console.log(`[订阅更新] 开始更新订阅 ID: ${req.params.id}`);
         const { tenantId, userId } = getUserContext(req);
         const updated = await getSubscriptionDAO().update(req.params.id, req.body, tenantId, userId);
 
         if (!updated) {
             return res.status(404).json({ error: 'Subscription not found or access denied' });
+        }
+
+        console.log(`[订阅更新] 订阅已更新:`, {
+            name: updated.name,
+            autoRenew: updated.autoRenew,
+            periodValue: updated.periodValue,
+            periodUnit: updated.periodUnit,
+            expiryDate: updated.expiryDate
+        });
+
+        // 🔔 如果启用了自动续订且订阅已过期，立即执行续订
+        if (updated.autoRenew && updated.periodValue && updated.periodUnit) {
+            console.log(`[订阅更新] 检测到启用自动续订，检查是否需要立即续订...`);
+            const { calculateDaysRemaining, autoRenewSubscription } = require('../services/subscriptionData');
+            const { getNotificationSettings } = require('../services/subscriptionData');
+
+            const settings = await getNotificationSettings();
+            const timezone = settings.timezone || 'Asia/Shanghai';
+            const daysRemaining = calculateDaysRemaining(updated.expiryDate, timezone);
+
+            console.log(`[订阅更新] 剩余天数: ${daysRemaining}`);
+
+            if (daysRemaining <= 0) {
+                console.log(`[订阅更新] 订阅 "${updated.name}" 已过期且启用自动续订，立即续订...`);
+                const renewed = await autoRenewSubscription(updated, timezone, tenantId, userId);
+                if (renewed) {
+                    console.log(`[订阅更新] 订阅 "${updated.name}" 已自动续订至: ${renewed.expiryDate}`);
+                    return res.json(renewed);
+                } else {
+                    console.log(`[订阅更新] 自动续订失败`);
+                }
+            } else {
+                console.log(`[订阅更新] 订阅未过期，跳过自动续订`);
+            }
+        } else {
+            console.log(`[订阅更新] 不满足自动续订条件:`, {
+                autoRenew: updated.autoRenew,
+                periodValue: updated.periodValue,
+                periodUnit: updated.periodUnit
+            });
         }
 
         res.json(updated);
@@ -185,11 +226,21 @@ router.post('/check-expiry', async (req, res) => {
     }
 });
 
-// API: 测试通知发送 (需要认证)
+// API: 测试通知发送 (不需要认证)
 router.post('/test-notification', async (req, res) => {
     try {
-        const { platform } = req.body;
-        const settings = await getNotificationDAO().get() || {};
+        const { platform, settings: clientSettings } = req.body;
+
+        // 优先使用前端传来的settings（支持测试未保存的配置）
+        // 如果前端没传，则从数据库获取
+        let settings = clientSettings;
+        if (!settings || Object.keys(settings).length === 0) {
+            settings = await getNotificationDAO().get() || {};
+        }
+
+        console.log('[Sub Test Notification] Platform:', platform);
+        console.log('[Sub Test Notification] Using settings from:', clientSettings ? 'client' : 'database');
+        console.log('[Sub Test Notification] Bark config:', settings.bark);
 
         const timezone = settings.timezone || 'Asia/Shanghai';
         const currentTime = new Date().toLocaleString('zh-CN', {
@@ -204,13 +255,14 @@ router.post('/test-notification', async (req, res) => {
         });
 
         const title = '订阅通知测试';
-        const content = `这是一条测试通知，用于验证通知配置是否正确。\n\n发送时间: ${currentTime} \n时区: ${timezone} `;
+        const content = `这是一条测试通知，用于验证通知配置是否正确。\\n\\n发送时间: ${currentTime} \\n时区: ${timezone} `;
 
         let results = [];
 
         // 根据指定的平台发送测试通知
         if (platform === 'bark') {
             const result = await sendBarkNotification(settings, title, content);
+            console.log('[Sub Test Notification] Bark result:', result);
             if (!result.skipped) results.push(result);
         } else if (platform === 'telegram') {
             const result = await sendTelegramNotification(settings, title, content);

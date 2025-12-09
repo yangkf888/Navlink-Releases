@@ -26,17 +26,10 @@ export const SettingsPanel = ({ onClose, subscriptions, settings, onUpdateSettin
     const handleTestNotification = async (platform) => {
         setTestingNotification(platform);
         try {
-            const token = localStorage.getItem('auth_token'); // 修正token key
-            if (!token) {
-                showAlert('需要登录', '请先登录！', 'error');
-                setTestingNotification(null);
-                return;
-            }
             const response = await fetch(`${API_BASE}/subscriptions/test-notification`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ platform, settings })
             });

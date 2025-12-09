@@ -24,7 +24,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message }: Con
                         onClick={onClose}
                         className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                        Cancel
+                        取消
                     </button>
                     <button
                         onClick={() => {
@@ -33,7 +33,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message }: Con
                         }}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                     >
-                        Confirm
+                        确认
                     </button>
                 </div>
             </div>

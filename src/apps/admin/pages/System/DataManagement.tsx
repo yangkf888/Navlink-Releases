@@ -473,41 +473,103 @@ export const DataSettings: React.FC = () => {
                     <Icon icon="fa-solid fa-shield-halved" />
                     安全设置
                 </h3>
-                <p className="text-sm text-red-600 mb-4">修改后台管理密码（默认为 admin）</p>
-                <div className="flex gap-3">
-                    <div className="flex-1">
+                <p className="text-sm text-red-600 mb-4">修改后台管理密码</p>
+                <div className="space-y-3">
+                    <div>
+                        <Label htmlFor="oldPassword">当前密码</Label>
                         <Input
-                            id="newAdminPassword"
+                            id="oldPassword"
                             type="password"
-                            placeholder="输入新密码"
+                            placeholder="输入当前密码"
                             className="bg-white/80 border-red-200"
                         />
                     </div>
-                    <Button variant="danger-solid" className="whitespace-nowrap" onClick={() => {
-                        const input = document.getElementById('newAdminPassword') as HTMLInputElement;
-                        const val = input.value.trim();
-                        if (val) {
-                            if (val.length < 6) {
-                                showAlert('密码太短', '密码长度不能少于6位', 'warning');
+                    <div>
+                        <Label htmlFor="newPassword">新密码</Label>
+                        <Input
+                            id="newPassword"
+                            type="password"
+                            placeholder="输入新密码（至少6位）"
+                            className="bg-white/80 border-red-200"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="confirmPassword">确认新密码</Label>
+                        <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="再次输入新密码"
+                            className="bg-white/80 border-red-200"
+                        />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                        <Button variant="danger-solid" className="flex-1 justify-center" onClick={async () => {
+                            const oldPasswordInput = document.getElementById('oldPassword') as HTMLInputElement;
+                            const newPasswordInput = document.getElementById('newPassword') as HTMLInputElement;
+                            const confirmPasswordInput = document.getElementById('confirmPassword') as HTMLInputElement;
+
+                            const oldPassword = oldPasswordInput.value.trim();
+                            const newPassword = newPasswordInput.value.trim();
+                            const confirmPassword = confirmPasswordInput.value.trim();
+
+                            // 验证输入
+                            if (!oldPassword || !newPassword || !confirmPassword) {
+                                showAlert('输入错误', '请填写所有密码字段', 'warning');
                                 return;
                             }
-                            localStorage.setItem('nav_admin_password', val);
-                            showAlert('修改成功', '管理密码已更新，下次登录请使用新密码', 'success');
-                            input.value = '';
-                        } else {
-                            showAlert('输入为空', '密码不能为空', 'warning');
-                        }
-                    }}>
-                        <Icon icon="fa-solid fa-key" className="mr-1" />
-                        修改密码
-                    </Button>
-                    <Button variant="secondary" onClick={() => {
-                        showConfirm('确认恢复', '确定恢复默认密码（admin）吗？', () => {
-                            hideConfirm();
-                            localStorage.removeItem('nav_admin_password');
-                            showAlert('恢复成功', '已恢复默认密码: admin', 'success');
-                        });
-                    }}>恢复默认</Button>
+
+                            if (newPassword.length < 6) {
+                                showAlert('密码太短', '新密码长度不能少于6位', 'warning');
+                                return;
+                            }
+
+                            if (newPassword !== confirmPassword) {
+                                showAlert('密码不匹配', '两次输入的新密码不一致', 'warning');
+                                return;
+                            }
+
+                            try {
+                                const token = localStorage.getItem('auth_token');
+                                if (!token) {
+                                    showAlert('未登录', '请先登录后再修改密码', 'error');
+                                    return;
+                                }
+
+                                const response = await fetch('/api/change-password', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ oldPassword, newPassword })
+                                });
+
+                                if (response.ok) {
+                                    showAlert('修改成功', '管理密码已更新，下次登录请使用新密码', 'success');
+                                    oldPasswordInput.value = '';
+                                    newPasswordInput.value = '';
+                                    confirmPasswordInput.value = '';
+                                } else {
+                                    const error = await response.json();
+                                    showAlert('修改失败', error.error || '密码修改失败，请检查当前密码是否正确', 'error');
+                                }
+                            } catch (error) {
+                                console.error('Change password error:', error);
+                                showAlert('修改失败', '网络错误，请稍后重试', 'error');
+                            }
+                        }}>
+                            <Icon icon="fa-solid fa-key" className="mr-1" />
+                            修改密码
+                        </Button>
+                    </div>
+                </div>
+                <div className="mt-4 p-3 bg-red-100/50 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-700 flex items-start gap-2">
+                        <Icon icon="fa-solid fa-info-circle" className="mt-0.5" />
+                        <span>
+                            密码将在服务器端加密存储，修改后请务必记住新密码
+                        </span>
+                    </p>
                 </div>
             </div>
 

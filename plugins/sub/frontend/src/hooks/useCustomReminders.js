@@ -30,17 +30,13 @@ export const useCustomReminders = () => {
             setLoading(false);
         }
     };
-    // 创建自定义提醒
+    // 创建提醒
     const createReminder = async (reminder) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token)
-                throw new Error('Not authenticated');
             const response = await fetch(`${API_BASE}/custom-reminders`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(reminder)
             });
@@ -55,17 +51,13 @@ export const useCustomReminders = () => {
             throw err;
         }
     };
-    // 更新自定义提醒
+    // 更新提醒
     const updateReminder = async (id, updates) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token)
-                throw new Error('Not authenticated');
             const response = await fetch(`${API_BASE}/custom-reminders/${id}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(updates)
             });
@@ -80,17 +72,11 @@ export const useCustomReminders = () => {
             throw err;
         }
     };
-    // 删除自定义提醒
+    // 删除提醒
     const deleteReminder = async (id) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token)
-                throw new Error('Not authenticated');
             const response = await fetch(`${API_BASE}/custom-reminders/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                method: 'DELETE'
             });
             if (!response.ok)
                 throw new Error('Failed to delete reminder');

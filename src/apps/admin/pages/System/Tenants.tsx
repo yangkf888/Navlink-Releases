@@ -11,7 +11,7 @@ interface Tenant {
     updated_at: string;
 }
 
-export default function Tenants() {
+function TenantsPage() {
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -67,7 +67,7 @@ export default function Tenants() {
 
     const handleToggleStatus = async (tenant: Tenant) => {
         const newStatus = tenant.status === 'active' ? 'suspended' : 'active';
-        
+
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch(`/api/tenants/${tenant.id}/status`, {
@@ -278,7 +278,7 @@ function CreateTenantDialog({ onClose, onSuccess }: { onClose: () => void; onSuc
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-md">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">创建新租户</h2>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -324,3 +324,6 @@ function CreateTenantDialog({ onClose, onSuccess }: { onClose: () => void; onSuc
         </div>
     );
 }
+
+// 导出组件（权限保护已在路由层统一处理）
+export default TenantsPage;

@@ -15,6 +15,7 @@ import {
     RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/shared/hooks/usePermissions';
 
 interface DashboardStats {
     links: number;
@@ -26,6 +27,7 @@ interface DashboardStats {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { hasPermission } = usePermissions();
     const [stats, setStats] = useState<DashboardStats>({
         links: 0,
         categories: 0,
@@ -133,6 +135,87 @@ export default function Dashboard() {
         ]);
     }
 
+    // 定义快捷访问并添加权限要求
+    const quickActions = [
+        {
+            icon: UserCircle,
+            label: '个人中心',
+            onClick: () => navigate('/admin/users'),
+            iconBgColor: 'bg-blue-50',
+            iconColor: 'text-blue-600',
+            permission: 'user:view'
+        },
+        {
+            icon: ExternalLink,
+            label: '查看站点',
+            onClick: () => window.open('/', '_blank'),
+            iconBgColor: 'bg-green-50',
+            iconColor: 'text-green-600',
+            permission: null  // 所有人可访问
+        },
+        {
+            icon: Plus,
+            label: '全局外观',
+            onClick: () => navigate('/admin/settings/basic'),
+            iconBgColor: 'bg-purple-50',
+            iconColor: 'text-purple-600',
+            permission: 'config:view'
+        },
+        {
+            icon: FileText,
+            label: '内容分类',
+            onClick: () => navigate('/admin/settings/categories'),
+            iconBgColor: 'bg-yellow-50',
+            iconColor: 'text-yellow-600',
+            permission: 'nav:view'
+        },
+        {
+            icon: FileUp,
+            label: '资源管理',
+            onClick: () => navigate('/admin/settings/media'),
+            iconBgColor: 'bg-pink-50',
+            iconColor: 'text-pink-600',
+            permission: 'config:view'
+        },
+        {
+            icon: Palette,
+            label: '顶部导航',
+            onClick: () => navigate('/admin/settings/topnav'),
+            iconBgColor: 'bg-indigo-50',
+            iconColor: 'text-indigo-600',
+            permission: 'nav:view'
+        },
+        {
+            icon: Puzzle,
+            label: '应用商城',
+            onClick: () => navigate('/admin/plugins'),
+            iconBgColor: 'bg-cyan-50',
+            iconColor: 'text-cyan-600',
+            permission: 'plugin:view'
+        },
+        {
+            icon: UserPlus,
+            label: '数据管理',
+            onClick: () => navigate('/admin/settings/data'),
+            iconBgColor: 'bg-red-50',
+            iconColor: 'text-red-600',
+            permission: 'config:view'
+        },
+        {
+            icon: RefreshCw,
+            label: 'AI配置',
+            onClick: () => navigate('/admin/settings/ai'),
+            iconBgColor: 'bg-gray-50',
+            iconColor: 'text-gray-600',
+            permission: 'config:view'
+        }
+    ];
+
+    // 根据权限过滤快捷访问
+    const filteredQuickActions = quickActions.filter(action =>
+        !action.permission || hasPermission(action.permission)
+    );
+
     return (
         <div className="space-y-6">
             {/* 页面标题 */}
@@ -180,69 +263,16 @@ export default function Dashboard() {
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷访问</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <QuickAction
-                                icon={UserCircle}
-                                label="个人中心"
-                                onClick={() => navigate('/admin/users')}
-                                iconBgColor="bg-blue-50"
-                                iconColor="text-blue-600"
-                            />
-                            <QuickAction
-                                icon={ExternalLink}
-                                label="查看站点"
-                                onClick={() => window.open('/', '_blank')}
-                                iconBgColor="bg-green-50"
-                                iconColor="text-green-600"
-                            />
-                            <QuickAction
-                                icon={Plus}
-                                label="全局外观"
-                                onClick={() => navigate('/admin/settings/basic')}
-                                iconBgColor="bg-purple-50"
-                                iconColor="text-purple-600"
-                            />
-                            <QuickAction
-                                icon={FileText}
-                                label="内容分类"
-                                onClick={() => navigate('/admin/settings/categories')}
-                                iconBgColor="bg-yellow-50"
-                                iconColor="text-yellow-600"
-                            />
-                            <QuickAction
-                                icon={FileUp}
-                                label="资源管理"
-                                onClick={() => navigate('/admin/settings/media')}
-                                iconBgColor="bg-pink-50"
-                                iconColor="text-pink-600"
-                            />
-                            <QuickAction
-                                icon={Palette}
-                                label="顶部导航"
-                                onClick={() => navigate('/admin/settings/topnav')}
-                                iconBgColor="bg-indigo-50"
-                                iconColor="text-indigo-600"
-                            />
-                            <QuickAction
-                                icon={Puzzle}
-                                label="应用商城"
-                                onClick={() => navigate('/admin/plugins')}
-                                iconBgColor="bg-cyan-50"
-                                iconColor="text-cyan-600"
-                            />
-                            <QuickAction
-                                icon={UserPlus}
-                                label="数据管理"
-                                onClick={() => navigate('/admin/settings/data')}
-                                iconBgColor="bg-red-50"
-                                iconColor="text-red-600"
-                            />
-                            <QuickAction
-                                icon={RefreshCw}
-                                label="AI配置"
-                                onClick={() => navigate('/admin/settings/ai')}
-                                iconBgColor="bg-gray-50"
-                                iconColor="text-gray-600"
-                            />
+                            {filteredQuickActions.map((action, index) => (
+                                <QuickAction
+                                    key={index}
+                                    icon={action.icon}
+                                    label={action.label}
+                                    onClick={action.onClick}
+                                    iconBgColor={action.iconBgColor}
+                                    iconColor={action.iconColor}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>

@@ -13,7 +13,7 @@ interface User {
     created_at: string;
 }
 
-export default function Users() {
+function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [showDialog, setShowDialog] = useState(false);
@@ -188,11 +188,10 @@ export default function Users() {
                                         {user.email || '-'}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            user.role === 'admin' 
-                                                ? 'bg-purple-100 text-purple-800' 
-                                                : 'bg-gray-100 text-gray-800'
-                                        }`}>
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin'
+                                            ? 'bg-purple-100 text-purple-800'
+                                            : 'bg-gray-100 text-gray-800'
+                                            }`}>
                                             {user.role === 'admin' ? '管理员' : '普通用户'}
                                         </span>
                                     </td>
@@ -284,7 +283,7 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
 
         try {
             const token = localStorage.getItem('auth_token');
-            
+
             if (user) {
                 // 编辑模式 - 目前不支持编辑，只显示提示
                 alert('编辑功能开发中，请使用删除后重建的方式');
@@ -421,3 +420,6 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
         </div>
     );
 }
+
+// 导出组件（权限保护已在路由层统一处理）
+export default UsersPage;

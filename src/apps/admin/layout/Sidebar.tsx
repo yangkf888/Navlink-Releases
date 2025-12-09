@@ -18,6 +18,7 @@ import {
     Search
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { usePermissions } from '@/shared/hooks/usePermissions';
 
 interface MenuItem {
     id: string;
@@ -25,6 +26,7 @@ interface MenuItem {
     icon?: any;
     path: string | null;
     isSection?: boolean;
+    requiredPermissions?: string[];  // 所需权限列表
     children?: MenuItem[];
 }
 
@@ -33,21 +35,22 @@ interface Props {
     onToggle: () => void;
 }
 
-const menuItems = [
-    { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard, path: '/admin/dashboard' },
+const menuItems: MenuItem[] = [
+    { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard, path: '/admin/dashboard', requiredPermissions: [] },
     {
         id: 'content',
         label: '内容管理',
         icon: FileText,
         path: null,
         isSection: true,
+        requiredPermissions: ['nav:view'],
         children: [
-            { id: 'basic', label: '全局外观', icon: FileText, path: '/admin/settings/basic' },
-            { id: 'topnav', label: '顶部导航', icon: LinkIcon, path: '/admin/settings/topnav' },
-            { id: 'hero', label: '首屏搜索', icon: FileText, path: '/admin/settings/hero' },
-            { id: 'promo', label: '热门/推广', icon: FileText, path: '/admin/settings/promo' },
-            { id: 'categories', label: '内容分类', icon: FileText, path: '/admin/settings/categories' },
-            { id: 'sidebar', label: '侧边栏', icon: FileText, path: '/admin/settings/sidebar' },
+            { id: 'basic', label: '全局外观', icon: FileText, path: '/admin/settings/basic', requiredPermissions: ['config:view'] },
+            { id: 'topnav', label: '顶部导航', icon: LinkIcon, path: '/admin/settings/topnav', requiredPermissions: ['nav:view'] },
+            { id: 'hero', label: '首屏搜索', icon: FileText, path: '/admin/settings/hero', requiredPermissions: ['config:view'] },
+            { id: 'promo', label: '热门/推广', icon: FileText, path: '/admin/settings/promo', requiredPermissions: ['nav:view'] },
+            { id: 'categories', label: '内容分类', icon: FileText, path: '/admin/settings/categories', requiredPermissions: ['nav:view'] },
+            { id: 'sidebar', label: '侧边栏', icon: FileText, path: '/admin/settings/sidebar', requiredPermissions: ['config:view'] },
         ]
     },
     {
@@ -56,26 +59,27 @@ const menuItems = [
         icon: Settings,
         path: null,
         isSection: true,
+        requiredPermissions: ['system:view'],
         children: [
-            // 插件快速入口
-            { id: 'plugin-market', label: '应用商城', icon: Store, path: '/admin/plugin-market' },
-            { id: 'plugins', label: '插件管理', icon: Puzzle, path: '/admin/plugins' },
-            { id: 'ai', label: 'AI配置', icon: Settings, path: '/admin/settings/ai' },
-            { id: 'health', label: '链接健康', icon: Settings, path: '/admin/settings/health' },
-            { id: 'media', label: '资源管理', icon: Settings, path: '/admin/settings/media' },
-            { id: 'data', label: '数据管理', icon: Settings, path: '/admin/settings/data' },
-            { id: 'users', label: '用户管理', icon: Users, path: '/admin/users' },
-            { id: 'permissions', label: '权限管理', icon: Shield, path: '/admin/permissions' },
-            { id: 'tenants', label: '租户管理', icon: Building2, path: '/admin/tenants' },
-            { id: 'logs', label: '系统日志', icon: FileText, path: '/admin/logs' },
-            { id: 'monitor', label: '监控面板', icon: BarChart, path: '/admin/monitor' },
+            { id: 'plugin-market', label: '应用商城', icon: Store, path: '/admin/plugin-market', requiredPermissions: ['plugin:view'] },
+            { id: 'plugins', label: '插件管理', icon: Puzzle, path: '/admin/plugins', requiredPermissions: ['plugin:view'] },
+            { id: 'ai', label: 'AI配置', icon: Settings, path: '/admin/settings/ai', requiredPermissions: ['config:view'] },
+            { id: 'health', label: '链接健康', icon: Settings, path: '/admin/settings/health', requiredPermissions: ['system:view'] },
+            { id: 'media', label: '资源管理', icon: Settings, path: '/admin/settings/media', requiredPermissions: ['config:view'] },
+            { id: 'data', label: '数据管理', icon: Settings, path: '/admin/settings/data', requiredPermissions: ['config:view'] },
+            { id: 'users', label: '用户管理', icon: Users, path: '/admin/users', requiredPermissions: ['user:view'] },
+            { id: 'permissions', label: '权限管理', icon: Shield, path: '/admin/permissions', requiredPermissions: ['system:manage'] },
+            { id: 'tenants', label: '租户管理', icon: Building2, path: '/admin/tenants', requiredPermissions: ['system:manage'] },
+            { id: 'logs', label: '系统日志', icon: FileText, path: '/admin/logs', requiredPermissions: ['system:view'] },
+            { id: 'monitor', label: '监控面板', icon: BarChart, path: '/admin/monitor', requiredPermissions: ['system:view'] },
         ]
     },
 ];
 
 export default function Sidebar({ collapsed, onToggle }: Props) {
     const location = useLocation();
-    const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']); // 默认展开所有分组
+    const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']);
+    const { hasAnyPermission, loading } = usePermissions();
 
     const toggleSection = (sectionId: string) => {
         setExpandedSections(prev =>
@@ -85,12 +89,47 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
         );
     };
 
+    // 根据权限过滤菜单项
+    const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
+        if (loading) {
+            return items; // 权限加载中，先显示全部
+        }
+
+        return items.filter(item => {
+            const hasPermission = hasAnyPermission(item.requiredPermissions || []);
+
+            if (!hasPermission) return false;
+
+            // 如果有子菜单，也需要过滤子菜单
+            if (item.children) {
+                const filteredChildren = item.children.filter(child =>
+                    hasAnyPermission(child.requiredPermissions || [])
+                );
+                // 如果子菜单全部被过滤掉，则不显示父菜单
+                return filteredChildren.length > 0;
+            }
+
+            return true;
+        }).map(item => {
+            if (item.children) {
+                return {
+                    ...item,
+                    children: item.children.filter(child =>
+                        hasAnyPermission(child.requiredPermissions || [])
+                    )
+                };
+            }
+            return item;
+        });
+    };
+
     // 扁平化菜单项（用于收缩模式）
     const getFlattenedItems = () => {
         const flattened: MenuItem[] = [];
-        menuItems.forEach(item => {
+        const filtered = filterMenuItems(menuItems);
+
+        filtered.forEach(item => {
             if (item.children) {
-                // 如果是分组，只添加有 icon 的子项
                 item.children.forEach(child => {
                     if (child.icon && child.path) {
                         flattened.push(child);
@@ -103,7 +142,7 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
         return flattened;
     };
 
-    const itemsToShow = collapsed ? getFlattenedItems() : menuItems;
+    const itemsToShow = collapsed ? getFlattenedItems() : filterMenuItems(menuItems);
 
     return (
         <aside
@@ -113,7 +152,7 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
             {/* Logo & 品牌 */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
                 {!collapsed && (
-                    <Link to="/admin/dashboard" className="flex items-center gap-2">
+                    <Link to="/" className="flex items-center justify-center flex-1">
                         <span className="text-2xl font-bold text-blue-600">NavLink</span>
                     </Link>
                 )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, RefreshCw, Filter, Calendar, Database, AlertCircle } from 'lucide-react';
+import { FileText, Search, Trash2, RefreshCw, Download, AlertCircle } from 'lucide-react';
 
 interface Log {
     timestamp: string;
@@ -15,7 +15,7 @@ interface LogFile {
     updatedAt: string;
 }
 
-export default function Logs() {
+function LogsPage() {
     const [logs, setLogs] = useState<Log[]>([]);
     const [files, setFiles] = useState<LogFile[]>([]);
     const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ export default function Logs() {
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch('/api/logs/files', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token} ` }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -59,8 +59,8 @@ export default function Logs() {
             if (filters.logType) params.append('logType', filters.logType);
             params.append('limit', filters.limit.toString());
 
-            const response = await fetch(`/api/logs?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch(`/ api / logs ? ${params} `, {
+                headers: { 'Authorization': `Bearer ${token} ` }
             });
 
             if (!response.ok) {
@@ -73,6 +73,31 @@ export default function Logs() {
             console.error('Failed to load logs:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleClearLogs = async () => {
+        if (!window.confirm('⚠️ 确定要清理所有日志吗？\n\n此操作将删除所有日志文件，不可恢复！')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/logs/clear', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token} ` }
+            });
+
+            if (!response.ok) {
+                throw new Error('清理失败');
+            }
+
+            alert('✅ 日志清理成功');
+            setLogs([]);
+            loadFiles();
+        } catch (err: any) {
+            alert('❌ 日志清理失败: ' + err.message);
+            console.error('Failed to clear logs:', err);
         }
     };
 
@@ -117,13 +142,22 @@ export default function Logs() {
                         <p className="text-sm text-gray-500 mt-1">查看和分析系统运行日志</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => { loadLogs(); loadFiles(); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <RefreshCw size={20} />
-                    刷新
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => { loadLogs(); loadFiles(); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <RefreshCw size={20} />
+                        刷新
+                    </button>
+                    <button
+                        onClick={handleClearLogs}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        <AlertCircle size={20} />
+                        清理日志
+                    </button>
+                </div>
             </div>
 
             <div className="flex flex-1 gap-6 min-h-0">
@@ -237,7 +271,7 @@ export default function Logs() {
                                                 {log.timestamp}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getLevelBadge(log.level)}`}>
+                                                <span className={`inline - block px - 2 py - 1 rounded text - xs font - medium ${getLevelBadge(log.level)} `}>
                                                     {log.level.toUpperCase()}
                                                 </span>
                                             </td>
@@ -258,3 +292,6 @@ export default function Logs() {
         </div>
     );
 }
+
+// 导出组件（权限保护已在路由层统一处理）
+export default LogsPage;

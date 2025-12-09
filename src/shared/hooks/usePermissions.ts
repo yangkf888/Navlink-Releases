@@ -1,107 +1,81 @@
-/**
- * 前端权限检查工具
- * 用于在React组件中检查当前用户是否有某个权限
- */
-
 import { useState, useEffect } from 'react';
 
-// 权限常量 (与后端保持一致)
-export const PERMISSIONS = {
-    USER_VIEW: 'user:view',
-    USER_CREATE: 'user:create',
-    USER_UPDATE: 'user:update',
-    USER_DELETE: 'user:delete',
-    
-    PLUGIN_VIEW: 'plugin:view',
-    PLUGIN_START: 'plugin:start',
-    PLUGIN_STOP: 'plugin:stop',
-    PLUGIN_INSTALL: 'plugin:install',
-    PLUGIN_DELETE: 'plugin:delete',
-    
-    CONFIG_VIEW: 'config:view',
-    CONFIG_UPDATE: 'config:update',
-    
-    NAV_VIEW: 'nav:view',
-    NAV_CREATE: 'nav:create',
-    NAV_UPDATE: 'nav:update',
-    NAV_DELETE: 'nav:delete',
-    
-    SYSTEM_VIEW: 'system:view',
-    SYSTEM_MANAGE: 'system:manage',
-};
+export interface UserPermissions {
+    role: string;
+    permissions: string[];
+}
 
 /**
- * Hook: 获取当前用户的所有权限
+ * 权限管理Hook
+ * 用于检查当前用户的权限
  */
 export function usePermissions() {
-    const [permissions, setPermissions] = useState<string[]>([]);
-    const [role, setRole] = useState<string>('');
+    const [permissions, setPermissions] = useState<UserPermissions | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchPermissions = async () => {
+        loadPermissions();
+    }, []);
+
+    const loadPermissions = async () => {
+        try {
             const token = localStorage.getItem('auth_token');
             if (!token) {
                 setLoading(false);
                 return;
             }
 
-            try {
-                const response = await fetch('/api/user/permissions', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await fetch('/api/user/permissions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    setPermissions(data.permissions);
-                    setRole(data.role);
-                }
-            } catch (error) {
-                console.error('[Permissions] Failed to fetch permissions:', error);
-            } finally {
-                setLoading(false);
+            if (response.ok) {
+                const data = await response.json();
+                setPermissions(data);
             }
-        };
-
-        fetchPermissions();
-    }, []);
-
-    return { permissions, role, loading };
-}
-
-/**
- * Hook: 检查是否有某个权限
- */
-export function useHasPermission(permission: string) {
-    const { permissions, loading } = usePermissions();
-    return {
-        hasPermission: permissions.includes(permission),
-        loading
+        } catch (error) {
+            console.error('Failed to load permissions:', error);
+        } finally {
+            setLoading(false);
+        }
     };
-}
 
-/**
- * Hook: 检查是否有任一权限
- */
-export function useHasAnyPermission(requiredPermissions: string[]) {
-    const { permissions, loading } = usePermissions();
-    const hasAny = requiredPermissions.some(perm => permissions.includes(perm));
-    return { hasPermission: hasAny, loading };
-}
+    /**
+     * 检查是否有指定权限
+     */
+    const hasPermission = (permission: string): boolean => {
+        return permissions?.permissions.includes(permission) || false;
+    };
 
-/**
- * Hook: 检查是否有所有权限
- */
-export function useHasAllPermissions(requiredPermissions: string[]) {
-    const { permissions, loading } = usePermissions();
-    const hasAll = requiredPermissions.every(perm => permissions.includes(perm));
-    return { hasPermission: hasAll, loading };
-}
+    /**
+     * 检查是否有任一权限
+     */
+    const hasAnyPermission = (perms: string[]): boolean => {
+        if (!perms || perms.length === 0) return true;
+        return perms.some(p => hasPermission(p));
+    };
 
-/**
- * Hook: 检查是否是管理员
- */
-export function useIsAdmin() {
-    const { role, loading } = usePermissions();
-    return { isAdmin: role === 'admin', loading };
+    /**
+     * 检查是否有所有权限
+     */
+    const hasAllPermissions = (perms: string[]): boolean => {
+        return perms.every(p => hasPermission(p));
+    };
+
+    /**
+     * 检查是否是管理员
+     */
+    const isAdmin = (): boolean => {
+        return permissions?.role === 'admin';
+    };
+
+    return {
+        permissions,
+        loading,
+        hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
+        isAdmin,
+        reload: loadPermissions
+    };
 }

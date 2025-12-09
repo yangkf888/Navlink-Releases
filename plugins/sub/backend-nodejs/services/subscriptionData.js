@@ -173,8 +173,8 @@ async function autoRenewSubscription(subscription, timezone, tenantId, userId) {
 
     const daysRemaining = calculateDaysRemaining(subscription.expiryDate, timezone);
 
-    // 只有已过期才续订
-    if (daysRemaining >= 0) {
+    // 只有已过期才续订（包括今天到期的）
+    if (daysRemaining > 0) {
         return null;
     }
 
@@ -198,13 +198,13 @@ async function autoRenewSubscription(subscription, timezone, tenantId, userId) {
     try {
         const updated = await getSubscriptionDAO().update(
             subscription.id,
-            tenantId,
-            userId,
             {
                 ...subscription,
                 expiryDate: newExpiryDate.toISOString().split('T')[0],
                 updatedAt: new Date().toISOString()
-            }
+            },
+            tenantId,
+            userId
         );
         return updated;
     } catch (error) {

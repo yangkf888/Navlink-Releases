@@ -69,7 +69,7 @@ function initDatabase() {
 
 function initSchema(db) {
     const schema = `
-    CREATE TABLE IF NOT EXISTS vps_groups (
+    CREATE TABLE IF NOT EXISTS groups (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
@@ -78,7 +78,7 @@ function initSchema(db) {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS vps_servers (
+    CREATE TABLE IF NOT EXISTS servers (
         id TEXT PRIMARY KEY,
         group_id TEXT,
         name TEXT NOT NULL,
@@ -98,10 +98,10 @@ function initSchema(db) {
         disk_info TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(group_id) REFERENCES vps_groups(id) ON DELETE SET NULL
+        FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE SET NULL
     );
 
-    CREATE TABLE IF NOT EXISTS vps_snippets (
+    CREATE TABLE IF NOT EXISTS snippets (
         id TEXT PRIMARY KEY,
         category TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -111,7 +111,7 @@ function initSchema(db) {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS vps_snippet_categories (
+    CREATE TABLE IF NOT EXISTS snippet_categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
         sort_order INTEGER DEFAULT 0,

@@ -6,11 +6,12 @@ import ServerTerminalView from './components/ServerTerminalView';
 import ServerFormModal from './components/ServerFormModal';
 import { useConfig } from '@/shared/context/ConfigContext';
 import { VpsServer, VpsGroup } from './types';
-import { createServer, updateServer } from './api';
+import { createServer, updateServer, getServers, getGroups, deleteServer } from './api';
 import { Icon } from '@/shared/components/common/Icon';
 import { ConfigProvider } from '@/shared/context/ConfigContext';
 // @ts-ignore
 import LoginDialog from '@/shared/components/common/LoginDialog';
+import { ConfirmModal } from './components/common/ConfirmModal';
 
 // iframe模式: 从URL获取token
 const urlParams = new URLSearchParams(window.location.search);
@@ -43,6 +44,7 @@ function VPSAppContent() {
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingServer, setEditingServer] = useState<VpsServer | null>(null);
+    const [serverToDelete, setServerToDelete] = useState<VpsServer | null>(null);
 
     // Session Management
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -145,19 +147,10 @@ function VPSAppContent() {
 
     const fetchData = useCallback(async () => {
         try {
-            const [serversRes, groupsRes] = await Promise.all([
-                fetch(`/apps/vps/api/servers?_t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-                }),
-                fetch(`/apps/vps/api/groups?_t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-                })
+            const [serversData, groupsData] = await Promise.all([
+                getServers(),
+                getGroups()
             ]);
-
-            if (!serversRes.ok || !groupsRes.ok) throw new Error('Failed to fetch data');
-
-            const serversData = await serversRes.json();
-            const groupsData = await groupsRes.json();
 
             setServers(serversData);
             setGroups(groupsData);
@@ -237,18 +230,8 @@ function VPSAppContent() {
 
         if (!server) return;
 
-        if (!confirm(`Are you sure you want to delete ${server.name}?`)) return;
-
         try {
-            const res = await fetch(`/apps/vps/api/servers/${server.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                }
-            });
-
-            if (!res.ok) throw new Error('Failed to delete server');
-
+            await deleteServer(server.id);
             fetchData();
         } catch (err) {
             console.error(err);
@@ -332,7 +315,7 @@ function VPSAppContent() {
                                         setEditingServer(server);
                                         setIsAddModalOpen(true);
                                     }}
-                                    onDeleteServer={(server) => handleDeleteServer(server)}
+                                    onDeleteServer={(server) => setServerToDelete(server)}
                                     onRefresh={fetchData}
                                 />
                             </div>
@@ -365,7 +348,10 @@ function VPSAppContent() {
                                         setEditingServer(server);
                                         setIsAddModalOpen(true);
                                     }}
-                                    onDelete={handleDeleteServer}
+                                    onDelete={(serverId) => {
+                                        const server = servers.find(s => s.id === serverId);
+                                        if (server) setServerToDelete(server);
+                                    }}
                                 />
                             </div>
                         )}
@@ -432,6 +418,14 @@ function VPSAppContent() {
                         groups={groups}
                     />
                 )}
+
+                <ConfirmModal
+                    isOpen={!!serverToDelete}
+                    onClose={() => setServerToDelete(null)}
+                    onConfirm={() => serverToDelete && handleDeleteServer(serverToDelete)}
+                    title="删除服务器"
+                    message={`确定要删除服务器 ${serverToDelete?.name} 吗？此操作无法撤销。`}
+                />
             </div>
         </div>
     );
