@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, Trash2, RefreshCw, Download, AlertCircle } from 'lucide-react';
+import { FileText, Search, Trash2, RefreshCw, Download, AlertCircle, Database } from 'lucide-react';
 
 interface Log {
     timestamp: string;
