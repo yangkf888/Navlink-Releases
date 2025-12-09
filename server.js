@@ -10,6 +10,7 @@ import { ServiceRegistry } from './server/core/ServiceRegistry.js';
 import { createPluginRouter, handlePluginWebSocket } from './server/core/PluginRouter.js';
 import { initAuthDB } from './server/database/initAuthDB.js';
 import { initConfigDB } from './server/database/initConfigDB.js';
+import { runMigrations } from './server/database/migrationRunner.js';
 import { AuthService } from './server/services/AuthService.js';
 import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
@@ -66,9 +67,16 @@ serverLogger.info('Service Registry initialized');
 // 启动服务健康检查
 serviceRegistry.startHealthCheck();
 
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './server/config/swagger.js';
+
 // --- Security Middleware (MUST BE FIRST) ---
 // Helmet - Security headers
 app.use(helmetConfig);
+
+// Swagger API Docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 
 // Security Logger - Audit trail
 app.use(securityLoggerMiddleware);
@@ -357,6 +365,21 @@ app.post('/api/plugins/rescan',
 // ==========================================================================
 import siteConfigDAO from './server/database/dao/SiteConfigDAO.js';
 
+/**
+ * @swagger
+ * /config:
+ *   get:
+ *     summary: Get site configuration
+ *     description: Retrieve the current global configuration for the site
+ *     tags: [Config]
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
 // 获取配置 - 添加缓存
 app.get('/api/config', cacheMiddleware({ ttl: 300, keyPrefix: 'config:' }), async (req, res) => {
     try {
@@ -986,6 +1009,10 @@ app.get('*', (req, res, next) => {
     // 初始化配置数据库
     initConfigDB();
     serverLogger.info('Config database initialized');
+
+    // 运行数据库迁移
+    runMigrations();
+
 
     await pluginManager.scanPlugins();
 

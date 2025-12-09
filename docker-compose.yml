@@ -19,8 +19,22 @@ services:
       # 应用商城 GitHub Token（访问私有仓库）
       # 如果您的插件仓库是公开的，可以删除此行
       - PLUGIN_REGISTRY_TOKEN=${PLUGIN_REGISTRY_TOKEN:-}
+      # Redis Configuration
+      - REDIS_ENABLED=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       # 使用相对路径 - 数据存储在当前目录（navlink2卷）
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
+
+  redis:
+    image: redis:alpine
+    container_name: navlink-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

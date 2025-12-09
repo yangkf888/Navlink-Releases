@@ -148,8 +148,38 @@ export interface SiteConfig {
   };
   searchEngines: SearchEngine[];
   searchShortcut?: string; // Keyboard shortcut to open global search (e.g., "Cmd+K", "Ctrl+K")
-  promo: PromoTab[];
   categories: Category[];
   rightSidebar: RightSidebarConfig;
   footer: FooterConfig;
+}
+
+// --- System Types ---
+
+export interface User {
+  id: string;
+  username: string;
+  role: 'admin' | 'user' | string;
+  tenantId?: string;
+  permissions?: string[];
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface ApiResponse<T = any> {
+  success?: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export type Permission = string;
+
+export interface AdminRoute {
+  path: string;
+  component: React.ComponentType;
+  permission?: string;
+  title?: string;
 }

@@ -8,7 +8,13 @@
         "build": "vite build",
         "preview": "vite preview",
         "start": "node server.js",
-        "dev:all": "concurrently \"npm run start\" \"npm run dev\""
+        "dev:all": "concurrently \"npm run start\" \"npm run dev\"",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "test:ui": "vitest --ui",
+        "test:coverage": "vitest run --coverage",
+        "migrate:make": "node scripts/make_migration.js",
+        "migrate:latest": "node server/database/migrationRunner.js"
     },
     "dependencies": {
         "@hello-pangea/dnd": "^18.0.1",
@@ -45,6 +51,8 @@
         "socket.io": "^4.7.2",
         "socket.io-client": "^4.7.2",
         "sqlite3": "^5.1.7",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1",
         "swr": "^2.3.7",
         "tailwind-merge": "^3.4.0",
         "uuid": "^9.0.1",
@@ -52,14 +60,18 @@
         "winston-daily-rotate-file": "^5.0.0"
     },
     "devDependencies": {
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.0",
         "@types/react": "^18.2.37",
         "@types/react-dom": "^18.2.15",
         "@vitejs/plugin-react": "^4.2.0",
         "autoprefixer": "^10.4.16",
         "concurrently": "^8.2.2",
+        "jsdom": "^27.3.0",
         "postcss": "^8.4.31",
         "tailwindcss": "^3.3.5",
         "typescript": "^5.2.2",
-        "vite": "^5.0.0"
+        "vite": "^7.2.7",
+        "vitest": "^4.0.15"
     }
 }

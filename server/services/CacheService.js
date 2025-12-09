@@ -21,6 +21,15 @@ class CacheService {
      * 初始化Redis连接
      */
     async connect() {
+        // 如果Redis未启用，直接使用内存缓存
+        if (!config.redis.enabled) {
+            logger.info('Redis disabled in config, using memory cache');
+            this.useMemoryFallback = true;
+            this.isRedisAvailable = false;
+            this.startMemoryCacheCleanup();
+            return true;
+        }
+
         try {
             this.redis = new Redis({
                 host: config.redis.host,
@@ -69,14 +78,14 @@ class CacheService {
 
             return true;
         } catch (error) {
-            logger.warn('Redis not available, using memory cache fallback', { 
-                error: error.message 
+            logger.warn('Redis not available, using memory cache fallback', {
+                error: error.message
             });
             this.isRedisAvailable = false;
-            
+
             // 即使Redis不可用,也启动内存缓存清理
             this.startMemoryCacheCleanup();
-            
+
             return false;
         }
     }

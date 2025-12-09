@@ -26,33 +26,48 @@ services:
       # PLUGIN_REGISTRY_URL: https://raw.githubusercontent.com/txwebroot/NavLink/refs/heads/main/Navlink-plugins/plugin-registry.json
       # PLUGIN_REGISTRY_TOKEN: (已在镜像中预设)
 
+      # Redis Configuration
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
     volumes:
       # 持久化数据存储在当前目录
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
 
-# ========================================
-# 部署说明
-# ========================================
-#
-# 1. 登录 GitHub Container Registry（因为仓库是私有的）：
-#    echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u txwebroot --password-stdin
-#
-# 2. 拉取镜像：
-#    docker-compose pull
-#
-# 3. 启动服务：
-#    docker-compose up -d
-#
-# 4. 访问应用：
-#    http://localhost:3001
-#
-# 5. 默认账号：
-#    用户名: admin
-#    密码: admin123
-#
-# ⚠️ 安全提示：
-# - 首次登录后请立即修改管理员密码
-# - 建议在生产环境中修改 JWT_SECRET 等密钥
-#
+  redis:
+    image: redis:alpine
+    container_name: navlink-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+
+    # ========================================
+    # 部署说明
+    # ========================================
+    #
+    # 1. 登录 GitHub Container Registry（因为仓库是私有的）：
+    #    echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u txwebroot --password-stdin
+    #
+    # 2. 拉取镜像：
+    #    docker-compose pull
+    #
+    # 3. 启动服务：
+    #    docker-compose up -d
+    #
+    # 4. 访问应用：
+    #    http://localhost:3001
+    #
+    # 5. 默认账号：
+    #    用户名: admin
+    #    密码: admin123
+    #
+    # ⚠️ 安全提示：
+    # - 首次登录后请立即修改管理员密码
+    # - 建议在生产环境中修改 JWT_SECRET 等密钥
+    #
