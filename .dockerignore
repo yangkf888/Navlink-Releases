@@ -1,5 +1,4 @@
 node_modules
-dist
 .git
 .gitignore
 .env
@@ -13,6 +12,8 @@ logs/*
 tmp/*
 tmp_packages/*
 # Build artifacts
+# dist  ← 已注释，需要复制本地构建的dist到镜像
 *.log
 .vscode
 .idea
+Navlink-plugins

@@ -125,7 +125,7 @@ function extractAllLinks(config: SiteConfig): Array<{ url: string; path: string 
     });
 
     // 热门推广链接 (only include items with URLs)
-    config.promo.forEach((tab, tabIdx) => {
+    config.promo?.forEach((tab, tabIdx) => {
         tab.items.forEach((item, itemIdx) => {
             if (item.url) { // Only include items with valid URLs
                 links.push({
@@ -174,7 +174,7 @@ function applyHealthResults(
     });
 
     // 更新热门推广链接
-    newConfig.promo.forEach(tab => {
+    newConfig.promo?.forEach(tab => {
         tab.items.forEach(item => {
             if (item.url) {
                 const status = results.get(item.url);
@@ -295,7 +295,7 @@ export function getUnhealthyLinks(config: SiteConfig): Array<{
     });
 
     // 检查热门推广
-    config.promo.forEach((tab, tabIdx) => {
+    config.promo?.forEach((tab, tabIdx) => {
         tab.items.forEach((item, itemIdx) => {
             if (item.health && !item.health.isHealthy) {
                 unhealthyList.push({
@@ -351,7 +351,7 @@ export function getHealthStats(config: SiteConfig): {
     });
 
     // 统计热门推广 (PromoItem has different structure)
-    config.promo.forEach(tab => countItems(tab.items as any));
+    config.promo?.forEach(tab => countItems(tab.items as any));
 
     return {
         total,

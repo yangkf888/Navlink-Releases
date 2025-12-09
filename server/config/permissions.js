@@ -38,7 +38,13 @@ export const PERMISSIONS = {
 const rolePermissionsDAO = new RolePermissionsDAO();
 
 // 从数据库加载角色权限
-let ROLE_PERMISSIONS = rolePermissionsDAO.getAllRolePermissions();
+let ROLE_PERMISSIONS = {};
+try {
+    ROLE_PERMISSIONS = rolePermissionsDAO.getAllRolePermissions();
+} catch (error) {
+    console.warn('[Permissions] Failed to load permissions from DB (using defaults):', error.message);
+    // Ignore error (e.g. table not found on first run) - will fallback to defaults below
+}
 
 // 如果数据库为空，使用默认权限作为后备
 if (Object.keys(ROLE_PERMISSIONS).length === 0) {

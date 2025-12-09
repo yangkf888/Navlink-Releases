@@ -1,20 +1,12 @@
-# Stage 1: Build the frontend
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-# Install all dependencies (including devDependencies for build)
-RUN npm ci
-
-# Copy source code and plugins (needed for direct import in App.tsx)
-COPY src ./src
-COPY plugins ./plugins
-COPY index.html vite.config.ts tsconfig.json tsconfig.node.json ./
-COPY public ./public
-
-# Build the frontend (Vite -> dist)
-RUN npm run build
+# Stage 1: Build the frontend (已注释 - 使用本地构建)
+# FROM node:20-alpine AS builder
+# WORKDIR /app
+# COPY package*.json ./
+# RUN npm ci
+# COPY src ./src
+# COPY index.html vite.config.ts tsconfig.json tsconfig.node.json tailwind.config.js postcss.config.js ./
+# COPY public ./public
+# RUN npm run build
 
 # Stage 2: Production runner
 FROM node:20-alpine AS runner
@@ -24,8 +16,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy built assets from builder
-COPY --from=builder /app/dist ./dist
+# 🔑 直接复制本地构建好的 dist（需要先执行 npm run build）
+COPY dist ./dist
 # Copy backend source code
 COPY server.js ./
 COPY server ./server

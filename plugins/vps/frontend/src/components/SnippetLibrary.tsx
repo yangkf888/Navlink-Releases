@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { VpsSnippet } from '../types/index';
 import { Icon } from './common/Icon';
+import { apiUrl } from '../utils/api';
 
 interface SnippetLibraryProps {
     variant?: 'default' | 'sidebar';
@@ -34,10 +35,10 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
         try {
             setLoading(true);
             const [snippetsRes, categoriesRes] = await Promise.all([
-                fetch('./api/snippets', {
+                fetch(apiUrl('api/snippets'), {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 }),
-                fetch('./api/snippet-categories', {
+                fetch(apiUrl('api/snippet-categories'), {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 })
             ]);
@@ -74,7 +75,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const url = editingSnippet ? `/api/snippets/${editingSnippet.id}` : '/api/snippets';
+            const url = editingSnippet ? apiUrl(`api/snippets/${editingSnippet.id}`) : apiUrl('api/snippets');
             const method = editingSnippet ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -103,7 +104,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
         if (!confirm('Are you sure you want to delete this snippet?')) return;
 
         try {
-            await fetch(`./api/snippets/${id}`, {
+            await fetch(apiUrl(`api/snippets/${id}`), {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
             });
@@ -129,7 +130,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) return;
         try {
-            await fetch('./api/snippet-categories', {
+            await fetch(apiUrl('api/snippet-categories'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -148,7 +149,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
 
     const handleRenameCategory = async (category: { id: string, name: string }, newName: string) => {
         try {
-            await fetch(`./api/snippet-categories/${category.id}`, {
+            await fetch(apiUrl(`api/snippet-categories/${category.id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,7 +160,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
 
             const snippetsToUpdate = snippets.filter(s => s.category === category.name);
             await Promise.all(snippetsToUpdate.map(s =>
-                fetch(`./api/snippets/${s.id}`, {
+                fetch(apiUrl(`api/snippets/${s.id}`), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -180,7 +181,7 @@ export default function SnippetLibrary({ variant = 'default', onRun }: SnippetLi
     const handleDeleteCategory = async (id: string) => {
         if (!confirm('确定要删除此分类吗？')) return;
         try {
-            await fetch(`./api/snippet-categories/${id}`, {
+            await fetch(apiUrl(`api/snippet-categories/${id}`), {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
             });

@@ -73,6 +73,8 @@ export const helmetConfig = helmet({
             frameSrc: ["'self'"], // 允许同源iframe (插件在主应用iframe中加载)
             // 允许来自任何localhost端口的iframe嵌套
             frameAncestors: ["'self'", "http://127.0.0.1:*", "http://localhost:*"],
+            // 🔑 禁用upgrade-insecure-requests以支持HTTP访问
+            upgradeInsecureRequests: null,
         },
     },
     crossOriginEmbedderPolicy: false, // 允许跨域资源
@@ -80,6 +82,9 @@ export const helmetConfig = helmet({
     // 禁用X-Frame-Options，因为主应用(5173)和Gateway(3001)端口不同，不是同源
     // 使用CSP的frame-ancestors来控制
     frameguard: false,
+    // 🔑 禁用HSTS以支持HTTP访问（局域网）
+    // 如果使用HTTPS反向代理，应在nginx/traefik层添加HSTS header
+    hsts: false,
 });
 
 /**

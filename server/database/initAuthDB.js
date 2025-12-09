@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import config from '../config/env.js';
 
 const DB_PATH = path.join(__dirname, '../../data/auth.db');
 
@@ -86,20 +87,24 @@ export async function initAuthDB() {
                     }
                 });
 
+
                 // 检查是否已有默认管理员
-                db.get('SELECT id FROM users WHERE username = ?', ['admin'], async (err, row) => {
+                const defaultUsername = config.admin.defaultUsername;
+                const defaultPassword = config.admin.defaultPassword;
+
+                db.get('SELECT id FROM users WHERE username = ?', [defaultUsername], async (err, row) => {
                     if (!row) {
-                        console.log('[AuthDB] Creating default admin user...');
-                        const passwordHash = await bcrypt.hash('admin', 10);
+                        console.log(`[AuthDB] Creating default admin user... (username: ${defaultUsername})`);
+                        const passwordHash = await bcrypt.hash(defaultPassword, 10);
                         db.run(
                             `INSERT INTO users (id, tenant_id, username, password_hash, email, role) 
-                             VALUES ('user_1001', 'default', 'admin', ?, 'admin@navlink.local', 'admin')`,
-                            [passwordHash],
+                             VALUES ('user_1001', 'default', ?, ?, 'admin@navlink.local', 'admin')`,
+                            [defaultUsername, passwordHash],
                             (err) => {
                                 if (err) {
                                     console.error('[AuthDB] Failed to create default admin:', err);
                                 } else {
-                                    console.log('[AuthDB] Default admin created (username: admin, password: admin)');
+                                    console.log(`[AuthDB] Default admin created (username: ${defaultUsername}, password: ${defaultPassword})`);
                                 }
                             }
                         );

@@ -148,6 +148,7 @@ export interface SiteConfig {
   };
   searchEngines: SearchEngine[];
   searchShortcut?: string; // Keyboard shortcut to open global search (e.g., "Cmd+K", "Ctrl+K")
+  promo?: PromoTab[]; // Popular promotions tabs
   categories: Category[];
   rightSidebar: RightSidebarConfig;
   footer: FooterConfig;

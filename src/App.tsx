@@ -9,6 +9,7 @@ import AdminApp from './apps/admin/App';
 import PluginLayout from './components/layout/PluginLayout';
 import { PluginIframe } from './components/PluginIframe';
 import PluginGuard from './components/PluginGuard';
+import DynamicPluginRoute from './components/DynamicPluginRoute';
 
 // 使用 iframe 架构支持动态安装插件
 // 通过 postMessage 实现统一UI和动态侧边栏
@@ -46,6 +47,9 @@ function App() {
                                         <PluginIframe pluginId="sub" title="订阅管理" />
                                     </PluginGuard>
                                 } />
+
+                                {/* 动态插件路由 - 支持从应用商城下载的所有插件 */}
+                                <Route path="/apps/:pluginId/*" element={<DynamicPluginRoute />} />
                             </Route>
                         </Routes>
                     </BrowserRouter>

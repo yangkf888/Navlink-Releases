@@ -85,15 +85,50 @@ app.use(securityLoggerMiddleware);
 app.use(hppProtection);
 
 // ==========================================================================
-// 插件静态文件服务 - /apps/:pluginId/*
-// 这个必须在body parser之前，因为它不需要解析body
+// 插件内容服务 - /plugin-content/:pluginId/*
+// 专门用于iframe加载插件HTML和资源，避免与主应用路由冲突
+// ==========================================================================
+app.use('/plugin-content/:pluginId', (req, res, next) => {
+    const pluginId = req.params.pluginId;
+    const plugin = pluginManager.getActivePlugin(pluginId);
+
+    if (!plugin) {
+        return res.status(404).send('Plugin not found');
+    }
+
+    // 对API请求进行认证
+    const isApiRequest = req.path.startsWith('/api');
+    if (isApiRequest) {
+        return authenticateToken(req, res, () => {
+            handlePluginRequest(req, res, next, plugin, pluginId);
+        });
+    }
+
+    // 返回插件HTML和静态资源
+    handlePluginRequest(req, res, next, plugin, pluginId);
+});
+
+// ==========================================================================
+// 插件静态资源服务 - 只处理 /apps/:pluginId/assets/* 等静态文件
+// HTML请求会被catch-all路由处理，返回主应用index.html（带导航栏）
 // ==========================================================================
 app.use('/apps/:pluginId', (req, res, next) => {
     const pluginId = req.params.pluginId;
     const plugin = pluginManager.getActivePlugin(pluginId);
 
     if (!plugin) {
-        return res.status(404).send('Plugin not found');
+        return next(); // 让catch-all处理，返回主应用
+    }
+
+    // 🔑 关键修改：只处理assets等静态资源请求，跳过HTML请求
+    // 这样 /apps/docker/ 会走catch-all返回主应用（有导航栏）
+    // 而 /apps/docker/assets/xxx.js 仍会正确加载插件资源
+    const isStaticResource = req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|ico)$/i)
+        || req.path.includes('/assets/')
+        || req.path.startsWith(`/${pluginId}/assets`);
+
+    if (!isStaticResource) {
+        return next(); // 非静态资源，让React Router处理
     }
 
     // 只对API请求进行认证，静态文件不需要
@@ -978,11 +1013,11 @@ app.use('/api/plugins', (req, res, next) => {
     next();
 });
 
-// Catch-all route for SPA - but EXCLUDE plugin and API routes
+// Catch-all route for SPA - 返回主应用index.html让React Router处理
 app.get('*', (req, res, next) => {
-    // Don't intercept /apps/ or /api/ routes - they should be handled by specific middleware
-    if (req.path.startsWith('/apps/') || req.path.startsWith('/api/')) {
-        return next(); // 调用next()让请求继续传递
+    // 排除API和插件内容路径
+    if (req.path.startsWith('/api/') || req.path.startsWith('/plugin-content/')) {
+        return next();
     }
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

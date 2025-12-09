@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePermissions } from '@/shared/hooks/usePermissions';
-import PermissionDenied from '@/apps/admin/pages/PermissionDenied';
+// import PermissionDenied from '@/apps/admin/pages/PermissionDenied'; // Not available in plugin context
 
 interface RequirePermissionProps {
     permission: string | string[];
@@ -17,7 +17,7 @@ export function RequirePermission({
     requireAll = false,
     children
 }: RequirePermissionProps) {
-    const { hasPermission, hasAllPermissions, hasAnyPermission, loading } = usePermissions();
+    const { hasAllPermissions, hasAnyPermission, loading } = usePermissions();
 
     // 权限加载中
     if (loading) {
@@ -38,7 +38,17 @@ export function RequirePermission({
 
     // 无权限则显示拒绝页面
     if (!hasAccess) {
-        return <PermissionDenied />;
+        return (
+            <div className="flex items-center justify-center min-h-[600px]">
+                <div className="text-center">
+                    <div className="text-red-500 text-6xl mb-4">
+                        <i className="fa-solid fa-ban"></i>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">权限不足</h2>
+                    <p className="text-gray-600">您没有权限访问此页面</p>
+                </div>
+            </div>
+        );
     }
 
     // 有权限则显示子组件

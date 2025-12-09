@@ -28,6 +28,9 @@ services:
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
+      # Docker socket挂载 - 允许Docker插件管理宿主机Docker
+      # ⚠️ 安全警告：这会给容器完全的Docker控制权限
+      - /var/run/docker.sock:/var/run/docker.sock
 
   redis:
     image: redis:alpine

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useEffect, useState } from 'react';
 
 interface PluginIframeProps {
@@ -22,12 +23,10 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
     // 获取token并构建iframe URL
     const token = localStorage.getItem('auth_token');
 
-    // 使用绝对URL直接指向后端！
-    // 这样避免被vite proxy拦截，让主应用的React Router能正常工作
-    const backendPort = import.meta.env.DEV ? '3002' : window.location.port;
+    // 🔑 使用相对路径，自动适配任何hostname和port（支持局域网访问）
     const src = token
-        ? `http://${window.location.hostname}:${backendPort}/apps/${pluginId}/?token=${encodeURIComponent(token)}`
-        : `http://${window.location.hostname}:${backendPort}/apps/${pluginId}/`;
+        ? `/plugin-content/${pluginId}/?token=${encodeURIComponent(token)}`
+        : `/plugin-content/${pluginId}/`;
 
 
 
