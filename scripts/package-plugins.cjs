@@ -13,10 +13,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 // 配置
 const PLUGINS_DIR = path.join(__dirname, '../plugins');
 const OUTPUT_DIR = path.join(__dirname, '../dist-plugins');
+const ZIP_OUTPUT_DIR = path.join(__dirname, '../Navlink-plugins');
 const PLUGIN_IDS = ['vps', 'docker', 'sub'];
 const TARGET_VERSION = '2.0.0';
 
@@ -251,11 +253,49 @@ async function packagePlugin(pluginId) {
     };
 }
 
+/**
+ * 压缩插件为 zip 文件
+ * 重要：确保 manifest.json 在 zip 根目录（不包含插件名称的顶层目录）
+ */
+function zipPlugin(pluginId) {
+    const outputDir = path.join(OUTPUT_DIR, pluginId);
+    const zipFile = path.join(ZIP_OUTPUT_DIR, `${pluginId}-${TARGET_VERSION}.zip`);
+
+    // 确保 ZIP_OUTPUT_DIR 存在
+    if (!fs.existsSync(ZIP_OUTPUT_DIR)) {
+        fs.mkdirSync(ZIP_OUTPUT_DIR, { recursive: true });
+    }
+
+    // 删除旧的 zip 文件
+    if (fs.existsSync(zipFile)) {
+        fs.unlinkSync(zipFile);
+    }
+
+    try {
+        // 使用 cd 到插件目录内再压缩，确保 manifest.json 在 zip 根目录
+        // 不要包含插件名称的顶层目录（如 sub/）
+        const command = `cd "${outputDir}" && zip -r "${zipFile}" . -q`;
+        execSync(command, { stdio: 'inherit' });
+
+        const stats = fs.statSync(zipFile);
+        console.log(`  ✅ 压缩完成: ${pluginId}-${TARGET_VERSION}.zip (${formatBytes(stats.size)})`);
+
+        return {
+            zipFile,
+            size: stats.size
+        };
+    } catch (error) {
+        console.error(`  ❌ 压缩失败: ${error.message}`);
+        return null;
+    }
+}
+
 // 主函数
 async function main() {
     console.log('🎁 开始打包插件...\n');
     console.log(`源目录: ${PLUGINS_DIR}`);
     console.log(`输出目录: ${OUTPUT_DIR}`);
+    console.log(`ZIP输出: ${ZIP_OUTPUT_DIR}`);
     console.log(`目标版本: ${TARGET_VERSION}\n`);
 
     // 清理输出目录
@@ -273,19 +313,35 @@ async function main() {
         }
     }
 
+    // 压缩插件为 zip 文件
+    console.log('\n📦 压缩插件...\n');
+    const zipResults = [];
+    for (const result of results) {
+        const zipResult = zipPlugin(result.id);
+        if (zipResult) {
+            zipResults.push({ ...result, ...zipResult });
+        }
+    }
+
     // 生成报告
     console.log('\n✨ 打包完成！\n');
     console.log('📊 打包报告:');
 
     let totalSize = 0;
-    for (const result of results) {
-        console.log(`  - ${result.id}: ${formatBytes(result.totalSize)} (${result.backendFiles + result.frontendFiles} files)`);
+    let totalZipSize = 0;
+    for (const result of zipResults) {
+        console.log(`  - ${result.id}: ${formatBytes(result.totalSize)} → ${formatBytes(result.size)} (${result.backendFiles + result.frontendFiles} files)`);
         totalSize += result.totalSize;
+        totalZipSize += result.size;
     }
 
-    console.log(`\n  总计: ${formatBytes(totalSize)}`);
+    console.log(`\n  原始总计: ${formatBytes(totalSize)}`);
+    console.log(`  压缩总计: ${formatBytes(totalZipSize)}`);
+    console.log(`  压缩率: ${Math.round((1 - totalZipSize / totalSize) * 100)}%`);
     console.log(`\n📁 输出目录: ${OUTPUT_DIR}`);
-    console.log('\n💡 提示: 现在可以压缩这些插件并上传到应用商城');
+    console.log(`📁 ZIP文件: ${ZIP_OUTPUT_DIR}`);
+    console.log('\n💡 提示: 插件已自动压缩并保存到 Navlink-plugins/ 目录');
+    console.log('💡 可以直接推送到 GitHub 供应用商城使用');
 }
 
 // 运行
