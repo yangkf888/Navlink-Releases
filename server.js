@@ -28,6 +28,7 @@ import {
     securityLogger
 } from './server/middleware/security.js';
 import { cacheMiddleware, tenantCacheMiddleware, invalidateCacheMiddleware } from './server/middleware/cache.js';
+import { Server } from 'socket.io';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,7 +58,9 @@ const pluginContext = {
     authService: authService, // 允许插件使用主应用的认证服务
     tenantService: tenantService
 };
-const pluginManager = new PluginManager(pluginsDir, app, pluginContext);
+
+// 注意：io 实例在后面才创建，这里先用 null，稍后会更新
+let pluginManager = new PluginManager(pluginsDir, app, pluginContext, null);
 const pluginMarketService = new PluginMarketService(pluginsDir, pluginManager);
 
 // 初始化服务注册中心
@@ -659,13 +662,13 @@ app.get('/api/health-check/stats', authenticateToken, requireAdmin, (req, res) =
 // 启动健康检查
 app.post('/api/health-check/start', authenticateToken, requireAdmin, (req, res) => {
     pluginManager.healthChecker.start();
-    res.json({ success: true, message: 'Health checker started' });
+    res.json({ success: true, message: '健康检查已启动' });
 });
 
 // 停止健康检查
 app.post('/api/health-check/stop', authenticateToken, requireAdmin, (req, res) => {
     pluginManager.healthChecker.stop();
-    res.json({ success: true, message: 'Health checker stopped' });
+    res.json({ success: true, message: '健康检查已停止' });
 });
 
 // 手动触发健康检查
@@ -673,9 +676,9 @@ app.post('/api/health-check/trigger', authenticateToken, requireAdmin, async (re
     try {
         const { pluginId } = req.body;
         await pluginManager.healthChecker.triggerCheck(pluginId);
-        res.json({ success: true, message: pluginId ? `Checked plugin ${pluginId}` : 'Checked all plugins' });
+        res.json({ success: true, message: pluginId ? `已触发插件 ${pluginId} 的健康检查` : '已触发所有插件的健康检查' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
@@ -1095,6 +1098,28 @@ app.get('*', (req, res, next) => {
         // 启动健康检查
         serverLogger.info('Starting automatic health checks...');
         pluginManager.healthChecker.start();
+    });
+
+    // 初始化 Socket.IO (server 启动后)
+    const io = new Server(server, {
+        cors: {
+            origin: config.cors.origin,
+            credentials: config.cors.credentials
+        },
+        path: '/socket.io'
+    });
+
+    // 设置 PluginManager 的 io 实例
+    pluginManager.io = io;
+    serverLogger.info('Socket.IO initialized and bound to PluginManager');
+
+    // Socket.IO 连接处理（可选：添加认证）
+    io.on('connection', (socket) => {
+        serverLogger.debug(`Socket.IO client connected: ${socket.id}`);
+
+        socket.on('disconnect', () => {
+            serverLogger.debug(`Socket.IO client disconnected: ${socket.id}`);
+        });
     });
 
     // 优雅关闭

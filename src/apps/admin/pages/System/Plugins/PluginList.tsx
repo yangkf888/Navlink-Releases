@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Square, RefreshCw, Search as SearchIcon, AlertCircle, Loader, ExternalLink } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 
 interface Plugin {
     id: string;
@@ -9,6 +10,18 @@ interface Plugin {
     status: string;
     port?: number;
     type: string;
+    startupPhase?: string;
+    startupMessage?: string;
+}
+
+interface StartupProgress {
+    pluginId: string;
+    phase: string;
+    step: number;
+    total: number;
+    message: string;
+    progress: number;
+    error?: string;
 }
 
 export default function PluginList() {
@@ -18,6 +31,64 @@ export default function PluginList() {
     const [scanning, setScanning] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [socket, setSocket] = useState<Socket | null>(null);
+    const [startupProgress, setStartupProgress] = useState<Record<string, StartupProgress>>({});
+
+    // 初始化 Socket.IO 连接
+    useEffect(() => {
+        const newSocket = io({
+            path: '/socket.io',
+            transports: ['websocket', 'polling']
+        });
+
+        newSocket.on('connect', () => {
+            console.log('[Socket.IO] Connected');
+        });
+
+        newSocket.on('disconnect', () => {
+            console.log('[Socket.IO] Disconnected');
+        });
+
+        // 监听插件启动进度
+        newSocket.on('plugin:startup:progress', (data: StartupProgress) => {
+            console.log('[Socket.IO] Startup progress:', data);
+
+            setStartupProgress(prev => ({
+                ...prev,
+                [data.pluginId]: data
+            }));
+
+            // 更新插件状态
+            setPlugins(prev => prev.map(p =>
+                p.id === data.pluginId
+                    ? {
+                        ...p,
+                        status: data.phase === 'READY' ? 'running' :
+                            data.phase === 'FAILED' ? 'failed' : 'starting',
+                        startupPhase: data.phase,
+                        startupMessage: data.message
+                    }
+                    : p
+            ));
+
+            // 如果启动完成或失败，3秒后清除进度信息
+            if (data.phase === 'READY' || data.phase === 'FAILED') {
+                setTimeout(() => {
+                    setStartupProgress(prev => {
+                        const newProgress = { ...prev };
+                        delete newProgress[data.pluginId];
+                        return newProgress;
+                    });
+                }, 3000);
+            }
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.close();
+        };
+    }, []);
 
     useEffect(() => {
         loadPlugins();
@@ -231,23 +302,32 @@ export default function PluginList() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm">
-                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${plugin.status === 'running' ? 'bg-green-100 text-green-800' :
-                                            plugin.status === 'starting' ? 'bg-yellow-100 text-yellow-800' :
-                                                plugin.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            <span className={`w-2 h-2 rounded-full ${plugin.status === 'running' ? 'bg-green-500' :
-                                                plugin.status === 'starting' ? 'bg-yellow-500 animate-pulse' :
-                                                    plugin.status === 'failed' ? 'bg-red-500' :
-                                                        'bg-gray-500'
-                                                }`}></span>
-                                            {
-                                                plugin.status === 'running' ? '运行中' :
-                                                    plugin.status === 'starting' ? '启动中' :
-                                                        plugin.status === 'failed' ? '失败' :
-                                                            '已停止'
-                                            }
-                                        </span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${plugin.status === 'running' ? 'bg-green-100 text-green-800' :
+                                                plugin.status === 'starting' ? 'bg-yellow-100 text-yellow-800' :
+                                                    plugin.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                                        'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                <span className={`w-2 h-2 rounded-full ${plugin.status === 'running' ? 'bg-green-500' :
+                                                    plugin.status === 'starting' ? 'bg-yellow-500 animate-pulse' :
+                                                        plugin.status === 'failed' ? 'bg-red-500' :
+                                                            'bg-gray-500'
+                                                    }`}></span>
+                                                {
+                                                    plugin.status === 'running' ? '运行中' :
+                                                        plugin.status === 'starting' ? '启动中' :
+                                                            plugin.status === 'failed' ? '失败' :
+                                                                '已停止'
+                                                }
+                                            </span>
+                                            {/* 显示启动进度消息 */}
+                                            {startupProgress[plugin.id] && (
+                                                <span className="text-xs text-gray-600 flex items-center gap-1">
+                                                    <Loader className="animate-spin" size={12} />
+                                                    {startupProgress[plugin.id].message}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm">
                                         {plugin.port ? (

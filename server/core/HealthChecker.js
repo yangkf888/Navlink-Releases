@@ -11,11 +11,14 @@
  */
 
 import fetch from 'node-fetch';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('健康检查');
 
 export class HealthChecker {
     constructor(pluginManager) {
         this.pluginManager = pluginManager;
-        this.checkInterval = 30000; // 30秒检查一次
+        this.checkInterval = 120000; // 120秒检查一次
         this.healthCheckTimeout = 5000; // 5秒健康检查超时
         this.maxRestartAttempts = 3; // 最大重启次数
         this.restartCooldown = 60000; // 重启冷却时间(1分钟)
@@ -32,11 +35,11 @@ export class HealthChecker {
      */
     start() {
         if (this.isRunning) {
-            console.log('[HealthChecker] Already running');
+            logger.debug('健康检查已在运行中');
             return;
         }
 
-        console.log(`[HealthChecker] Starting health checks (interval: ${this.checkInterval}ms)`);
+        logger.info(`启动插件健康检查 (间隔: ${this.checkInterval / 1000}秒)`);
         this.isRunning = true;
 
         // 立即执行一次
@@ -54,7 +57,7 @@ export class HealthChecker {
     stop() {
         if (!this.isRunning) return;
 
-        console.log('[HealthChecker] Stopping health checks');
+        logger.info('停止插件健康检查');
         this.isRunning = false;
 
         if (this.intervalId) {
@@ -74,7 +77,7 @@ export class HealthChecker {
             return;
         }
 
-        console.log(`[HealthChecker] Checking ${runningPlugins.length} running plugins...`);
+        logger.debug(`正在检查 ${runningPlugins.length} 个运行中的插件...`);
 
         for (const plugin of runningPlugins) {
             await this.checkPlugin(plugin);
@@ -91,7 +94,7 @@ export class HealthChecker {
             // 进程内插件的健康检查
             if (plugin.mode === 'in-process') {
                 // 进程内插件没有独立进程，只要加载成功就是健康的
-                console.log(`[HealthChecker] ✓ Plugin ${pluginId} is healthy (in-process)`);
+                logger.debug(`✓ 插件 ${pluginId} 健康运行中 (进程内模式)`);
                 this.resetRestartCounter(pluginId);
                 return;
             }
@@ -99,7 +102,7 @@ export class HealthChecker {
             // 1. 检查进程是否存在（仅对进程外插件）
             const processInfo = this.pluginManager.processManager.processes.get(pluginId);
             if (!processInfo || !processInfo.process) {
-                throw new Error('Process not found');
+                throw new Error('进程未找到');
             }
 
             // 2. 简化版本: 跳过握手检查(直接检查HTTP)
@@ -112,15 +115,15 @@ export class HealthChecker {
             const healthOk = await this.httpHealthCheck(pluginId, plugin.port);
 
             if (healthOk) {
-                console.log(`[HealthChecker] ✓ Plugin ${pluginId} is healthy`);
+                logger.debug(`✓ 插件 ${pluginId} 健康运行中`);
                 // 重置重启计数
                 this.resetRestartCounter(pluginId);
             } else {
-                throw new Error('Health check endpoint failed');
+                throw new Error('健康检查端点失败');
             }
 
         } catch (error) {
-            console.error(`[HealthChecker] ✗ Plugin ${pluginId} is unhealthy:`, error.message);
+            logger.warn(`✗ 插件 ${pluginId} 状态异常: ${error.message}`);
 
             // 尝试重启插件
             await this.handleUnhealthyPlugin(pluginId, error.message);
@@ -169,26 +172,26 @@ export class HealthChecker {
         // 检查是否在冷却期内
         const timeSinceLastRestart = Date.now() - restartInfo.lastRestart;
         if (timeSinceLastRestart < this.restartCooldown) {
-            console.log(`[HealthChecker] Plugin ${pluginId} in cooldown period, skipping restart`);
+            logger.debug(`插件 ${pluginId} 在冷却期内，跳过重启`);
             return;
         }
 
         // 检查重启次数
         if (restartInfo.attempts >= this.maxRestartAttempts) {
-            console.error(`[HealthChecker] Plugin ${pluginId} exceeded max restart attempts (${this.maxRestartAttempts})`);
+            logger.error(`插件 ${pluginId} 超过最大重启次数 (${this.maxRestartAttempts})`);
 
             // 标记插件为失败状态
             const plugin = this.pluginManager.plugins.get(pluginId);
             if (plugin) {
                 plugin.status = 'failed';
-                plugin.failureReason = `Exceeded max restart attempts: ${reason}`;
+                plugin.failureReason = `超过最大重启次数: ${reason}`;
             }
 
             return;
         }
 
         // 尝试重启
-        console.log(`[HealthChecker] Attempting to restart plugin ${pluginId} (attempt ${restartInfo.attempts + 1}/${this.maxRestartAttempts})`);
+        logger.warn(`尝试重启插件 ${pluginId} (第 ${restartInfo.attempts + 1}/${this.maxRestartAttempts} 次)`);
 
         try {
             // 停止插件
@@ -206,15 +209,15 @@ export class HealthChecker {
                 lastRestart: Date.now()
             });
 
-            console.log(`[HealthChecker] ✓ Plugin ${pluginId} restarted successfully`);
+            logger.info(`✓ 插件 ${pluginId} 重启成功`);
         } catch (error) {
-            console.error(`[HealthChecker] ✗ Failed to restart plugin ${pluginId}:`, error.message);
+            logger.error(`✗ 插件 ${pluginId} 重启失败: ${error.message}`);
 
             // 更新插件状态
             const plugin = this.pluginManager.plugins.get(pluginId);
             if (plugin) {
                 plugin.status = 'failed';
-                plugin.failureReason = `Restart failed: ${error.message}`;
+                plugin.failureReason = `重启失败: ${error.message}`;
             }
         }
     }
@@ -225,7 +228,7 @@ export class HealthChecker {
     resetRestartCounter(pluginId) {
         const restartInfo = this.restartHistory.get(pluginId);
         if (restartInfo && restartInfo.attempts > 0) {
-            console.log(`[HealthChecker] Resetting restart counter for ${pluginId}`);
+            logger.debug(`重置插件 ${pluginId} 的重启计数器`);
             this.restartHistory.set(pluginId, {
                 attempts: 0,
                 lastRestart: restartInfo.lastRestart
@@ -291,12 +294,12 @@ export class HealthChecker {
         if (pluginId) {
             const plugin = this.pluginManager.plugins.get(pluginId);
             if (!plugin) {
-                throw new Error(`Plugin ${pluginId} not found`);
+                throw new Error(`插件 ${pluginId} 未找到`);
             }
-            console.log(`[HealthChecker] Manual check for plugin: ${pluginId}`);
+            logger.info(`手动检查插件: ${pluginId}`);
             await this.checkPlugin(plugin);
         } else {
-            console.log(`[HealthChecker] Manual check for all plugins`);
+            logger.info('手动检查所有插件');
             await this.checkAllPlugins();
         }
     }

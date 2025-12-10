@@ -4,6 +4,18 @@ import { ProcessManager } from './ProcessManager.js';
 import { HandshakeManager } from './HandshakeManager.js';
 import { HealthChecker } from './HealthChecker.js';
 import { fileURLToPath } from 'url';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('插件管理');
+
+// 插件启动阶段定义
+const STARTUP_PHASES = {
+    INITIALIZING: { step: 1, total: 4, message: '正在初始化...' },
+    STARTING: { step: 2, total: 4, message: '正在启动插件服务...' },
+    HEALTH_CHECK: { step: 3, total: 4, message: '正在进行健康检查...' },
+    READY: { step: 4, total: 4, message: '运行中' },
+    FAILED: { step: 0, total: 4, message: '启动失败' }
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,14 +32,47 @@ try {
 }
 
 export class PluginManager {
-    constructor(pluginsDir, app, context) {
+    constructor(pluginsDir, app, context, io) {
         this.pluginsDir = pluginsDir;
         this.app = app; // Express app instance
         this.context = context || {}; // Shared context for plugins
+        this.io = io; // Socket.IO instance
         this.processManager = new ProcessManager();
         this.handshakeManager = new HandshakeManager();
         this.healthChecker = new HealthChecker(this);
         this.plugins = new Map(); // pluginId -> pluginConfig
+    }
+
+    /**
+     * 推送插件启动进度
+     */
+    emitStartupProgress(pluginId, phase, error = null) {
+        if (!this.io) return;
+
+        const phaseInfo = STARTUP_PHASES[phase];
+        const data = {
+            pluginId,
+            phase,
+            step: phaseInfo.step,
+            total: phaseInfo.total,
+            message: phaseInfo.message,
+            progress: Math.round((phaseInfo.step / phaseInfo.total) * 100),
+            timestamp: new Date().toISOString()
+        };
+
+        if (error) {
+            data.error = error;
+        }
+
+        logger.debug(`[${pluginId}] ${phaseInfo.message}`);
+        this.io.emit('plugin:startup:progress', data);
+
+        // 更新插件状态
+        const plugin = this.plugins.get(pluginId);
+        if (plugin) {
+            plugin.startupPhase = phase;
+            plugin.startupMessage = phaseInfo.message;
+        }
     }
 
     /**
@@ -96,79 +141,32 @@ export class PluginManager {
             throw new Error(`Plugin ${pluginId} not found`);
         }
 
-        const entryPoint = path.join(plugin.dir, plugin.entry);
+        try {
+            // 阶段1: 初始化
+            plugin.status = 'starting';
+            this.emitStartupProgress(pluginId, 'INITIALIZING');
 
-        // 进程内加载 Node.js 插件
-        if (plugin.type === 'node') {
-            try {
-                console.log(`[PluginManager] Loading in-process plugin: ${pluginId}`);
-                // 动态导入插件入口
-                const pluginModule = await import(entryPoint);
+            const entryPoint = path.join(plugin.dir, plugin.entry);
 
-                // 初始化插件，传入上下文
-                // 注意：这里假设插件导出了 init 方法并返回 express.Router
-                if (pluginModule.default && typeof pluginModule.default.init === 'function') {
-                    const router = await pluginModule.default.init(this.context); // 需要在构造函数中传入context
-                    plugin.instance = router; // Store instance for WebSocket upgrades
-                    // 挂载路由: /api/plugins/<pluginId> -> Plugin Router
-                    // 注意：这里我们使用 /api/plugins/<pluginId> 作为统一前缀
-                    // 但为了兼容现有前端代码，我们可能需要保留 /api/<pluginId> 或者让前端改
-                    // 根据之前的讨论，前端请求的是 /apps/sub/api/subscriptions -> Gateway重写为 /api/subscriptions -> 转发给插件
-                    // 现在Gateway直接挂载，路径应该是 /api/plugins/sub/subscriptions
-                    // 或者为了兼容，我们挂载到 /api/plugins/sub，然后让前端请求 /api/plugins/sub/...
+            // 进程内加载 Node.js 插件
+            if (plugin.type === 'node') {
+                try {
+                    logger.info(`加载进程内插件: ${pluginId}`);
 
-                    // 实际上，为了保持兼容性，我们可以挂载到 /api/plugins/<pluginId>
-                    // 并且在 server.js 中配置 rewrite 规则，将 /apps/<pluginId>/api/* 重写为 /api/plugins/<pluginId>/*
+                    // 阶段2: 启动
+                    this.emitStartupProgress(pluginId, 'STARTING');
 
-                    // 暂时挂载到 /api/plugins/<pluginId>
-                    // 注意：this.app 需要在构造函数中传入
-                    if (this.app) {
-                        console.log(`[PluginManager] Mounting plugin ${pluginId} at /api/plugins/${pluginId}`);
-                        console.log(`[PluginManager] Router type:`, typeof router);
-                        console.log(`[PluginManager] Router keys:`, Object.keys(router));
-                        // 状态检查中间件
-                        const statusCheckMiddleware = (req, res, next) => {
-                            const plugin = this.plugins.get(pluginId);
-                            if (!plugin || plugin.status !== 'running') {
-                                return res.status(503).json({
-                                    error: 'Plugin not available',
-                                    message: `Plugin ${pluginId} is currently stopped`
-                                });
-                            }
-                            next();
-                        };
+                    // 动态导入插件入口
+                    const pluginModule = await import(entryPoint);
 
-                        this.app.use(`/api/plugins/${pluginId}`, statusCheckMiddleware, router);
-                        console.log(`[PluginManager] ✓ Plugin ${pluginId} mounted at /api/plugins/${pluginId}`);
+                    // 初始化插件，传入上下文
+                    if (pluginModule.default && typeof pluginModule.default.init === 'function') {
+                        const router = await pluginModule.default.init(this.context);
+                        plugin.instance = router;
 
-                        // 添加调试路由
-                        this.app.get(`/api/plugins/${pluginId}/debug`, (req, res) => {
-                            res.json({
-                                pluginId,
-                                message: 'Plugin route is working',
-                                timestamp: new Date().toISOString()
-                            });
-                        });
-
-                        // 添加另一个调试路由
-                        this.app.get(`/api/plugins/${pluginId}/test`, (req, res) => {
-                            res.json({
-                                pluginId,
-                                message: 'Test route working',
-                                timestamp: new Date().toISOString()
-                            });
-                        });
-                    } else {
-                        console.error(`[PluginManager] Express app not available for plugin ${pluginId}`);
-                    }
-                } else {
-                    // 尝试兼容旧的 module.exports = { init: ... } 格式 (CommonJS)
-                    // 但由于我们是 ESM 环境，import() 应该能处理 CommonJS
-                    if (pluginModule.init && typeof pluginModule.init === 'function') {
-                        const router = await pluginModule.init(this.context);
-                        plugin.instance = router; // Store instance for WebSocket upgrades
                         if (this.app) {
-                            // 状态检查中间件
+                            logger.info(`挂载插件 ${pluginId} 到 /api/plugins/${pluginId}`);
+
                             const statusCheckMiddleware = (req, res, next) => {
                                 const plugin = this.plugins.get(pluginId);
                                 if (!plugin || plugin.status !== 'running') {
@@ -181,57 +179,107 @@ export class PluginManager {
                             };
 
                             this.app.use(`/api/plugins/${pluginId}`, statusCheckMiddleware, router);
-                            console.log(`[PluginManager] ✓ Plugin ${pluginId} mounted at /api/plugins/${pluginId}`);
+                            logger.info(`✓ 插件 ${pluginId} 已挂载到 /api/plugins/${pluginId}`);
+
+                            // 添加调试路由
+                            this.app.get(`/api/plugins/${pluginId}/debug`, (req, res) => {
+                                res.json({
+                                    pluginId,
+                                    message: 'Plugin route is working',
+                                    timestamp: new Date().toISOString()
+                                });
+                            });
+                        } else {
+                            logger.error(`Express 应用不可用，无法挂载插件 ${pluginId}`);
+                        }
+                    } else if (pluginModule.init && typeof pluginModule.init === 'function') {
+                        const router = await pluginModule.init(this.context);
+                        plugin.instance = router;
+                        if (this.app) {
+                            const statusCheckMiddleware = (req, res) => {
+                                const plugin = this.plugins.get(pluginId);
+                                if (!plugin || plugin.status !== 'running') {
+                                    return res.status(503).json({
+                                        error: 'Plugin not available',
+                                        message: `Plugin ${pluginId} is currently stopped`
+                                    });
+                                }
+                                next();
+                            };
+
+                            this.app.use(`/api/plugins/${pluginId}`, statusCheckMiddleware, router);
+                            logger.info(`✓ 插件 ${pluginId} 已挂载到 /api/plugins/${pluginId}`);
                         }
                     } else {
-                        console.warn(`[PluginManager] Plugin ${pluginId} does not export init function`);
+                        logger.warn(`插件 ${pluginId} 未导出 init 函数`);
                     }
+
+                    // 阶段3: 健康检查（进程内插件跳过）
+                    // 阶段4: 就绪
+                    plugin.status = 'running';
+                    plugin.mode = 'in-process';
+                    this.emitStartupProgress(pluginId, 'READY');
+
+                    // Persist state
+                    await this.savePluginState(pluginId, true);
+
+                    return 0; // 进程内插件没有端口
+                } catch (error) {
+                    logger.error(`加载进程内插件 ${pluginId} 失败:`, error);
+                    plugin.status = 'failed';
+                    this.emitStartupProgress(pluginId, 'FAILED', error.message);
+                    throw error;
                 }
-
-                plugin.status = 'running';
-                plugin.mode = 'in-process';
-
-                // Persist state
-                await this.savePluginState(pluginId, true);
-
-                return 0; // 进程内插件没有端口
-            } catch (error) {
-                console.error(`[PluginManager] Failed to load in-process plugin ${pluginId}:`, error);
-                throw error;
             }
+
+            // 二进制插件继续使用子进程模式
+            const fixedPort = PLUGIN_PORTS[pluginId];
+            const preferredPort = fixedPort || plugin.port;
+
+            if (fixedPort) {
+                logger.info(`使用固定端口 ${fixedPort} 启动 ${pluginId}`);
+            } else if (preferredPort) {
+                logger.info(`使用清单端口 ${preferredPort} 启动 ${pluginId}`);
+            }
+
+            // 阶段2: 启动进程
+            this.emitStartupProgress(pluginId, 'STARTING');
+
+            const port = await this.processManager.startPlugin(
+                pluginId,
+                entryPoint,
+                plugin.type,
+                plugin.dir,
+                preferredPort
+            );
+
+            // 阶段3: 健康检查
+            this.emitStartupProgress(pluginId, 'HEALTH_CHECK');
+
+            // 等待一小段时间让插件完全启动
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // 直接标记为运行中
+            plugin.status = 'running';
+            plugin.mode = 'process';
+            plugin.port = port;
+
+            // 阶段4: 就绪
+            this.emitStartupProgress(pluginId, 'READY');
+            logger.info(`✓ 插件 ${pluginId} 已在端口 ${port} 上启动`);
+
+            // Persist state
+            await this.savePluginState(pluginId, true);
+
+            return port;
+
+        } catch (error) {
+            plugin.status = 'failed';
+            plugin.failureReason = error.message;
+            this.emitStartupProgress(pluginId, 'FAILED', error.message);
+            logger.error(`插件 ${pluginId} 启动失败:`, error);
+            throw error;
         }
-
-        // 二进制插件继续使用子进程模式
-
-        // 优先使用固定端口配置
-        const fixedPort = PLUGIN_PORTS[pluginId];
-        const preferredPort = fixedPort || plugin.port; // manifest.json中也可以配置
-
-        if (fixedPort) {
-            console.log(`[PluginManager] Using fixed port ${fixedPort} for ${pluginId}`);
-        } else if (preferredPort) {
-            console.log(`[PluginManager] Using manifest port ${preferredPort} for ${pluginId}`);
-        }
-
-        const port = await this.processManager.startPlugin(
-            pluginId,
-            entryPoint,
-            plugin.type,
-            plugin.dir,
-            preferredPort
-        );
-
-        // 直接标记为运行中(简化版本,跳过握手)
-        plugin.status = 'running';
-        plugin.mode = 'process';
-        plugin.port = port;
-
-        console.log(`[PluginManager] ✓ Plugin ${pluginId} started on port ${port}`);
-
-        // Persist state
-        await this.savePluginState(pluginId, true);
-
-        return port;
     }
 
     /**
