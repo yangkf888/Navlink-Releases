@@ -257,50 +257,68 @@ const PluginLayout: React.FC = () => {
 
         return (
             <>
-                {/* 桌面端Sidebar */}
-                {pluginSidebarConfig && (
-                    <aside className={`
-                        hidden lg:flex flex-col flex-shrink-0
-                        bg-white border-r border-gray-200 z-20 pt-2
-                        transition-all duration-300 ease-in-out
-                        ${widthClass}
-                    `}>
-                        {!collapsed && (
-                            <div className="p-6 pt-4 mb-2">
-                                <h2 className="text-xl font-bold text-gray-800">
-                                    {pluginSidebarConfig.title || '插件'}
-                                </h2>
-                            </div>
-                        )}
+                {/* 桌面端Sidebar - 始终渲染容器，避免布局闪烁 */}
+                <aside className={`
+                    hidden lg:flex flex-col flex-shrink-0
+                    bg-white border-r border-gray-200 z-20 pt-2
+                    transition-all duration-300 ease-in-out
+                    ${widthClass}
+                `}>
+                    {pluginSidebarConfig ? (
+                        <>
+                            {!collapsed && (
+                                <div className="p-6 pt-4 mb-2">
+                                    <h2 className="text-xl font-bold text-gray-800">
+                                        {pluginSidebarConfig.title || '插件'}
+                                    </h2>
+                                </div>
+                            )}
 
-                        <nav className="flex-1 overflow-y-auto custom-scrollbar">
-                            <div className="space-y-0.5">
-                                {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
-                            </div>
-                        </nav>
+                            <nav className="flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="space-y-0.5">
+                                    {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
+                                </div>
+                            </nav>
 
-                        <div className="p-4 border-t border-gray-100">
-                            <button
-                                onClick={() => setCollapsed(!collapsed)}
-                                className={`
-                                    w-full flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-[var(--theme-primary)] 
-                                    hover:bg-gray-50 rounded-lg transition-colors
-                                    ${collapsed ? '' : 'gap-2'}
-                                `}
-                                title={collapsed ? '展开' : '收起'}
-                            >
-                                {collapsed ? (
-                                    <i className="fa-solid fa-angles-right"></i>
-                                ) : (
-                                    <>
-                                        <i className="fa-solid fa-angles-left"></i>
-                                        <span>收起</span>
-                                    </>
-                                )}
-                            </button>
+                            <div className="p-4 border-t border-gray-100">
+                                <button
+                                    onClick={() => setCollapsed(!collapsed)}
+                                    className={`
+                                        w-full flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-[var(--theme-primary)] 
+                                        hover:bg-gray-50 rounded-lg transition-colors
+                                        ${collapsed ? '' : 'gap-2'}
+                                    `}
+                                    title={collapsed ? '展开' : '收起'}
+                                >
+                                    {collapsed ? (
+                                        <i className="fa-solid fa-angles-right"></i>
+                                    ) : (
+                                        <>
+                                            <i className="fa-solid fa-angles-left"></i>
+                                            <span>收起</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        /* 加载占位符 - 保持布局稳定 */
+                        <div className="flex-1 flex items-center justify-center">
+                            {/* 骨架屏加载效果 */}
+                            {!collapsed && (
+                                <div className="w-full p-6 space-y-4 animate-pulse">
+                                    <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                                    <div className="space-y-3 pt-4">
+                                        <div className="h-10 bg-gray-100 rounded"></div>
+                                        <div className="h-10 bg-gray-100 rounded"></div>
+                                        <div className="h-10 bg-gray-100 rounded"></div>
+                                        <div className="h-10 bg-gray-100 rounded"></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    </aside>
-                )}
+                    )}
+                </aside>
 
                 {/* 移动端Sidebar - 始终渲染 */}
                 {mobileOpen && (
