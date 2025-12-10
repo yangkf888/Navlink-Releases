@@ -210,10 +210,10 @@ export const BasicSettings: React.FC = () => {
                                 <Input
                                     type="color"
                                     className="w-14 h-10 p-1 cursor-pointer flex-shrink-0"
-                                    value={config.hero.backgroundColor || config.theme.navbarBgColor}
+                                    value={config.hero.backgroundColor || config.theme?.navbarBgColor}
                                     onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))}
                                 />
-                                <span className="text-sm text-gray-600">{config.hero.backgroundColor || config.theme.navbarBgColor}</span>
+                                <span className="text-sm text-gray-600">{config.hero.backgroundColor || config.theme?.navbarBgColor}</span>
                             </div>
                             <p className="text-xs text-gray-400 mt-2">此颜色将用于首屏背景，并自动向下渐变过渡。</p>
                         </div>
