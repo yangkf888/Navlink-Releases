@@ -255,7 +255,7 @@ router.post('/test-notification', async (req, res) => {
         });
 
         const title = '订阅通知测试';
-        const content = `这是一条测试通知，用于验证通知配置是否正确。\\n\\n发送时间: ${currentTime} \\n时区: ${timezone} `;
+        const content = `这是一条测试通知，用于验证通知配置是否正确。\n\n发送时间: ${currentTime} \n时区: ${timezone} `;
 
         let results = [];
 
