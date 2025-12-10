@@ -102,11 +102,11 @@ export interface FooterConfig {
 }
 
 export interface ThemeConfig {
-  primaryColor: string;    // Main accent color (default red)
-  backgroundColor: string; // Page background
-  textColor: string;       // Main text color
-  navbarBgColor: string;   // Navbar background when scrolled
-  baseFontSize: number;    // Root font size in px
+  primaryColor?: string;    // Main accent color (default red)
+  backgroundColor?: string; // Page background
+  textColor?: string;       // Main text color
+  navbarBgColor?: string;   // Navbar background when scrolled
+  baseFontSize?: number;    // Root font size in px
   categoryTitleSize?: number;    // Category title font size in px (default: 20)
   subCategoryTitleSize?: number; // Subcategory tab font size in px (default: 12)
   promoCategoryTitleSize?: number;    // Promo category title font size in px (default: 16)
