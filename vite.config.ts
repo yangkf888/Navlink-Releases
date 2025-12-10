@@ -39,13 +39,23 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
     },
+    // 生产环境移除 console 和 debugger
+    esbuild: {
+        drop: ['console', 'debugger'],
+    },
     build: {
         rollupOptions: {
             input: {
                 main: path.resolve(__dirname, 'index.html'),
-                // Future plugins will be added here, e.g.:
-                // vps: path.resolve(__dirname, 'plugins/vps/frontend/index.html'),
             },
+            output: {
+                // 🚀 性能优化: 智能分包
+                manualChunks: {
+                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    'ui-libs': ['lucide-react', 'framer-motion', '@hello-pangea/dnd'],
+                    'utils-libs': ['axios', 'date-fns', 'clsx', 'tailwind-merge'],
+                }
+            }
         },
     },
 });

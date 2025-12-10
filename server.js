@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
 import path from 'path';
@@ -14,6 +15,7 @@ import { runMigrations } from './server/database/migrationRunner.js';
 import { AuthService } from './server/services/AuthService.js';
 import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
+import systemMaintenanceService from './server/services/SystemMaintenanceService.js';
 import { authenticateToken, requireAdmin, optionalAuth, requirePermission } from './server/middleware/auth.js';
 import { enforceTenantIsolation, injectTenantId, checkTenantStatus, requireSuperAdmin } from './server/middleware/tenantIsolation.js';
 import { PERMISSIONS, getRolePermissions, getAllRoles, updateRolePermissions } from './server/config/permissions.js';
@@ -34,6 +36,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// 🚀 性能优化: 开启 Gzip 压缩
+app.use(compression({
+    threshold: 1024, // 只压缩超过 1KB 的响应
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression.filter(req, res);
+    }
+}));
+
+// 🚀 性能优化: 静态资源强缓存策略
+const staticOptions = {
+    maxAge: '1y', // 缓存 1 年
+    immutable: true, // 文件名带 Hash，内容不可变
+    setHeaders: (res, path) => {
+        // index.html 永不缓存，确保加载最新版本
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+};
 const PORT = config.port;
 const authService = new AuthService();
 const tenantService = new TenantService();
@@ -69,6 +94,9 @@ serverLogger.info('Service Registry initialized');
 
 // 启动服务健康检查
 serviceRegistry.startHealthCheck();
+
+// 启动系统自动维护任务 (VACUUM & Cleanup)
+systemMaintenanceService.startSchedule();
 
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './server/config/swagger.js';
@@ -150,8 +178,8 @@ function handlePluginRequest(req, res, next, plugin, pluginId) {
     if (plugin.mode === 'in-process') {
         const distPath = path.join(plugin.dir, 'frontend', 'dist');
 
-        // 服务静态文件
-        express.static(distPath)(req, res, (err) => {
+        // 服务静态文件 (带缓存优化)
+        express.static(distPath, staticOptions)(req, res, (err) => {
             if (err) return next(err);
 
             // SPA Fallback: 返回 index.html (非API请求)
@@ -1002,7 +1030,7 @@ app.post('/api/cache/invalidate', authenticateToken, requireAdmin, async (req, r
     }
 });
 
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, 'dist'), staticOptions));
 
 // ==========================================================================
 // 插件API路由 - MUST BE BEFORE CATCH-ALL
