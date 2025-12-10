@@ -38,7 +38,7 @@ export default function Login() {
 
             const { token, user } = await response.json();
             localStorage.setItem('auth_token', token);
-            
+
             // 直接跳转
             window.location.href = '/admin/dashboard';
         } catch (err: any) {
@@ -164,22 +164,7 @@ export default function Login() {
                                 </>
                             )}
                         </button>
-
-                        {/* 默认账号提示 */}
-                        <div className="pt-4 border-t border-gray-200">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                <p className="text-xs text-blue-800 text-center">
-                                    💡 <strong>默认账号:</strong> admin | <strong>默认密码:</strong> admin
-                                </p>
-                            </div>
-                        </div>
                     </form>
-                </div>
-
-                {/* 底部信息 */}
-                <div className="mt-6 text-center text-sm text-gray-500">
-                    <p>© 2024 NavLink Admin System</p>
-                    <p className="mt-1">Powered by React & TypeScript</p>
                 </div>
             </div>
         </div>

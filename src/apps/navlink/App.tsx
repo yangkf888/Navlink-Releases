@@ -9,6 +9,7 @@ import CategorySection from './components/home/CategorySection';
 import SearchModal from './components/common/SearchModal';
 import { Icon } from '@/shared/components/common/Icon';
 import { AIChatModal } from './components/ai/AIChatModal';
+import LoginModal from './components/common/LoginModal';
 
 function AppContent() {
     const { config, isLoaded, isAuthenticated, login, logout } = useConfig();
@@ -19,6 +20,7 @@ function AppContent() {
     const [collapsed, setCollapsed] = useState(false);
     const [showBackToTop, setShowBackToTop] = useState(false);
     const [showAIChatModal, setShowAIChatModal] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     // Dynamic Favicon
     useEffect(() => {
@@ -114,8 +116,8 @@ function AppContent() {
             // 已登录用户点击 - 跳转到新后台管理页面
             window.location.href = '/admin/dashboard';
         } else {
-            // 未登录用户 - 跳转到新后台登录页面
-            window.location.href = '/admin/login';
+            // 未登录用户 - 弹出登录框
+            setShowLoginModal(true);
         }
     };
 
@@ -269,6 +271,9 @@ function AppContent() {
 
             {/* AI 对话模态框 */}
             <AIChatModal isOpen={showAIChatModal} onClose={() => setShowAIChatModal(false)} />
+
+            {/* 登录模态框 */}
+            <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
         </div>
     );
 }

@@ -55,7 +55,7 @@ export const config = {
 
     // CORS
     cors: {
-        origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3001').split(','),
+        origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3002').split(','),
         credentials: process.env.CORS_CREDENTIALS === 'true'
     },
 

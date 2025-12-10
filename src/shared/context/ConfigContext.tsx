@@ -25,36 +25,38 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Initial Load
     useEffect(() => {
         const init = async () => {
-            // Check token validity
+            // Non-blocking Strategy:
+            // 1. Start Config Load (Blocking UI)
+            // 2. Start Auth Check (Non-blocking, updates UI later)
+
+            // --- 1. Auth Check (Background) ---
             const token = localStorage.getItem('auth_token');
             if (token) {
-                // Verify token by making a test request
-                try {
-                    console.log('[ConfigContext] 检测到token，验证有效性...');
-                    const response = await fetch('/api/verify', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
+                // Don't await this! Let it run in background.
+                (async () => {
+                    try {
+                        console.log('[ConfigContext] 后台验证Token中...');
+                        const response = await fetch('/api/verify', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
 
-                    if (response.ok) {
-                        console.log('[ConfigContext] Token有效，保持登录状态');
-                        setIsAuthenticated(true);
-                    } else if (response.status === 401 || response.status === 403) {
-                        console.warn('[ConfigContext] Token已失效，自动退出登录');
-                        localStorage.removeItem('auth_token');
+                        if (response.ok) {
+                            console.log('[ConfigContext] Token有效');
+                            setIsAuthenticated(true);
+                        } else if (response.status === 401 || response.status === 403) {
+                            console.warn('[ConfigContext] Token已失效');
+                            localStorage.removeItem('auth_token');
+                            setIsAuthenticated(false);
+                            // Optional: Don't toast here to avoid disturbing user on load
+                        }
+                    } catch (err) {
+                        console.error('[ConfigContext] Token验证失败:', err);
                         setIsAuthenticated(false);
-                        setToast({ message: '登录已过期，请重新登录', type: 'error' });
                     }
-                } catch (err) {
-                    console.error('[ConfigContext] Token验证失败:', err);
-                    localStorage.removeItem('auth_token');
-                    setIsAuthenticated(false);
-                }
-            } else {
-                console.log('[ConfigContext] 无token，保持未登录状态');
-                setIsAuthenticated(false);
+                })();
             }
 
-            // Load config
+            // --- 2. Config Load (Main Thread) ---
             try {
                 const serverData = await api.getConfig();
                 if (serverData) {
@@ -71,6 +73,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         footer: { ...DEFAULT_CONFIG.footer, ...(serverData.footer || {}) },
                     } as SiteConfig));
                 } else {
+                    // Fallback
                     const local = localStorage.getItem('nav_site_config');
                     if (local) setConfigState(JSON.parse(local));
                 }
@@ -80,6 +83,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 if (local) setConfigState(JSON.parse(local));
                 setToast({ message: 'Failed to load config from server', type: 'error' });
             } finally {
+                // Only wait for Config to finish!
                 setIsLoaded(true);
             }
         };
@@ -213,6 +217,18 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         return () => clearTimeout(timer);
     }, [config, isLoaded, isAuthenticated]);
+
+    // Prevent rendering default config before loading is complete to avoid UI flickering
+    if (!isLoaded) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">正在加载配置...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <ConfigContext.Provider value={{ config, isLoaded, isAuthenticated, setConfig, saveConfig, login, logout }}>

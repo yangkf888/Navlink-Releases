@@ -4,6 +4,7 @@ import { useConfig } from '@/shared/context/ConfigContext';
 import TopNavbar from '@/shared/components/layout/TopNavbar';
 import { AIChatModal } from '../../apps/navlink/components/ai/AIChatModal';
 import SearchModal from '../../apps/navlink/components/common/SearchModal';
+import LoginModal from '../../apps/navlink/components/common/LoginModal';
 
 // Helper to determine if a color is light or dark
 const isLightColor = (color?: string) => {
@@ -57,6 +58,7 @@ const PluginLayout: React.FC = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [showSearchModal, setShowSearchModal] = useState(false);
     const [showAIChatModal, setShowAIChatModal] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     // 插件Sidebar配置（通过postMessage接收）
     const [pluginSidebarConfig, setPluginSidebarConfig] = useState<PluginSidebarConfig | null>(null);
@@ -86,7 +88,8 @@ const PluginLayout: React.FC = () => {
         if (isAuthenticated) {
             window.location.href = '/admin/dashboard';
         } else {
-            window.location.href = '/admin/login';
+            // 未登录用户 - 弹出登录框
+            setShowLoginModal(true);
         }
     };
 
@@ -369,6 +372,9 @@ const PluginLayout: React.FC = () => {
 
             {/* AI Chat Modal */}
             <AIChatModal isOpen={showAIChatModal} onClose={() => setShowAIChatModal(false)} />
+
+            {/* Login Modal */}
+            <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
         </div>
     );
 };

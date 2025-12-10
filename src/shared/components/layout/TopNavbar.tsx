@@ -244,14 +244,16 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                         </>
                                     ) : (
                                         // 未登录用户显示登录按钮
-                                        <a
-                                            href="/admin/login"
-                                            onClick={() => setShowUserMenu(false)}
-                                            className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2 block"
+                                        <button
+                                            onClick={() => {
+                                                setShowUserMenu(false);
+                                                onUserClick();
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2"
                                         >
                                             <IconComponent icon="fa-solid fa-right-to-bracket" className="text-blue-500" />
                                             <span>登录后台</span>
-                                        </a>
+                                        </button>
                                     )}
                                 </div>
                             )}
