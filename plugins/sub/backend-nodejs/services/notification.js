@@ -72,7 +72,7 @@ async function sendTelegramNotification(settings, title, content) {
     try {
         const telegramUrl = `https://api.telegram.org/bot${settings.telegram.botToken}/sendMessage`;
 
-        const message = `*${title}*\\n\\n${content}`;
+        const message = `*${title}*\n\n${content}`;
 
         const telegramResponse = await axios.post(telegramUrl, {
             chat_id: settings.telegram.chatId,
