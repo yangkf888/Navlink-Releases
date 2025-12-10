@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Search, Trash2, RefreshCw, Download, AlertCircle, Database } from 'lucide-react';
+import { Input } from '@/shared/components/ui/AdminInput';
 
 interface Log {
     timestamp: string;
@@ -25,7 +26,9 @@ function LogsPage() {
         level: '',
         context: '',
         logType: 'combined',
-        limit: 100
+        limit: 100,
+        startDate: '',
+        endDate: ''
     });
 
     useEffect(() => {
@@ -37,7 +40,7 @@ function LogsPage() {
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch('/api/logs/files', {
-                headers: { 'Authorization': `Bearer ${token} ` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -57,10 +60,12 @@ function LogsPage() {
             if (filters.level) params.append('level', filters.level);
             if (filters.context) params.append('context', filters.context);
             if (filters.logType) params.append('logType', filters.logType);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
             params.append('limit', filters.limit.toString());
 
-            const response = await fetch(`/ api / logs ? ${params} `, {
-                headers: { 'Authorization': `Bearer ${token} ` }
+            const response = await fetch(`/api/logs?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!response.ok) {
@@ -85,7 +90,7 @@ function LogsPage() {
             const token = localStorage.getItem('auth_token');
             const response = await fetch('/api/logs/clear', {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token} ` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!response.ok) {
@@ -125,10 +130,77 @@ function LogsPage() {
     // 解析文件名中的日期和类型
     // combined-2023-10-01.log
     const getFileMeta = (filename: string) => {
+        // Match format: type-YYYY-MM-DD.log
+        const match = filename.match(/^(.+)-(\d{4}-\d{2}-\d{2})\.log$/);
+        if (match) {
+            return {
+                type: match[1],
+                date: match[2]
+            };
+        }
+        // Fallback or other formats
         const parts = filename.split('-');
-        const type = parts[0];
-        // 简单处理：假设格式固定
-        return { type };
+        return { type: parts[0], date: null };
+    };
+
+    // 点击文件时加载特定日期的日志
+    const handleFileClick = (file: LogFile) => {
+        const meta = getFileMeta(file.name);
+
+        let newFilters = { ...filters, logType: meta.type };
+
+        if (meta.date) {
+            // Set date range for that specific day
+            // Logs use 'YYYY-MM-DD HH:mm:ss'
+            // We want to cover from 00:00:00 to 23:59:59 of that day
+            newFilters.startDate = `${meta.date} 00:00:00`;
+            newFilters.endDate = `${meta.date} 23:59:59`;
+        } else {
+            // If no date in filename (e.g. current log file if differently named), clear date filters
+            newFilters.startDate = '';
+            newFilters.endDate = '';
+        }
+
+        setFilters(newFilters);
+        // Note: loadLogs uses the *current* state of filters due to closure if called directly here?
+        // Actually, state updates are async. We should use useEffect or pass params.
+        // For simplicity, let's trigger a reload via useEffect dependency or manual call with params
+        // But since we can't easily change useEffect dependency logic here without major refactor,
+        // let's pass the new filters directly to a helper or just rely on the user clicking 'Search' or 
+        // wait, we want instant feedback.
+
+        // Better approach: Update loadLogs to accept optional override params OR just call it after timeout?
+        // Actually React batching... let's modify loadLogs to read from state is standard but here we want immediate action.
+        // Let's modify loadLogs to take optional filters argument.
+        loadLogsWithFilters(newFilters);
+    };
+
+    const loadLogsWithFilters = async (currentFilters: typeof filters) => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const params = new URLSearchParams();
+
+            if (currentFilters.level) params.append('level', currentFilters.level);
+            if (currentFilters.context) params.append('context', currentFilters.context);
+            if (currentFilters.logType) params.append('logType', currentFilters.logType);
+            if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
+            if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
+            params.append('limit', currentFilters.limit.toString());
+
+            const response = await fetch(`/api/logs?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error('加载日志失败');
+
+            const data = await response.json();
+            setLogs(data);
+        } catch (err: any) {
+            console.error('Failed to load logs:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -154,7 +226,7 @@ function LogsPage() {
                         onClick={handleClearLogs}
                         className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                     >
-                        <AlertCircle size={20} />
+                        <Trash2 size={20} />
                         清理日志
                     </button>
                 </div>
@@ -173,15 +245,11 @@ function LogsPage() {
                         {files.map(file => (
                             <div
                                 key={file.name}
-                                className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-transparent hover:border-gray-200 transition-all group"
-                                onClick={() => {
-                                    // 简单的逻辑：点击文件自动设置过滤器查看该类型日志
-                                    // 注意：这里目前后端API是查询解析后的日志流，不是直接读文件内容
-                                    // 对接文件读取API需要更多后端支持，目前先展示列表响应用户需求
-                                    const meta = getFileMeta(file.name);
-                                    setFilters(prev => ({ ...prev, logType: meta.type }));
-                                    loadLogs();
-                                }}
+                                className={`p-3 rounded-lg cursor-pointer border hover:border-gray-200 transition-all group ${
+                                    // Highlight logic could be added here if we track selected file
+                                    'hover:bg-gray-50 border-transparent'
+                                    }`}
+                                onClick={() => handleFileClick(file)}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <FileText size={14} className={file.name.includes('error') ? 'text-red-500' : 'text-blue-500'} />
@@ -201,15 +269,15 @@ function LogsPage() {
                     {/* 过滤器 */}
                     <div className="p-4 border-b border-gray-200 bg-gray-50/50">
                         <div className="flex gap-4">
-                            <div className="flex-1 grid grid-cols-4 gap-4">
+                            <div className="flex-1 grid grid-cols-5 gap-4">
                                 <select
                                     value={filters.logType}
                                     onChange={(e) => setFilters({ ...filters, logType: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    className="px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white"
                                 >
-                                    <option value="combined">全部日志 (Combined)</option>
-                                    <option value="error">错误日志 (Error)</option>
-                                    <option value="system">系统日志 (System)</option>
+                                    <option value="combined">全部日志</option>
+                                    <option value="error">错误日志</option>
+                                    <option value="system">系统日志</option>
                                 </select>
                                 <select
                                     value={filters.level}
@@ -221,17 +289,31 @@ function LogsPage() {
                                     <option value="warn">Warn</option>
                                     <option value="info">Info</option>
                                 </select>
-                                <input
+                                <Input
                                     type="text"
                                     value={filters.context}
                                     onChange={(e) => setFilters({ ...filters, context: e.target.value })}
-                                    placeholder="搜索上下文..."
+                                    placeholder="上下文..."
                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                />
+                                <Input
+                                    type="date"
+                                    value={filters.startDate ? filters.startDate.split(' ')[0] : ''}
+                                    onChange={(e) => {
+                                        const date = e.target.value;
+                                        setFilters(prev => ({
+                                            ...prev,
+                                            startDate: date ? `${date} 00:00:00` : '',
+                                            endDate: date ? `${date} 23:59:59` : ''
+                                        }));
+                                    }}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    placeholder="选择日期"
                                 />
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={loadLogs}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
+                                        onClick={() => loadLogsWithFilters(filters)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap w-full"
                                     >
                                         查询
                                     </button>
@@ -271,7 +353,7 @@ function LogsPage() {
                                                 {log.timestamp}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline - block px - 2 py - 1 rounded text - xs font - medium ${getLevelBadge(log.level)} `}>
+                                                <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getLevelBadge(log.level)}`}>
                                                     {log.level.toUpperCase()}
                                                 </span>
                                             </td>
@@ -293,5 +375,4 @@ function LogsPage() {
     );
 }
 
-// 导出组件（权限保护已在路由层统一处理）
 export default LogsPage;

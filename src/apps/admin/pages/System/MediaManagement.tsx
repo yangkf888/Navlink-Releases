@@ -727,7 +727,7 @@ ${usedFiles.map(f => `  • ${f.filename} (${f.usageCount} 处引用)`).join('\n
                     {filteredFiles.map(file => (
                         <div
                             key={file.filename}
-                            className={`bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg group ${selectedFiles.includes(file.filename)
+                            className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg group ${selectedFiles.includes(file.filename)
                                 ? 'border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]/20'
                                 : 'border-gray-200'
                                 }`}
