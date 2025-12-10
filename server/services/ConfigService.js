@@ -20,8 +20,23 @@ export class ConfigService {
 
     /**
      * 获取完整配置（兼容原 JSON 格式）
+     * 优先从 config_data JSON 字段读取（与保存逻辑一致）
      */
     async getFullConfig() {
+        // 🔑 优先从 config_data JSON 字段读取（SiteConfigDAO 保存的位置）
+        const row = await this.queryOne('SELECT config_data FROM site_config WHERE id = 1');
+        if (row && row.config_data) {
+            try {
+                const jsonConfig = JSON.parse(row.config_data);
+                console.log('[ConfigService] ✅ 从 config_data JSON 字段读取配置');
+                return jsonConfig;
+            } catch (error) {
+                console.warn('[ConfigService] ⚠️ config_data JSON 解析失败，降级到多表读取:', error);
+            }
+        }
+
+        // 降级方案：从多表结构读取（向后兼容旧数据）
+        console.log('[ConfigService] ℹ️ 从多表结构读取配置（降级方案）');
         const config = {
             logoUrl: '',
             headerQuote: '',

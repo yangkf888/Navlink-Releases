@@ -15,9 +15,30 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOAD_DIR);
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+    filename: async (req, file, cb) => {
+        // 清理文件名：移除特殊字符，保留字母、数字、下划线、连字符和点
+        const sanitizedName = file.originalname
+            .replace(/[^\w\s.-]/g, '') // 移除特殊字符
+            .replace(/\s+/g, '_');      // 空格替换为下划线
+
+        const ext = path.extname(sanitizedName);
+        const nameWithoutExt = path.basename(sanitizedName, ext);
+
+        // 检查文件是否已存在，如果存在则添加数字后缀
+        let finalName = sanitizedName;
+        let counter = 1;
+
+        try {
+            const fs = await import('fs/promises');
+            while (await fs.access(path.join(UPLOAD_DIR, finalName)).then(() => true).catch(() => false)) {
+                finalName = `${nameWithoutExt}_${counter}${ext}`;
+                counter++;
+            }
+        } catch (error) {
+            // 如果检查失败，使用原始清理后的文件名
+        }
+
+        cb(null, finalName);
     }
 });
 

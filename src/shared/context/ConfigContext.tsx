@@ -16,8 +16,59 @@ interface ConfigContextType {
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
+// LocalStorage key for caching config
+const CONFIG_STORAGE_KEY = 'navlink_app_config';
+
+// Declare global window type
+declare global {
+    interface Window {
+        __INITIAL_CONFIG__?: SiteConfig;
+    }
+}
+
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [config, setConfigState] = useState<SiteConfig>(DEFAULT_CONFIG);
+    // 多级降级策略：服务端注入 > LocalStorage > null
+    const [config, setConfigState] = useState<SiteConfig>(() => {
+        // 优先级 1: 服务端注入（首页访问）
+        if (typeof window !== 'undefined' && window.__INITIAL_CONFIG__) {
+            console.log('[ConfigContext] ✅ Using server-injected config');
+
+            // 同步到 LocalStorage（为子页面准备）
+            try {
+                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(window.__INITIAL_CONFIG__));
+            } catch (e) {
+                console.warn('[ConfigContext] ⚠️ Failed to cache config:', e);
+            }
+
+            return window.__INITIAL_CONFIG__;
+        }
+
+        // 优先级 2: LocalStorage（子页面直接访问）
+        if (typeof window !== 'undefined') {
+            try {
+                const cached = localStorage.getItem(CONFIG_STORAGE_KEY);
+                if (cached) {
+                    const parsedConfig = JSON.parse(cached);
+                    // 简单验证配置结构
+                    if (parsedConfig.siteName && parsedConfig.theme) {
+                        console.log('[ConfigContext] ✅ Using cached config from localStorage');
+                        return parsedConfig;
+                    } else {
+                        console.warn('[ConfigContext] ⚠️ Invalid cached config, will load from API');
+                        localStorage.removeItem(CONFIG_STORAGE_KEY);
+                    }
+                }
+            } catch (e) {
+                console.warn('[ConfigContext] ⚠️ Failed to read cache:', e);
+                localStorage.removeItem(CONFIG_STORAGE_KEY);
+            }
+        }
+
+        // 优先级 3: DEFAULT_CONFIG（需要从 API 加载）
+        console.log('[ConfigContext] ℹ️ No cached config, will load from API');
+        return DEFAULT_CONFIG;
+    });
+
     const [isLoaded, setIsLoaded] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -25,10 +76,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Initial Load
     useEffect(() => {
         const init = async () => {
-            // Non-blocking Strategy:
-            // 1. Start Config Load (Blocking UI)
-            // 2. Start Auth Check (Non-blocking, updates UI later)
-
             // --- 1. Auth Check (Background) ---
             const token = localStorage.getItem('auth_token');
             if (token) {
@@ -41,50 +88,91 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         });
 
                         if (response.ok) {
-                            console.log('[ConfigContext] Token有效');
+                            console.log('[ConfigContext] ✅ Token有效');
                             setIsAuthenticated(true);
                         } else if (response.status === 401 || response.status === 403) {
-                            console.warn('[ConfigContext] Token已失效');
+                            console.warn('[ConfigContext] ⚠️ Token已失效');
                             localStorage.removeItem('auth_token');
                             setIsAuthenticated(false);
-                            // Optional: Don't toast here to avoid disturbing user on load
                         }
                     } catch (err) {
-                        console.error('[ConfigContext] Token验证失败:', err);
+                        console.error('[ConfigContext] ❌ Token验证失败:', err);
                         setIsAuthenticated(false);
                     }
                 })();
             }
 
-            // --- 2. Config Load (Main Thread) ---
-            try {
-                const serverData = await api.getConfig();
-                if (serverData) {
-                    setConfigState((_prev) => ({
-                        ...DEFAULT_CONFIG,
-                        ...serverData,
-                        theme: { ...DEFAULT_CONFIG.theme, ...(serverData.theme || {}) },
-                        rightSidebar: {
-                            ...DEFAULT_CONFIG.rightSidebar,
-                            ...(serverData.rightSidebar || {}),
-                            profile: { ...DEFAULT_CONFIG.rightSidebar.profile, ...(serverData.rightSidebar?.profile || {}) }
-                        },
-                        hero: { ...DEFAULT_CONFIG.hero, ...(serverData.hero || {}) },
-                        footer: { ...DEFAULT_CONFIG.footer, ...(serverData.footer || {}) },
-                    } as SiteConfig));
-                } else {
-                    // Fallback
-                    const local = localStorage.getItem('nav_site_config');
-                    if (local) setConfigState(JSON.parse(local));
-                }
-            } catch (err) {
-                console.error('Failed to load config:', err);
-                const local = localStorage.getItem('nav_site_config');
-                if (local) setConfigState(JSON.parse(local));
-                setToast({ message: 'Failed to load config from server', type: 'error' });
-            } finally {
-                // Only wait for Config to finish!
+            // --- 2. Config Load Strategy ---
+            const hasServerInject = typeof window !== 'undefined' && window.__INITIAL_CONFIG__;
+            const hasCachedConfig = config !== DEFAULT_CONFIG;
+
+            if (hasServerInject || hasCachedConfig) {
+                // 有初始配置（服务端注入或 LocalStorage），直接标记为已加载
+                console.log('[ConfigContext] ℹ️ Config ready from:', hasServerInject ? 'server-inject' : 'localStorage');
                 setIsLoaded(true);
+
+                // 如果是从 LocalStorage 加载的，后台异步验证是否最新
+                if (!hasServerInject && hasCachedConfig) {
+                    (async () => {
+                        try {
+                            const freshConfig = await api.getConfig();
+
+                            // 空值检查
+                            if (!freshConfig) {
+                                console.warn('[ConfigContext] ⚠️ API returned null config');
+                                return;
+                            }
+
+                            const cachedStr = JSON.stringify(config);
+                            const freshStr = JSON.stringify(freshConfig);
+
+                            if (cachedStr !== freshStr) {
+                                console.log('[ConfigContext] ℹ️ Config updated, refreshing...');
+                                setConfigState(freshConfig);
+                                localStorage.setItem(CONFIG_STORAGE_KEY, freshStr);
+                            } else {
+                                console.log('[ConfigContext] ✅ Cached config is up-to-date');
+                            }
+                        } catch (e) {
+                            console.warn('[ConfigContext] ⚠️ Background config refresh failed:', e);
+                        }
+                    })();
+                }
+            } else {
+                // 无初始配置，需要从 API 加载
+                console.log('[ConfigContext] ℹ️ Loading config from API...');
+                try {
+                    const serverData = await api.getConfig();
+                    if (serverData) {
+                        const mergedConfig = {
+                            ...DEFAULT_CONFIG,
+                            ...serverData,
+                            theme: { ...DEFAULT_CONFIG.theme, ...(serverData.theme || {}) },
+                            rightSidebar: {
+                                ...DEFAULT_CONFIG.rightSidebar,
+                                ...(serverData.rightSidebar || {}),
+                                profile: { ...DEFAULT_CONFIG.rightSidebar.profile, ...(serverData.rightSidebar?.profile || {}) }
+                            },
+                            hero: { ...DEFAULT_CONFIG.hero, ...(serverData.hero || {}) },
+                            footer: { ...DEFAULT_CONFIG.footer, ...(serverData.footer || {}) },
+                        } as SiteConfig;
+
+                        setConfigState(mergedConfig);
+
+                        // 缓存到 LocalStorage
+                        try {
+                            localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(mergedConfig));
+                            console.log('[ConfigContext] ✅ Config loaded and cached');
+                        } catch (e) {
+                            console.warn('[ConfigContext] ⚠️ Failed to cache config:', e);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[ConfigContext] ❌ Failed to load config:', err);
+                    setToast({ message: '配置加载失败', type: 'error' });
+                } finally {
+                    setIsLoaded(true);
+                }
             }
         };
         init();
@@ -116,22 +204,35 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const saveConfig = async (newConfig: SiteConfig) => {
         try {
-            console.log('[ConfigContext] 开始保存配置到服务器...');
+            console.log('[ConfigContext] 📤 开始保存配置到服务器...');
             await api.saveConfig(newConfig);
             console.log('[ConfigContext] ✅ 配置保存成功');
 
-            // Update local storage as backup
-            localStorage.setItem('nav_site_config', JSON.stringify(newConfig));
+            // 🔑 同步更新 LocalStorage（下次刷新立即生效）
+            try {
+                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
+                console.log('[ConfigContext] ✅ Config saved and synced to localStorage');
+            } catch (e) {
+                console.warn('[ConfigContext] ⚠️ Failed to sync config to localStorage:', e);
+            }
+
+            // 兼容旧的 key（逐步迁移）
+            try {
+                localStorage.setItem('nav_site_config', JSON.stringify(newConfig));
+            } catch (e) {
+                // 静默失败
+            }
+
             // Dispatch local event for other components in same window
             window.dispatchEvent(new CustomEvent('nav-config-updated', { detail: newConfig }));
 
-            // 显示成功提示
-            setToast({ message: '✅ 配置已保存', type: 'success' });
+            // 显示成功提示（已禁用，避免打扰用户）
+            // setToast({ message: '✅ 配置已保存', type: 'success' });
         } catch (err) {
             console.error('[ConfigContext] ❌ 保存配置失败:', err);
 
             if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-                console.warn('[ConfigContext] 认证失败，自动退出登录');
+                console.warn('[ConfigContext] ⚠️ 认证失败，自动退出登录');
                 localStorage.removeItem('auth_token');
                 setIsAuthenticated(false);
                 setToast({ message: '❌ 登录已过期，请重新登录', type: 'error' });

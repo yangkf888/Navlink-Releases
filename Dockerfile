@@ -21,7 +21,6 @@ COPY dist ./dist
 # Copy backend source code
 COPY server.js ./
 COPY server ./server
-COPY src/shared/context/ConfigContext.js ./src/shared/context/ConfigContext.js
 
 # 复制 .env.example 作为配置参考模板
 # 注意：.env 文件不应该包含在镜像中（已在 .dockerignore 中排除）

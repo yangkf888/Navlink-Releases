@@ -15,6 +15,7 @@ import { runMigrations } from './server/database/migrationRunner.js';
 import { AuthService } from './server/services/AuthService.js';
 import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
+import ConfigService from './server/services/ConfigService.js';
 import systemMaintenanceService from './server/services/SystemMaintenanceService.js';
 import { authenticateToken, requireAdmin, optionalAuth, requirePermission } from './server/middleware/auth.js';
 import { enforceTenantIsolation, injectTenantId, checkTenantStatus, requireSuperAdmin } from './server/middleware/tenantIsolation.js';
@@ -1029,6 +1030,58 @@ app.post('/api/cache/invalidate', authenticateToken, requireAdmin, async (req, r
         res.status(500).json({ error: 'Failed to invalidate cache' });
     }
 });
+// ==========================================================================
+// 🔑 首页动态路由 - 服务端注入配置（解决配置加载闪烁）
+// ==========================================================================
+app.get('/', async (req, res, next) => {
+    try {
+        // 1. 读取 index.html 模板
+        const htmlPath = path.join(__dirname, 'dist', 'index.html');
+
+        // 检查文件是否存在
+        if (!fs.existsSync(htmlPath)) {
+            serverLogger.warn('dist/index.html not found, falling back to static serve');
+            return next(); // 降级到静态文件服务
+        }
+
+        let html = fs.readFileSync(htmlPath, 'utf-8');
+
+        // 2. 获取最新配置（从 siteConfigDAO 读取，与 API 保持一致）
+        const config = await siteConfigDAO.getConfig();
+
+        // 3. 注入配置到 <head> 标签
+        const configScript = `
+    <script>
+        // 服务端注入的配置（零延迟加载）
+        window.__INITIAL_CONFIG__ = ${JSON.stringify(config)};
+        console.log('[Server Inject] Config loaded at:', new Date().toISOString());
+    </script>`;
+
+        html = html.replace('</head>', `${configScript}\n  </head>`);
+
+        // 4. 设置缓存策略（确保配置更新及时）
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+        // 5. 返回处理后的 HTML
+        serverLogger.debug('Serving index.html with injected config', {
+            siteName: config?.siteName,
+            configSize: JSON.stringify(config).length
+        });
+        res.send(html);
+
+    } catch (error) {
+        serverLogger.error('Failed to inject config into HTML', {
+            error: error.message,
+            stack: error.stack
+        });
+        console.error('[Server Inject ERROR]:', error);
+        // 降级：返回原始静态文件
+        next();
+    }
+});
 
 app.use(express.static(path.join(__dirname, 'dist'), staticOptions));
 
@@ -1045,12 +1098,52 @@ app.use('/api/plugins', (req, res, next) => {
 });
 
 // Catch-all route for SPA - 返回主应用index.html让React Router处理
-app.get('*', (req, res, next) => {
+// Catch-all route for SPA - 返回主应用index.html让React Router处理（含配置注入）
+app.get('*', async (req, res, next) => {
     // 排除API和插件内容路径
     if (req.path.startsWith('/api/') || req.path.startsWith('/plugin-content/')) {
         return next();
     }
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+
+    try {
+        // 读取 index.html 模板
+        const htmlPath = path.join(__dirname, 'dist', 'index.html');
+
+        if (!fs.existsSync(htmlPath)) {
+            serverLogger.warn('dist/index.html not found for catch-all route');
+            return res.status(404).send('Application not found');
+        }
+
+        let html = fs.readFileSync(htmlPath, 'utf-8');
+
+        // 获取最新配置并注入（从 siteConfigDAO 读取，与 API 保持一致）
+        const config = await siteConfigDAO.getConfig();
+
+        const configScript = `
+    <script>
+        // 服务端注入的配置（零延迟加载）
+        window.__INITIAL_CONFIG__ = ${JSON.stringify(config)};
+        console.log('[Server Inject] Config loaded at:', new Date().toISOString());
+    </script>`;
+
+        html = html.replace('</head>', `${configScript}\n  </head>`);
+
+        // 设置缓存策略
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+        res.send(html);
+
+    } catch (error) {
+        serverLogger.error('Failed to inject config in catch-all route', {
+            error: error.message,
+            path: req.path
+        });
+        // 降级：返回原始 HTML
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    }
 });
 
 // Start Server

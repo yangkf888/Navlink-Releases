@@ -12,6 +12,8 @@ import { useDialogs } from '@/shared/hooks/useDialogs';
 
 import { AlertDialog } from '@/shared/components/common/AlertDialog';
 
+import { ImagePicker } from '@/shared/components/common/ImagePicker';
+
 
 export const BasicSettings: React.FC = () => {
     const { config, setConfig } = useConfig();
@@ -101,6 +103,11 @@ export const BasicSettings: React.FC = () => {
                                         className="hidden"
                                     />
                                 </label>
+                                <ImagePicker
+                                    onSelect={(path) => update(c => ({ ...c, logoUrl: path }))}
+                                    buttonText="📁 从图片库选择"
+                                    buttonClassName="text-xs px-3 py-1.5"
+                                />
                                 {config.logoUrl && <span className="text-xs text-green-600 flex items-center gap-1"><Icon icon="fa-solid fa-check" /> 已设置</span>}
                             </div>
                         </div>
@@ -223,7 +230,7 @@ export const BasicSettings: React.FC = () => {
                             </div>
                             <div>
                                 <Label>或 上传本地图片</Label>
-                                <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-3 mt-1 flex-wrap">
                                     <label className="cursor-pointer bg-gray-50 border border-gray-300 hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)] text-gray-600 px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
                                         <Icon icon="fa-solid fa-cloud-arrow-up" /> 选择图片
                                         <input
@@ -233,6 +240,11 @@ export const BasicSettings: React.FC = () => {
                                             className="hidden"
                                         />
                                     </label>
+                                    <ImagePicker
+                                        onSelect={(path) => update(c => ({ ...c, backgroundImage: path }))}
+                                        buttonText="📁 从图片库选择"
+                                        buttonClassName="text-sm px-4 py-2"
+                                    />
                                     <span className="text-xs text-gray-400">支持 JPG, PNG, WEBP (建议 &lt; 1.5MB)</span>
                                 </div>
                             </div>
