@@ -4,7 +4,19 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [react()],
+    plugins: [
+        react(),
+        // 注入base标签到HTML - 使用 plugin-content 路径
+        {
+            name: 'inject-base-tag',
+            transformIndexHtml(html) {
+                return html.replace(
+                    '<head>',
+                    '<head>\n    <base href="/plugin-content/vps/" />'
+                );
+            }
+        }
+    ],
     base: './', // Important for relative paths in embedded iframe
     resolve: {
         alias: {

@@ -1,9 +1,10 @@
 /**
- * 配置服务
- * 提供统一的配置数据访问接口（使用 sqlite3）
+ * ConfigService
+ * 
+ * 配置管理服务 (兼容层)
  */
 
-import sqlite3 from 'sqlite3';
+import { DatabaseWrapper } from '../utils/db-wrapper.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,16 +15,7 @@ const DB_PATH = path.join(__dirname, '../../data/navlink.db');
 
 export class ConfigService {
     constructor() {
-        const SqliteDB = sqlite3.Database;
-        this.db = new SqliteDB(DB_PATH, (err) => {
-            if (err) {
-                console.error('[ConfigService] Failed to open database:', err);
-                throw err;
-            }
-        });
-
-        // 启用外键约束
-        this.db.run('PRAGMA foreign_keys = ON');
+        this.db = new DatabaseWrapper(DB_PATH);
     }
 
     /**

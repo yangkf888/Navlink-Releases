@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import { DatabaseWrapper } from '../../utils/db-wrapper.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,12 +15,7 @@ const DB_PATH = path.join(DATA_DIR, 'navlink.db');
  */
 export class SiteConfigDAO {
     constructor() {
-        const SqliteDB = sqlite3.Database;
-        this.db = new SqliteDB(DB_PATH, (err) => {
-            if (err) {
-                console.error('[SiteConfigDAO] Failed to open database:', err);
-            }
-        });
+        this.db = new DatabaseWrapper(DB_PATH);
     }
 
     /**

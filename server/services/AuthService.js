@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import { DatabaseWrapper } from '../utils/db-wrapper.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcrypt';
@@ -17,7 +17,7 @@ const JWT_EXPIRES_IN = config.jwt.expiresIn;
  */
 export class AuthService {
     constructor() {
-        this.db = new sqlite3.Database(DB_PATH);
+        this.db = new DatabaseWrapper(DB_PATH);
     }
 
     /**

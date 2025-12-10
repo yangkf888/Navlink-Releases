@@ -3,10 +3,10 @@
  * 用于管理多租户系统中的租户
  */
 
-import sqlite3 from 'sqlite3';
+import { DatabaseWrapper } from '../utils/db-wrapper.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { randomUUID } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +15,7 @@ const DB_PATH = path.join(__dirname, '../../data/auth.db');
 
 export class TenantService {
     constructor() {
-        this.db = new sqlite3.Database(DB_PATH);
+        this.db = new DatabaseWrapper(DB_PATH);
     }
 
     /**
@@ -23,14 +23,14 @@ export class TenantService {
      */
     async createTenant(name, metadata = {}) {
         return new Promise((resolve, reject) => {
-            const id = `tenant_${randomUUID()}`;
+            const id = `tenant_${uuidv4()}`; // Changed from randomUUID() to uuidv4()
             const now = new Date().toISOString();
 
             this.db.run(
                 `INSERT INTO tenants (id, name, status, created_at, updated_at) 
                  VALUES (?, ?, 'active', ?, ?)`,
                 [id, name, now, now],
-                function(err) {
+                function (err) {
                     if (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
                             return reject({ code: 400, message: '租户名称已存在' });
@@ -87,7 +87,7 @@ export class TenantService {
             this.db.run(
                 `UPDATE tenants SET status = ?, updated_at = ? WHERE id = ?`,
                 [status, new Date().toISOString(), tenantId],
-                function(err) {
+                function (err) {
                     if (err) return reject({ code: 500, message: err.message });
                     if (this.changes === 0) return reject({ code: 404, message: '租户不存在' });
                     resolve();

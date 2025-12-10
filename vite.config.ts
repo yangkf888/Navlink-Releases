@@ -17,6 +17,13 @@ export default defineConfig({
                 secure: false,
                 ws: true
             },
+            // 插件内容代理 - 插件前端通过 iframe 加载
+            '/plugin-content': {
+                target: 'http://127.0.0.1:3002',
+                changeOrigin: true,
+                secure: false,
+                ws: true
+            },
             '/uploads': {
                 target: 'http://127.0.0.1:3002',
                 changeOrigin: true,

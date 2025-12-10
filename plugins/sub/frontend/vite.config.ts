@@ -5,13 +5,13 @@ export default defineConfig({
     base: './',
     plugins: [
         react(),
-        // 注入base标签到HTML,确保相对路径正确解析
+        // 注入base标签到HTML - 使用 plugin-content 路径
         {
             name: 'inject-base-tag',
             transformIndexHtml(html) {
                 return html.replace(
                     '<head>',
-                    '<head>\n    <base href="/apps/sub/" />'
+                    '<head>\n    <base href="/plugin-content/sub/" />'
                 );
             }
         }
