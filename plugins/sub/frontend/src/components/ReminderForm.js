@@ -4,11 +4,12 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
  */
 import { useState, useEffect } from 'react';
 import { Icon } from '../shared/components/Icon';
-export const ReminderForm = ({ initialDate, reminder, onSave, onCancel }) => {
+import { getCurrentTimeString } from '../utils/dateUtils';
+export const ReminderForm = ({ initialDate, reminder, timezone, onSave, onCancel }) => {
     const [title, setTitle] = useState(reminder?.title || '');
     const [description, setDescription] = useState(reminder?.description || '');
     const [reminderDate, setReminderDate] = useState(reminder?.reminderDate || initialDate || '');
-    const [reminderTime, setReminderTime] = useState(reminder?.reminderTime || '09:00');
+    const [reminderTime, setReminderTime] = useState(reminder?.reminderTime || getCurrentTimeString(timezone));
     const [isActive, setIsActive] = useState(reminder?.isActive ?? true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');

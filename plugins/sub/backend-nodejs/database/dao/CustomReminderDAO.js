@@ -38,8 +38,8 @@ class CustomReminderDAO {
     create(reminder, tenantId, userId) {
         return new Promise((resolve, reject) => {
             const sql = `INSERT INTO custom_reminders (
-                id, tenant_id, user_id, title, description, targetDate, reminderDays, isActive, category, createdAt, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                id, tenant_id, user_id, title, description, targetDate, reminderTime, reminderDays, isActive, category, createdAt, updatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const params = [
                 reminder.id,
@@ -48,6 +48,7 @@ class CustomReminderDAO {
                 reminder.title,
                 reminder.description || '',
                 reminder.targetDate,
+                reminder.reminderTime || '09:00',  // 新增
                 reminder.reminderDays || '7,3,1',
                 reminder.isActive !== undefined ? (reminder.isActive ? 1 : 0) : 1,
                 reminder.category || '',
@@ -74,7 +75,7 @@ class CustomReminderDAO {
             const updates = [];
             const params = [];
 
-            const fields = ['title', 'description', 'targetDate', 'reminderDays', 'isActive', 'category'];
+            const fields = ['title', 'description', 'targetDate', 'reminderTime', 'reminderDays', 'isActive', 'category'];
 
             fields.forEach(field => {
                 if (data[field] !== undefined) {
@@ -135,6 +136,41 @@ class CustomReminderDAO {
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);
+                }
+            );
+        });
+    }
+
+    /**
+     * 获取所有未通知的活跃提醒
+     */
+    getActiveReminders() {
+        return new Promise((resolve, reject) => {
+            this.db.all(
+                `SELECT * FROM custom_reminders 
+                 WHERE isActive = 1 
+                 AND (notified IS NULL OR notified = 0)
+                 ORDER BY targetDate ASC, reminderTime ASC`,
+                [],
+                (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                }
+            );
+        });
+    }
+
+    /**
+     * 标记提醒为已通知
+     */
+    markAsNotified(id) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE custom_reminders SET notified = 1, updatedAt = ? WHERE id = ?',
+                [new Date().toISOString(), id],
+                function (err) {
+                    if (err) reject(err);
+                    else resolve(this.changes > 0);
                 }
             );
         });

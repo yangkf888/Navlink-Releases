@@ -5,6 +5,7 @@ const path = require('path');
 const { initDatabase } = require('./database');
 const subscriptionRoutes = require('./routes/subscriptions');
 const { setupSubscriptionCheckSchedule } = require('./services/subscriptionCheck');
+const { setupReminderCheckSchedule } = require('./services/reminderCheck');
 
 
 
@@ -55,6 +56,15 @@ module.exports = {
             console.log('[sub] Subscription check schedule initialized');
         } catch (error) {
             console.error('[sub] Failed to setup subscription check schedule:', error);
+        }
+
+        // 初始化提醒检查定时任务
+        console.log('[sub] Setting up reminder check schedule...');
+        try {
+            await setupReminderCheckSchedule();
+            console.log('[sub] Reminder check schedule initialized');
+        } catch (error) {
+            console.error('[sub] Failed to setup reminder check schedule:', error);
         }
 
         console.log('[sub] In-process plugin initialized');

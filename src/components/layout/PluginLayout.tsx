@@ -49,6 +49,7 @@ interface SidebarItem {
 
 interface PluginSidebarConfig {
     title?: string;
+    subtitle?: string;
     items: SidebarItem[];
     activeId: string;
 }
@@ -271,6 +272,11 @@ const PluginLayout: React.FC = () => {
                                     <h2 className="text-xl font-bold text-gray-800">
                                         {pluginSidebarConfig.title || '插件'}
                                     </h2>
+                                    {pluginSidebarConfig.subtitle && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {pluginSidebarConfig.subtitle}
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -327,13 +333,18 @@ const PluginLayout: React.FC = () => {
                         onClick={() => setMobileOpen(false)}
                     >
                         <aside
-                            className="absolute left-0 top-0 bottom-0 w-[280px] bg-white shadow-2xl"
+                            className="absolute left-0 top-0 bottom-0 w-[240px] bg-white shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="p-6 pt-24">
-                                <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600">
-                                    插件菜单
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    {pluginSidebarConfig?.title || '插件菜单'}
                                 </h2>
+                                {pluginSidebarConfig?.subtitle && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {pluginSidebarConfig.subtitle}
+                                    </p>
+                                )}
                             </div>
 
                             {pluginSidebarConfig ? (

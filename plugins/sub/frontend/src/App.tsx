@@ -217,7 +217,8 @@ function SubApp() {
         if (!isInIframe) return;
 
         const sidebarConfig = {
-            title: '订阅管理',
+            title: '通知中心',
+            subtitle: '订阅与事项的到期提醒',
             items: [
                 { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
                 { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
@@ -244,7 +245,8 @@ function SubApp() {
         window.parent.postMessage({
             type: 'PLUGIN_SET_SIDEBAR',
             payload: {
-                title: '订阅管理',
+                title: '通知中心',
+                subtitle: '订阅与事项的到期提醒',
                 items: [
                     { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
                     { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
@@ -347,6 +349,7 @@ function SubApp() {
             <Modal isOpen={showReminderModal} onClose={() => setShowReminderModal(false)} maxWidth="lg">
                 <ReminderForm
                     reminder={editingReminder}
+                    timezone={settings.timezone}
                     onSave={handleSaveReminder}
                     onCancel={() => setShowReminderModal(false)}
                 />

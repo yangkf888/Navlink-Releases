@@ -69,6 +69,49 @@ export function getTodayDate() {
     return new Date().toISOString().split('T')[0];
 }
 /**
+ * 获取本地日期字符串(YYYY-MM-DD格式)
+ * 避免使用 toISOString 导致的时区转换问题
+ * @param date - 日期对象
+ * @param timezone - 时区（如 'Asia/Shanghai', 'UTC'），默认使用浏览器本地时区
+ */
+export function getLocalDateString(date, timezone) {
+    if (timezone) {
+        // 使用指定时区
+        const dateStr = date.toLocaleDateString('en-CA', { timeZone: timezone });
+        return dateStr; // en-CA 格式是 YYYY-MM-DD
+    }
+    else {
+        // 使用浏览器本地时区
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+}
+/**
+ * 获取当前本地时间(HH:mm格式)
+ * @param timezone - 时区（如 'Asia/Shanghai', 'UTC'），默认使用浏览器本地时区
+ */
+export function getCurrentTimeString(timezone) {
+    const now = new Date();
+    if (timezone) {
+        // 使用指定时区
+        const timeStr = now.toLocaleTimeString('en-US', {
+            timeZone: timezone,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        return timeStr;
+    }
+    else {
+        // 使用浏览器本地时区
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+}
+/**
  * 验证日期格式
  */
 export function isValidDate(dateString) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Subscription } from '../../types/subscription';
 import { Icon } from '../../shared/components/Icon';
 import { NotificationSettings } from '../../types/settings';
-import { calculateDaysRemaining } from '../../utils/dateUtils';
+import { calculateDaysRemaining, getLocalDateString } from '../../utils/dateUtils';
 import { CustomReminder } from '../../types/reminder';
 import { useCustomReminders } from '../../hooks/useCustomReminders';
 import { ReminderForm } from '../ReminderForm';
@@ -115,7 +115,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ subscriptions, setti
             const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
             const isToday = new Date().toDateString() === dateObj.toDateString();
             const isFuture = dateObj >= new Date(new Date().setHours(0, 0, 0, 0));
-            const dateStr = dateObj.toISOString().split('T')[0];
+            const dateStr = getLocalDateString(dateObj, settings.timezone);
 
             days.push(
                 <div key={day} className={`h-32 border border-gray-100 p-2 relative group transition-colors hover:bg-gray-50 ${isToday ? 'bg-blue-50/30' : 'bg-white'}`}>
@@ -326,6 +326,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ subscriptions, setti
                 <ReminderForm
                     initialDate={selectedDate}
                     reminder={editingReminder}
+                    timezone={settings.timezone}
                     onSave={handleSaveReminder}
                     onCancel={() => setShowReminderModal(false)}
                 />

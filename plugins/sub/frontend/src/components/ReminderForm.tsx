@@ -5,24 +5,27 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../shared/components/Icon';
 import { CustomReminder, CreateReminderData } from '../types/reminder';
+import { getCurrentTimeString } from '../utils/dateUtils';
 
 interface ReminderFormProps {
     initialDate?: string;
     reminder?: CustomReminder;
+    timezone?: string;
     onSave: (data: CreateReminderData) => Promise<void>;
     onCancel: () => void;
 }
 
-export const ReminderForm: React.FC<ReminderFormProps> = ({ 
-    initialDate, 
-    reminder, 
-    onSave, 
-    onCancel 
+export const ReminderForm: React.FC<ReminderFormProps> = ({
+    initialDate,
+    reminder,
+    timezone,
+    onSave,
+    onCancel
 }) => {
     const [title, setTitle] = useState(reminder?.title || '');
     const [description, setDescription] = useState(reminder?.description || '');
     const [reminderDate, setReminderDate] = useState(reminder?.reminderDate || initialDate || '');
-    const [reminderTime, setReminderTime] = useState(reminder?.reminderTime || '09:00');
+    const [reminderTime, setReminderTime] = useState(reminder?.reminderTime || getCurrentTimeString(timezone));
     const [isActive, setIsActive] = useState(reminder?.isActive ?? true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -36,18 +39,18 @@ export const ReminderForm: React.FC<ReminderFormProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // 验证
         if (!title.trim()) {
             setError('请输入提醒标题');
             return;
         }
-        
+
         if (!reminderDate) {
             setError('请选择提醒日期');
             return;
         }
-        
+
         if (!reminderTime) {
             setError('请选择提醒时间');
             return;

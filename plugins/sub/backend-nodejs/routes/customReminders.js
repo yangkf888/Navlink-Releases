@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
         const mappedReminders = reminders.map(r => ({
             ...r,
             reminderDate: r.targetDate,
-            reminderTime: '09:00',  // 默认时间
+            reminderTime: r.reminderTime || '09:00',  // 使用数据库中的时间，如果没有则默认09:00
             notified: false  // 默认未通知
         }));
 
@@ -43,15 +43,16 @@ router.post('/', async (req, res) => {
     try {
         const { tenantId, userId } = getUserContext(req);
 
-        // 字段映射：前端使用 reminderDate/reminderTime，后端存储为 targetDate/reminderDays
+        // 字段映射：前端使用 reminderDate/reminderTime，后端存储为 targetDate/reminderTime
         const newReminder = {
             id: uuidv4(),
             title: req.body.title,
             description: req.body.description || '',
             targetDate: req.body.reminderDate,  // 映射字段
+            reminderTime: req.body.reminderTime || '09:00',  // 保存用户输入的时间
             reminderDays: '7,3,1',  // 默认提醒天数
             category: req.body.category || '',
-            isActive: true,
+            isActive: req.body.isActive !== undefined ? req.body.isActive : true,
             createdAt: new Date().toISOString()
         };
 
@@ -61,7 +62,7 @@ router.post('/', async (req, res) => {
         const response = {
             ...created,
             reminderDate: created.targetDate,
-            reminderTime: '09:00',  // 默认时间
+            reminderTime: created.reminderTime || '09:00',  // 返回数据库中的时间
             notified: false
         };
 

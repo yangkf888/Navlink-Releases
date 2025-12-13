@@ -198,7 +198,8 @@ function SubApp() {
         if (!isInIframe)
             return;
         const sidebarConfig = {
-            title: '订阅管理',
+            title: '通知中心',
+            subtitle: '订阅与事项的到期提醒',
             items: [
                 { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
                 { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
@@ -223,7 +224,8 @@ function SubApp() {
         window.parent.postMessage({
             type: 'PLUGIN_SET_SIDEBAR',
             payload: {
-                title: '订阅管理',
+                title: '通知中心',
+                subtitle: '订阅与事项的到期提醒',
                 items: [
                     { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
                     { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
@@ -249,6 +251,6 @@ function SubApp() {
     if (!isLoaded || loading || remindersLoading) {
         return (_jsx("div", { className: "min-h-screen flex items-center justify-center bg-gray-50", children: _jsx("div", { className: "w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" }) }));
     }
-    return (_jsxs("div", { className: "h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans", children: [_jsx("style", { children: themeStyles }), _jsx(ReminderToast, { reminders: reminders }), _jsxs("div", { className: "flex-1 min-h-0 relative p-4 lg:p-6 overflow-y-auto", children: [activeView === 'dashboard' && (_jsx(Dashboard, { subscriptions: subscriptions, reminders: customReminders, onNavigate: (view) => setActiveView(view), onAdd: handleAdd, onEditReminder: handleEditReminder, onDeleteReminder: handleDeleteReminder, settings: settings })), activeView === 'list' && (_jsx(SubscriptionList, { subscriptions: subscriptions, onEdit: handleEdit, onDelete: handleDelete, onAdd: handleAdd, settings: settings })), activeView === 'calendar' && (_jsx(CalendarView, { subscriptions: subscriptions, settings: settings })), activeView === 'reminders' && (_jsx(ReminderList, { reminders: customReminders, onEdit: handleEditReminder, onDelete: handleDeleteReminder, onAdd: handleAddReminder })), activeView === 'settings' && (_jsx(SettingsPanel, { onClose: () => setActiveView('dashboard'), subscriptions: subscriptions, settings: settings, onUpdateSettings: handleUpdateSettings, isAuthenticated: isAuthenticated }))] }), _jsx(Modal, { isOpen: showModal, onClose: () => setShowModal(false), maxWidth: "2xl", children: _jsx(SubscriptionForm, { subscription: editingSubscription, onSave: handleSave, onCancel: () => setShowModal(false), settings: settings, onUpdateSettings: handleUpdateSettings }) }), _jsx(Modal, { isOpen: showReminderModal, onClose: () => setShowReminderModal(false), maxWidth: "lg", children: _jsx(ReminderForm, { reminder: editingReminder, onSave: handleSaveReminder, onCancel: () => setShowReminderModal(false) }) }), confirmDialog && (_jsx(ConfirmDialog, { isOpen: confirmDialog.isOpen, title: confirmDialog.title, message: confirmDialog.message, onConfirm: confirmDialog.onConfirm, onCancel: hideConfirm }))] }));
+    return (_jsxs("div", { className: "h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans", children: [_jsx("style", { children: themeStyles }), _jsx(ReminderToast, { reminders: reminders }), _jsxs("div", { className: "flex-1 min-h-0 relative p-4 lg:p-6 overflow-y-auto", children: [activeView === 'dashboard' && (_jsx(Dashboard, { subscriptions: subscriptions, reminders: customReminders, onNavigate: (view) => setActiveView(view), onAdd: handleAdd, onEditReminder: handleEditReminder, onDeleteReminder: handleDeleteReminder, settings: settings })), activeView === 'list' && (_jsx(SubscriptionList, { subscriptions: subscriptions, onEdit: handleEdit, onDelete: handleDelete, onAdd: handleAdd, settings: settings })), activeView === 'calendar' && (_jsx(CalendarView, { subscriptions: subscriptions, settings: settings })), activeView === 'reminders' && (_jsx(ReminderList, { reminders: customReminders, onEdit: handleEditReminder, onDelete: handleDeleteReminder, onAdd: handleAddReminder })), activeView === 'settings' && (_jsx(SettingsPanel, { onClose: () => setActiveView('dashboard'), subscriptions: subscriptions, settings: settings, onUpdateSettings: handleUpdateSettings, isAuthenticated: isAuthenticated }))] }), _jsx(Modal, { isOpen: showModal, onClose: () => setShowModal(false), maxWidth: "2xl", children: _jsx(SubscriptionForm, { subscription: editingSubscription, onSave: handleSave, onCancel: () => setShowModal(false), settings: settings, onUpdateSettings: handleUpdateSettings }) }), _jsx(Modal, { isOpen: showReminderModal, onClose: () => setShowReminderModal(false), maxWidth: "lg", children: _jsx(ReminderForm, { reminder: editingReminder, timezone: settings.timezone, onSave: handleSaveReminder, onCancel: () => setShowReminderModal(false) }) }), confirmDialog && (_jsx(ConfirmDialog, { isOpen: confirmDialog.isOpen, title: confirmDialog.title, message: confirmDialog.message, onConfirm: confirmDialog.onConfirm, onCancel: hideConfirm }))] }));
 }
 export default SubApp;

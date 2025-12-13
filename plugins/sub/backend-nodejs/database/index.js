@@ -95,6 +95,30 @@ function initSchema(db) {
 `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
+        } else {
+            // 添加reminderTime字段（如果不存在）
+            db.exec(`
+                -- 添加reminderTime字段到custom_reminders表
+                ALTER TABLE custom_reminders ADD COLUMN reminderTime TEXT DEFAULT '09:00';
+            `, (err) => {
+                if (err && !err.message.includes('duplicate column')) {
+                    console.error('[Database] Failed to add reminderTime column:', err);
+                } else {
+                    console.log('[Database] reminderTime column migration completed');
+
+                    // 添加notified字段（如果不存在）
+                    db.exec(`
+                        -- 添加notified字段到custom_reminders表
+                        ALTER TABLE custom_reminders ADD COLUMN notified INTEGER DEFAULT 0;
+                    `, (err) => {
+                        if (err && !err.message.includes('duplicate column')) {
+                            console.error('[Database] Failed to add notified column:', err);
+                        } else {
+                            console.log('[Database] Schema migration completed');
+                        }
+                    });
+                }
+            });
         }
     });
 }
