@@ -23,7 +23,7 @@ function logDebug(message) {
  * Docker 客户端缓存
  */
 const dockerClients = new Map();
-const sshConnections = new Map(); // SSH连接缓存
+const sshConnections = new Map(); // SSH连接缓存 { ssh: Client, socatPid: number }
 
 /**
  * 数据缓存系统
@@ -144,71 +144,168 @@ export class DockerService {
     }
 
     /**
-     * 创建SSH隧道Docker客户端
+     * 创建SSH隧道Docker客户端（改进版：自动启动远程 socat）
      */
     static createSSHTunnelClient(serverId, server) {
         return new Promise((resolve, reject) => {
             const ssh = new Client();
+            let socatPid = null; // 存储 socat 进程 PID
+            let cleanupDone = false; // 防止重复清理
+
+            // 清理函数
+            const cleanup = async () => {
+                if (cleanupDone) return;
+                cleanupDone = true;
+
+                logDebug(`[SSH] 开始清理资源: ${server.host} (${serverId})`);
+
+                // 清理 socat 进程
+                if (socatPid && ssh) {
+                    try {
+                        await new Promise((resolve) => {
+                            ssh.exec(`kill ${socatPid} 2>/dev/null || true`, (err, stream) => {
+                                if (err) {
+                                    logDebug(`[SSH] 清理 socat 进程失败: ${err.message}`);
+                                } else {
+                                    stream.on('close', () => {
+                                        logDebug(`[SSH] socat 进程已清理: PID ${socatPid}`);
+                                        resolve();
+                                    });
+                                }
+                            });
+                            // 超时保护
+                            setTimeout(resolve, 2000);
+                        });
+                    } catch (e) {
+                        logDebug(`[SSH] 清理过程出错: ${e.message}`);
+                    }
+                }
+
+                // 清除缓存
+                DockerService.clearClientCache(serverId);
+            };
 
             ssh.on('ready', () => {
                 logDebug(`[SSH] 连接成功: ${server.host} (${serverId})`);
                 console.log(`[SSH] 连接成功: ${server.host}`);
 
-                // 直接使用SSH连接的stream来创建Docker客户端
-                // 而不是通过本地端口转发
-                const dockerOptions = {
-                    protocol: 'http',
-                    socketPath: undefined,
-                    Promise: Promise
-                };
+                // 1. 先检查远程是否已安装 socat
+                ssh.exec('command -v socat', (err, stream) => {
+                    let socatAvailable = false;
 
-                // 创建自定义的HTTP代理，通过SSH隧道转发请求
-                const agent = new http.Agent();
+                    stream.on('data', () => {
+                        socatAvailable = true;
+                    });
 
-                agent.createConnection = function (options, callback) {
-                    ssh.forwardOut(
-                        '127.0.0.1',
-                        0,
-                        '127.0.0.1',
-                        2375,
-                        (err, stream) => {
-                            if (err) {
-                                callback(err);
-                            } else {
-                                callback(null, stream);
-                            }
+                    stream.on('close', (code) => {
+                        if (!socatAvailable) {
+                            logDebug(`[SSH] 远程服务器未安装 socat，尝试直接连接 2375 端口`);
+                            console.log(`[SSH] ⚠️ 远程未安装 socat，将尝试直接连接 Docker TCP 端口`);
+
+                            // 降级：直接尝试连接 2375（假设已配置）
+                            initDockerClient(ssh, serverId, server, null, resolve);
+                        } else {
+                            // 2. 启动 socat 转发 Docker Socket
+                            const socatCmd = `socat TCP-LISTEN:2375,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock 2>/dev/null & echo $!`;
+
+                            logDebug(`[SSH] 启动 socat 转发: ${socatCmd}`);
+                            console.log(`[SSH] 正在启动 Docker Socket 转发...`);
+
+                            ssh.exec(socatCmd, (err, stream) => {
+                                if (err) {
+                                    logDebug(`[SSH] 启动 socat 失败: ${err.message}`);
+                                    reject(new Error(`启动 socat 失败: ${err.message}`));
+                                    return;
+                                }
+
+                                let pidOutput = '';
+                                stream.on('data', (data) => {
+                                    pidOutput += data.toString();
+                                });
+
+                                stream.stderr.on('data', (data) => {
+                                    logDebug(`[SSH] socat stderr: ${data}`);
+                                });
+
+                                stream.on('close', (code) => {
+                                    socatPid = parseInt(pidOutput.trim());
+                                    if (!isNaN(socatPid)) {
+                                        logDebug(`[SSH] socat 已启动，PID: ${socatPid}`);
+                                        console.log(`[SSH] ✅ Docker Socket 转发已启动 (PID: ${socatPid})`);
+
+                                        // 等待 socat 就绪（500ms）
+                                        setTimeout(() => {
+                                            initDockerClient(ssh, serverId, server, socatPid, resolve);
+                                        }, 500);
+                                    } else {
+                                        logDebug(`[SSH] 无法获取 socat PID: ${pidOutput}`);
+                                        reject(new Error('无法启动 socat 进程'));
+                                    }
+                                });
+                            });
                         }
-                    );
-                };
-
-                dockerOptions.agent = agent;
-                dockerOptions.host = 'localhost';
-                dockerOptions.port = 2375;
-
-                const client = new Docker(dockerOptions);
-
-                // 缓存SSH连接
-                sshConnections.set(serverId, ssh);
-
-                // 监听连接关闭事件，自动清除缓存
-                ssh.on('close', () => {
-                    logDebug(`[SSH] 连接关闭: ${server.host} (${serverId})`);
-                    console.log(`[SSH] 连接关闭: ${server.host}`);
-                    DockerService.clearClientCache(serverId);
+                    });
                 });
 
-                ssh.on('end', () => {
-                    logDebug(`[SSH] 连接结束: ${server.host} (${serverId})`);
-                    console.log(`[SSH] 连接结束: ${server.host}`);
-                    DockerService.clearClientCache(serverId);
-                });
+                // 初始化 Docker 客户端的辅助函数
+                function initDockerClient(ssh, serverId, server, pid, resolve) {
+                    socatPid = pid;
 
-                ssh.on('error', (err) => {
-                    logDebug(`[SSH] 连接错误: ${server.host} (${serverId}) - ${err.message}`);
-                    console.error(`[SSH] 连接错误:`, err.message);
-                });
+                    const dockerOptions = {
+                        protocol: 'http',
+                        socketPath: undefined,
+                        Promise: Promise
+                    };
 
-                resolve(client);
+                    // 创建自定义的HTTP代理，通过SSH隧道转发请求
+                    const agent = new http.Agent();
+
+                    agent.createConnection = function (options, callback) {
+                        ssh.forwardOut(
+                            '127.0.0.1',
+                            0,
+                            '127.0.0.1',
+                            2375,
+                            (err, stream) => {
+                                if (err) {
+                                    logDebug(`[SSH] 转发失败: ${err.message}`);
+                                    callback(err);
+                                } else {
+                                    callback(null, stream);
+                                }
+                            }
+                        );
+                    };
+
+                    dockerOptions.agent = agent;
+                    dockerOptions.host = 'localhost';
+                    dockerOptions.port = 2375;
+
+                    const client = new Docker(dockerOptions);
+
+                    // 缓存SSH连接和 socat PID
+                    sshConnections.set(serverId, { ssh, socatPid });
+
+                    // 监听连接关闭事件，自动清除缓存和 socat
+                    ssh.on('close', () => {
+                        logDebug(`[SSH] 连接关闭: ${server.host} (${serverId})`);
+                        console.log(`[SSH] 连接关闭: ${server.host}`);
+                        cleanup();
+                    });
+
+                    ssh.on('end', () => {
+                        logDebug(`[SSH] 连接结束: ${server.host} (${serverId})`);
+                        console.log(`[SSH] 连接结束: ${server.host}`);
+                        cleanup();
+                    });
+
+                    ssh.on('error', (err) => {
+                        logDebug(`[SSH] 连接错误: ${server.host} (${serverId}) - ${err.message}`);
+                        console.error(`[SSH] 连接错误:`, err.message);
+                    });
+
+                    resolve(client);
+                }
             });
 
             ssh.on('error', (err) => {
@@ -251,16 +348,39 @@ export class DockerService {
         if (serverId) {
             dockerClients.delete(serverId);
             // 关闭SSH连接
-            const ssh = sshConnections.get(serverId);
-            if (ssh) {
+            const sshConnection = sshConnections.get(serverId);
+            if (sshConnection) {
                 console.log(`[Docker] Clearing cache for server ${serverId}`);
-                ssh.destroy(); // 使用 destroy 强制关闭
+                const { ssh, socatPid } = sshConnection;
+
+                // 清理 socat 进程
+                if (socatPid && ssh) {
+                    ssh.exec(`kill ${socatPid} 2>/dev/null || true`, (err) => {
+                        if (err) {
+                            logDebug(`[Docker] 清理 socat 进程失败: ${err.message}`);
+                        } else {
+                            logDebug(`[Docker] socat 进程已清理: PID ${socatPid}`);
+                        }
+                    });
+                }
+
+                // 关闭 SSH 连接
+                if (ssh) {
+                    ssh.destroy(); // 使用 destroy 强制关闭
+                }
                 sshConnections.delete(serverId);
             }
         } else {
             dockerClients.clear();
             // 关闭所有SSH连接
-            sshConnections.forEach(ssh => ssh.end());
+            sshConnections.forEach(({ ssh, socatPid }) => {
+                if (socatPid && ssh) {
+                    ssh.exec(`kill ${socatPid} 2>/dev/null || true`);
+                }
+                if (ssh) {
+                    ssh.end();
+                }
+            });
             sshConnections.clear();
         }
     }
