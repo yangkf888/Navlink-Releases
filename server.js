@@ -13,12 +13,10 @@ import { initAuthDB } from './server/database/initAuthDB.js';
 import { initConfigDB } from './server/database/initConfigDB.js';
 import { runMigrations } from './server/database/migrationRunner.js';
 import { AuthService } from './server/services/AuthService.js';
-import { TenantService } from './server/services/TenantService.js';
 import cacheService from './server/services/CacheService.js';
 import ConfigService from './server/services/ConfigService.js';
 import systemMaintenanceService from './server/services/SystemMaintenanceService.js';
 import { authenticateToken, requireAdmin, optionalAuth, requirePermission } from './server/middleware/auth.js';
-import { enforceTenantIsolation, injectTenantId, checkTenantStatus, requireSuperAdmin } from './server/middleware/tenantIsolation.js';
 import { PERMISSIONS, getRolePermissions, getAllRoles, updateRolePermissions } from './server/config/permissions.js';
 import logger, { createLogger, LogQuery } from './server/utils/logger.js';
 import config, { validateConfig, displayConfig } from './server/config/env.js';
@@ -62,7 +60,6 @@ const staticOptions = {
 };
 const PORT = config.port;
 const authService = new AuthService();
-const tenantService = new TenantService();
 
 // 创建各个模块的logger
 const serverLogger = createLogger('Server');
@@ -81,8 +78,7 @@ const pluginContext = {
     },
     logger: createLogger('Plugin'),
     config: config,
-    authService: authService, // 允许插件使用主应用的认证服务
-    tenantService: tenantService
+    authService: authService // 允许插件使用主应用的认证服务
 };
 
 // 注意：io 实例在后面才创建，这里先用 null，稍后会更新
@@ -708,84 +704,6 @@ app.post('/api/health-check/trigger', authenticateToken, requireAdmin, async (re
         res.json({ success: true, message: pluginId ? `已触发插件 ${pluginId} 的健康检查` : '已触发所有插件的健康检查' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// --- Tenant Management API ---
-
-// 获取所有租户 (仅超级管理员)
-app.get('/api/tenants', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const tenants = await tenantService.getAllTenants();
-
-        // 为每个租户添加用户统计
-        const tenantsWithStats = await Promise.all(
-            tenants.map(async (tenant) => {
-                const userCount = await tenantService.getTenantUserCount(tenant.id);
-                return { ...tenant, userCount };
-            })
-        );
-
-        res.json(tenantsWithStats);
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
-    }
-});
-
-// 创建租户 (仅超级管理员)
-app.post('/api/tenants', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const { name } = req.body;
-
-        if (!name) {
-            return res.status(400).json({ error: 'Tenant name is required' });
-        }
-
-        const tenant = await tenantService.createTenant(name);
-        res.json(tenant);
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
-    }
-});
-
-// 获取租户详情和统计
-app.get('/api/tenants/:tenantId', authenticateToken, enforceTenantIsolation, async (req, res) => {
-    try {
-        const stats = await tenantService.getTenantStats(req.params.tenantId);
-        res.json(stats);
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
-    }
-});
-
-// 更新租户状态 (仅超级管理员)
-app.put('/api/tenants/:tenantId/status', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const { status } = req.body;
-        await tenantService.updateTenantStatus(req.params.tenantId, status);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
-    }
-});
-
-// 删除租户 (仅超级管理员)
-app.delete('/api/tenants/:tenantId', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        await tenantService.deleteTenant(req.params.tenantId);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
-    }
-});
-
-// 获取当前用户的租户信息
-app.get('/api/tenant/current', authenticateToken, async (req, res) => {
-    try {
-        const tenant = await tenantService.getTenant(req.user.tenantId);
-        res.json(tenant);
-    } catch (error) {
-        res.status(error.code || 500).json({ error: error.message });
     }
 });
 

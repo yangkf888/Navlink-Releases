@@ -166,7 +166,7 @@ function markNotificationSent(subscription, history) {
 /**
  * 自动续订订阅（如果已过期且autoRenew=true）
  */
-async function autoRenewSubscription(subscription, timezone, tenantId, userId) {
+async function autoRenewSubscription(subscription, timezone, userId) {
     if (!subscription.autoRenew || !subscription.periodValue || !subscription.periodUnit) {
         return null;
     }
@@ -203,7 +203,6 @@ async function autoRenewSubscription(subscription, timezone, tenantId, userId) {
                 expiryDate: newExpiryDate.toISOString().split('T')[0],
                 updatedAt: new Date().toISOString()
             },
-            tenantId,
             userId
         );
         return updated;

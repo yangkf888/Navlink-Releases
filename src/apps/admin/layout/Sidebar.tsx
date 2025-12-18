@@ -7,15 +7,23 @@ import {
     Users,
     Settings,
     FileText,
-    BarChart,
     ChevronLeft,
     ChevronRight,
     ChevronDown,
     ChevronUp,
     Shield,
-    Building2,
     Store,
-    Search
+    Search,
+    Palette,
+    PanelTop,
+    Sparkles,
+    Grid3X3,
+    PanelRight,
+    Bot,
+    HeartPulse,
+    Image,
+    Database,
+    ScrollText
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { usePermissions } from '@/shared/hooks/usePermissions';
@@ -45,12 +53,12 @@ const menuItems: MenuItem[] = [
         isSection: true,
         requiredPermissions: ['nav:view'],
         children: [
-            { id: 'basic', label: '全局外观', icon: FileText, path: '/admin/settings/basic', requiredPermissions: ['config:view'] },
-            { id: 'topnav', label: '顶部导航', icon: LinkIcon, path: '/admin/settings/topnav', requiredPermissions: ['nav:view'] },
-            { id: 'hero', label: '首屏搜索', icon: FileText, path: '/admin/settings/hero', requiredPermissions: ['config:view'] },
-            { id: 'promo', label: '热门/推广', icon: FileText, path: '/admin/settings/promo', requiredPermissions: ['nav:view'] },
-            { id: 'categories', label: '内容分类', icon: FileText, path: '/admin/settings/categories', requiredPermissions: ['nav:view'] },
-            { id: 'sidebar', label: '侧边栏', icon: FileText, path: '/admin/settings/sidebar', requiredPermissions: ['config:view'] },
+            { id: 'basic', label: '全局外观', icon: Palette, path: '/admin/settings/basic', requiredPermissions: ['config:view'] },
+            { id: 'topnav', label: '顶部导航', icon: PanelTop, path: '/admin/settings/topnav', requiredPermissions: ['nav:view'] },
+            { id: 'hero', label: '首屏搜索', icon: Search, path: '/admin/settings/hero', requiredPermissions: ['config:view'] },
+            { id: 'promo', label: '热门/推广', icon: Sparkles, path: '/admin/settings/promo', requiredPermissions: ['nav:view'] },
+            { id: 'categories', label: '内容分类', icon: Grid3X3, path: '/admin/settings/categories', requiredPermissions: ['nav:view'] },
+            { id: 'sidebar', label: '侧边栏', icon: PanelRight, path: '/admin/settings/sidebar', requiredPermissions: ['config:view'] },
         ]
     },
     {
@@ -63,15 +71,13 @@ const menuItems: MenuItem[] = [
         children: [
             { id: 'plugin-market', label: '应用商城', icon: Store, path: '/admin/plugin-market', requiredPermissions: ['plugin:view'] },
             { id: 'plugins', label: '插件管理', icon: Puzzle, path: '/admin/plugins', requiredPermissions: ['plugin:view'] },
-            { id: 'ai', label: 'AI配置', icon: Settings, path: '/admin/settings/ai', requiredPermissions: ['config:view'] },
-            { id: 'health', label: '链接健康', icon: Settings, path: '/admin/settings/health', requiredPermissions: ['system:view'] },
-            { id: 'media', label: '资源管理', icon: Settings, path: '/admin/settings/media', requiredPermissions: ['config:view'] },
-            { id: 'data', label: '数据管理', icon: Settings, path: '/admin/settings/data', requiredPermissions: ['config:view'] },
+            { id: 'ai', label: 'AI配置', icon: Bot, path: '/admin/settings/ai', requiredPermissions: ['config:view'] },
+            { id: 'health', label: '链接健康', icon: HeartPulse, path: '/admin/settings/health', requiredPermissions: ['system:view'] },
+            { id: 'media', label: '资源管理', icon: Image, path: '/admin/settings/media', requiredPermissions: ['config:view'] },
+            { id: 'data', label: '数据管理', icon: Database, path: '/admin/settings/data', requiredPermissions: ['config:view'] },
             { id: 'users', label: '用户管理', icon: Users, path: '/admin/users', requiredPermissions: ['user:view'] },
             { id: 'permissions', label: '权限管理', icon: Shield, path: '/admin/permissions', requiredPermissions: ['system:manage'] },
-            { id: 'tenants', label: '租户管理', icon: Building2, path: '/admin/tenants', requiredPermissions: ['system:manage'] },
-            { id: 'logs', label: '系统日志', icon: FileText, path: '/admin/logs', requiredPermissions: ['system:view'] },
-            { id: 'monitor', label: '监控面板', icon: BarChart, path: '/admin/monitor', requiredPermissions: ['system:view'] },
+            { id: 'logs', label: '系统日志', icon: ScrollText, path: '/admin/logs', requiredPermissions: ['system:view'] },
         ]
     },
 ];

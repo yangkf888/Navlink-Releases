@@ -6,22 +6,21 @@ class SubscriptionDAO {
     }
 
     /**
-     * 提取租户和用户上下文
+     * 提取用户上下文
      */
-    _getTenantContext(req) {
-        const tenantId = req?.headers?.['x-nav-tenant-id'] || 'default';
+    _getUserContext(req) {
         const userId = req?.headers?.['x-nav-user-id'];
-        return { tenantId, userId };
+        return { userId };
     }
 
     /**
-     * 获取所有订阅 (带租户过滤)
+     * 获取所有订阅 (按用户过滤)
      */
-    getAll(tenantId, userId) {
+    getAll(userId) {
         return new Promise((resolve, reject) => {
             this.db.all(
-                'SELECT * FROM subscriptions WHERE tenant_id = ? AND user_id = ? ORDER BY expiryDate ASC',
-                [tenantId, userId],
+                'SELECT * FROM subscriptions WHERE user_id = ? ORDER BY expiryDate ASC',
+                [userId],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);
@@ -31,13 +30,13 @@ class SubscriptionDAO {
     }
 
     /**
-     * 根据ID获取订阅 (带租户验证)
+     * 根据ID获取订阅 (按用户验证)
      */
-    getById(id, tenantId, userId) {
+    getById(id, userId) {
         return new Promise((resolve, reject) => {
             this.db.get(
-                'SELECT * FROM subscriptions WHERE id = ? AND tenant_id = ? AND user_id = ?',
-                [id, tenantId, userId],
+                'SELECT * FROM subscriptions WHERE id = ? AND user_id = ?',
+                [id, userId],
                 (err, row) => {
                     if (err) reject(err);
                     else resolve(row);
@@ -47,9 +46,9 @@ class SubscriptionDAO {
     }
 
     /**
-     * 创建订阅 (强制注入tenant_id和user_id)
+     * 创建订阅 (注入 user_id)
      */
-    create(subscription, tenantId, userId) {
+    create(subscription, userId) {
         return new Promise((resolve, reject) => {
             const sql = `INSERT INTO subscriptions (
                 id, tenant_id, user_id, name, customType, category, notes, 
@@ -60,8 +59,8 @@ class SubscriptionDAO {
 
             const params = [
                 subscription.id,
-                tenantId,  // 强制注入
-                userId,    // 强制注入
+                'default',  // 固定为 default
+                userId,     // 用户隔离
                 subscription.name,
                 subscription.customType || '',
                 subscription.category || '',
@@ -95,9 +94,9 @@ class SubscriptionDAO {
     }
 
     /**
-     * 更新订阅 (验证租户所有权)
+     * 更新订阅 (验证用户所有权)
      */
-    update(id, data, tenantId, userId) {
+    update(id, data, userId) {
         return new Promise((resolve, reject) => {
             const updates = [];
             const params = [];
@@ -127,10 +126,9 @@ class SubscriptionDAO {
             updates.push('updatedAt = ?');
             params.push(new Date().toISOString());
             params.push(id);
-            params.push(tenantId);  // 验证租户
-            params.push(userId);    // 验证用户
+            params.push(userId);  // 验证用户
 
-            const sql = `UPDATE subscriptions SET ${updates.join(', ')} WHERE id = ? AND tenant_id = ? AND user_id = ?`;
+            const sql = `UPDATE subscriptions SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
 
             const db = this.db;
             db.run(sql, params, function (err) {
@@ -146,13 +144,13 @@ class SubscriptionDAO {
     }
 
     /**
-     * 删除订阅 (验证租户所有权)
+     * 删除订阅 (验证用户所有权)
      */
-    delete(id, tenantId, userId) {
+    delete(id, userId) {
         return new Promise((resolve, reject) => {
             this.db.run(
-                'DELETE FROM subscriptions WHERE id = ? AND tenant_id = ? AND user_id = ?',
-                [id, tenantId, userId],
+                'DELETE FROM subscriptions WHERE id = ? AND user_id = ?',
+                [id, userId],
                 function (err) {
                     if (err) reject(err);
                     else resolve(this.changes > 0);
@@ -162,13 +160,13 @@ class SubscriptionDAO {
     }
 
     /**
-     * 按分类查询 (带租户过滤)
+     * 按分类查询 (按用户过滤)
      */
-    getByCategory(category, tenantId, userId) {
+    getByCategory(category, userId) {
         return new Promise((resolve, reject) => {
             this.db.all(
-                'SELECT * FROM subscriptions WHERE category = ? AND tenant_id = ? AND user_id = ? ORDER BY expiryDate ASC',
-                [category, tenantId, userId],
+                'SELECT * FROM subscriptions WHERE category = ? AND user_id = ? ORDER BY expiryDate ASC',
+                [category, userId],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);
@@ -178,18 +176,17 @@ class SubscriptionDAO {
     }
 
     /**
-     * 查询即将到期的订阅 (带租户过滤)
+     * 查询即将到期的订阅 (按用户过滤)
      */
-    getExpiringSoon(days, tenantId, userId) {
+    getExpiringSoon(days, userId) {
         return new Promise((resolve, reject) => {
             this.db.all(
                 `SELECT * FROM subscriptions 
                  WHERE isActive = 1 
-                 AND tenant_id = ?
                  AND user_id = ?
                  AND date(expiryDate) <= date('now', '+' || ? || ' days')
                  ORDER BY expiryDate ASC`,
-                [tenantId, userId, days],
+                [userId, days],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);

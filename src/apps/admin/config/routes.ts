@@ -17,7 +17,6 @@ import MediaManagement from '../pages/System/MediaManagement';
 import DataManagement from '../pages/System/DataManagement';
 import Users from '../pages/System/Users';
 import Permissions from '../pages/System/Permissions';
-import Tenants from '../pages/System/Tenants';
 import Logs from '../pages/System/Logs';
 import Monitor from '../pages/System/Monitor';
 
@@ -139,12 +138,6 @@ export const adminRoutes: RouteConfig[] = [
         component: Permissions,
         permission: 'system:manage',
         title: '权限管理'
-    },
-    {
-        path: '/tenants',
-        component: Tenants,
-        permission: 'system:manage',
-        title: '租户管理'
     },
 
     // 系统监控 - 需要system:view权限

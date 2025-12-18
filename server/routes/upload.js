@@ -4,9 +4,10 @@ import path from 'path';
 import axios from 'axios';
 import https from 'https';
 import fs from 'fs/promises';
-import { UPLOAD_DIR, DATA_DIR } from '../config.js';
+import { UPLOAD_DIR } from '../config.js';
 import { ensureUploadDir } from '../utils/fileHelper.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { ConfigService } from '../services/ConfigService.js';
 
 const router = express.Router();
 
@@ -170,30 +171,72 @@ router.get('/uploads/:filename/references', authenticateToken, async (req, res) 
         let usageCount = 0;
 
         try {
-            const configPath = path.join(DATA_DIR, 'app_config.json');
-            const data = await fs.readFile(configPath, 'utf-8');
-            const config = JSON.parse(data);
+            // 从数据库读取配置
+            const configService = new ConfigService();
+            const config = await configService.getFullConfig();
 
             if (config) {
+                // 1. 检查 Logo
                 if (config.logoUrl === fileUrl) {
                     references.push({ location: '网站Logo', type: 'logo' });
                     usageCount++;
                 }
-                if (config.favicon === fileUrl) {
-                    references.push({ location: '网站图标(Favicon)', type: 'favicon' });
+
+                // 2. 检查背景图片
+                if (config.backgroundImage === fileUrl) {
+                    references.push({ location: '首屏背景图片', type: 'background' });
                     usageCount++;
                 }
+
+                // 3. 检查侧边栏头像
+                if (config.rightSidebar?.profile?.avatarUrl === fileUrl) {
+                    references.push({ location: '侧边栏头像', type: 'avatar' });
+                    usageCount++;
+                }
+
+                // 4. 检查热门推广 (promo)
+                if (config.promo && Array.isArray(config.promo)) {
+                    config.promo.forEach((tab) => {
+                        if (tab.items && Array.isArray(tab.items)) {
+                            tab.items.forEach((item) => {
+                                if (item.icon === fileUrl) {
+                                    references.push({ location: `热门推广: ${tab.name} / ${item.title}`, type: 'promo' });
+                                    usageCount++;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 5. 检查分类 (categories)
                 if (config.categories && Array.isArray(config.categories)) {
                     config.categories.forEach((cat) => {
+                        // 检查分类图标
                         if (cat.icon === fileUrl) {
                             references.push({ location: `分类: ${cat.name}`, type: 'category' });
                             usageCount++;
                         }
+
+                        // 检查分类直接链接
                         if (cat.items && Array.isArray(cat.items)) {
                             cat.items.forEach((item) => {
                                 if (item.icon === fileUrl) {
                                     references.push({ location: `${cat.name} / ${item.title}`, type: 'link' });
                                     usageCount++;
+                                }
+                            });
+                        }
+
+                        // 检查子分类链接
+                        if (cat.subCategories && Array.isArray(cat.subCategories)) {
+                            cat.subCategories.forEach((subCat) => {
+                                if (subCat.items && Array.isArray(subCat.items)) {
+                                    subCat.items.forEach((item) => {
+                                        if (item.icon === fileUrl) {
+                                            references.push({ location: `${cat.name} / ${subCat.name} / ${item.title}`, type: 'link' });
+                                            usageCount++;
+                                        }
+                                    });
                                 }
                             });
                         }
@@ -209,6 +252,7 @@ router.get('/uploads/:filename/references', authenticateToken, async (req, res) 
         res.status(500).json({ error: 'Failed to get references' });
     }
 });
+
 
 // API: Batch Delete
 router.post('/uploads/batch-delete', authenticateToken, async (req, res) => {

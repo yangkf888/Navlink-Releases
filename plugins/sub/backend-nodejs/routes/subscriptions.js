@@ -30,10 +30,8 @@ const getNotificationDAO = () => new NotificationDAO();
  * 对于进程内插件，headers可能不存在，使用默认值
  */
 function getUserContext(req) {
-    const tenantId = req.headers['x-nav-tenant-id'] || 'default';
     const userId = req.headers['x-nav-user-id'] || 'user_1001';
-
-    return { tenantId, userId };
+    return { userId };
 }
 
 // 配置 Multer 存储 (JSON)
@@ -53,9 +51,9 @@ const jsonUpload = multer({
 // API: 获取所有订阅 (带租户过滤)
 router.get('/', async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
-        console.log('[sub] GET /subscriptions - tenantId:', tenantId, 'userId:', userId);
-        const subscriptions = await getSubscriptionDAO().getAll(tenantId, userId);
+        const { userId } = getUserContext(req);
+        console.log('[sub] GET /subscriptions - userId:', userId);
+        const subscriptions = await getSubscriptionDAO().getAll(userId);
         console.log('[sub] Found subscriptions:', subscriptions.length);
         res.json(subscriptions);
     } catch (error) {
@@ -68,7 +66,7 @@ router.get('/', async (req, res) => {
 // API: 创建订阅 (强制注入tenant_id和user_id)
 router.post('/', async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
+        const { userId } = getUserContext(req);
 
         const newSubscription = {
             ...req.body,
@@ -78,7 +76,7 @@ router.post('/', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
 
-        const created = await getSubscriptionDAO().create(newSubscription, tenantId, userId);
+        const created = await getSubscriptionDAO().create(newSubscription, userId);
         res.status(201).json(created);
     } catch (error) {
         console.error('Create subscription error:', error);
@@ -91,8 +89,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         console.log(`[订阅更新] 开始更新订阅 ID: ${req.params.id}`);
-        const { tenantId, userId } = getUserContext(req);
-        const updated = await getSubscriptionDAO().update(req.params.id, req.body, tenantId, userId);
+        const { userId } = getUserContext(req);
+        const updated = await getSubscriptionDAO().update(req.params.id, req.body, userId);
 
         if (!updated) {
             return res.status(404).json({ error: 'Subscription not found or access denied' });
@@ -120,7 +118,7 @@ router.put('/:id', async (req, res) => {
 
             if (daysRemaining <= 0) {
                 console.log(`[订阅更新] 订阅 "${updated.name}" 已过期且启用自动续订，立即续订...`);
-                const renewed = await autoRenewSubscription(updated, timezone, tenantId, userId);
+                const renewed = await autoRenewSubscription(updated, timezone, userId);
                 if (renewed) {
                     console.log(`[订阅更新] 订阅 "${updated.name}" 已自动续订至: ${renewed.expiryDate}`);
                     return res.json(renewed);
@@ -149,8 +147,8 @@ router.put('/:id', async (req, res) => {
 // API: 删除订阅 (验证租户所有权)
 router.delete('/:id', async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
-        const deleted = await getSubscriptionDAO().delete(req.params.id, tenantId, userId);
+        const { userId } = getUserContext(req);
+        const deleted = await getSubscriptionDAO().delete(req.params.id, userId);
 
         if (!deleted) {
             return res.status(404).json({ error: 'Subscription not found or access denied' });
@@ -288,8 +286,8 @@ router.post('/test-notification', async (req, res) => {
 // API: 导出订阅数据 (仅导出当前用户的数据)
 router.get('/export', async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
-        const subscriptions = await getSubscriptionDAO().getAll(tenantId, userId);
+        const { userId } = getUserContext(req);
+        const subscriptions = await getSubscriptionDAO().getAll(userId);
 
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename = subscriptions - backup - ${new Date().toISOString().split('T')[0]}.json`);
@@ -304,7 +302,7 @@ router.get('/export', async (req, res) => {
 // API: 导入订阅数据 (自动注入当前用户的tenant_id和user_id)
 router.post('/import', jsonUpload.single('file'), async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
+        const { userId } = getUserContext(req);
         let data;
 
         // 支持文件上传
@@ -347,11 +345,11 @@ router.post('/import', jsonUpload.single('file'), async (req, res) => {
                     sub.id = uuidv4();
                 }
                 // 检查是否存在，如果存在则更新，否则创建
-                const existing = await getSubscriptionDAO().getById(sub.id, tenantId, userId);
+                const existing = await getSubscriptionDAO().getById(sub.id, userId);
                 if (existing) {
-                    await getSubscriptionDAO().update(sub.id, sub, tenantId, userId);
+                    await getSubscriptionDAO().update(sub.id, sub, userId);
                 } else {
-                    await getSubscriptionDAO().create(sub, tenantId, userId);
+                    await getSubscriptionDAO().create(sub, userId);
                 }
                 count++;
             } catch (error) {
@@ -370,10 +368,10 @@ router.post('/import', jsonUpload.single('file'), async (req, res) => {
 // API: 清空所有订阅数据 (仅清空当前用户的数据)
 router.delete('/clear', async (req, res) => {
     try {
-        const { tenantId, userId } = getUserContext(req);
-        const subscriptions = await getSubscriptionDAO().getAll(tenantId, userId);
+        const { userId } = getUserContext(req);
+        const subscriptions = await getSubscriptionDAO().getAll(userId);
         for (const sub of subscriptions) {
-            await getSubscriptionDAO().delete(sub.id, tenantId, userId);
+            await getSubscriptionDAO().delete(sub.id, userId);
         }
         res.json({ success: true, message: '所有订阅数据已清空' });
     } catch (error) {

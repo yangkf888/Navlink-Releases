@@ -116,10 +116,19 @@ export class PluginManager {
                 return;
             }
 
+            // 保留已存在插件的运行状态
+            const existingPlugin = this.plugins.get(pluginId);
+
             this.plugins.set(pluginId, {
                 ...manifest,
                 dir: path.join(this.pluginsDir, pluginId),
-                status: 'stopped'
+                // 保留原有状态，如果插件正在运行
+                status: existingPlugin?.status || 'stopped',
+                port: existingPlugin?.port,
+                mode: existingPlugin?.mode,
+                instance: existingPlugin?.instance,
+                startupPhase: existingPlugin?.startupPhase,
+                startupMessage: existingPlugin?.startupMessage
             });
         } catch (error) {
             // Ignore if manifest doesn't exist (might be a non-plugin folder)
