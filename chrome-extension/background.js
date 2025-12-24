@@ -263,14 +263,52 @@ async function handleSaveToKnowledgeBase(info, tab, type) {
       content = info.selectionText;
       title = `${tab.title} - 选段`;
     } else {
-      // 保存整页内容 - 需要注入脚本获取页面内容
+      // 保存整页内容 - 需要注入脚本获取页面主体内容
       try {
         const results = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
-            // 获取页面主要文本内容
-            const textContent = document.body.innerText || document.body.textContent;
-            return textContent.substring(0, 50000); // 限制最大长度
+            // 尝试提取页面主体内容
+            // 1. 优先使用 article 标签
+            const article = document.querySelector('article');
+            if (article) {
+              return article.innerText.substring(0, 50000);
+            }
+
+            // 2. 尝试 main 标签
+            const main = document.querySelector('main');
+            if (main) {
+              return main.innerText.substring(0, 50000);
+            }
+
+            // 3. 尝试常见的内容容器
+            const contentSelectors = [
+              '.article-content', '.post-content', '.entry-content',
+              '.content', '.main-content', '#content', '#main',
+              '[role="main"]', '.markdown-body', '.prose'
+            ];
+
+            for (const selector of contentSelectors) {
+              const element = document.querySelector(selector);
+              if (element && element.innerText.length > 200) {
+                return element.innerText.substring(0, 50000);
+              }
+            }
+
+            // 4. 回退：获取 body 内容，但过滤掉常见的非正文元素
+            const body = document.body.cloneNode(true);
+            const removeSelectors = [
+              'header', 'footer', 'nav', 'aside', 'script', 'style', 'noscript',
+              '.sidebar', '.navigation', '.menu', '.ad', '.advertisement',
+              '#header', '#footer', '#sidebar', '#nav', '#menu',
+              '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]'
+            ];
+
+            removeSelectors.forEach(selector => {
+              body.querySelectorAll(selector).forEach(el => el.remove());
+            });
+
+            return body.innerText.substring(0, 50000);
           }
         });
         content = results[0]?.result || '';
@@ -287,16 +325,22 @@ async function handleSaveToKnowledgeBase(info, tab, type) {
       return;
     }
 
-    // 调用知识库 API 保存
-    const api = new KnowledgeBaseAPI(settings.serverUrl, settings.authToken);
-    await api.saveKnowledge({
+    // 打开分类选择弹窗
+    const params = new URLSearchParams({
       title: title,
-      content: content.trim(),
-      url: tab.url,
-      tags: []
+      content: content.trim().substring(0, 10000), // URL 长度限制，截取前10000字符
+      url: tab.url
     });
 
-    showNotification(true, `已保存到知识库: ${title.substring(0, 30)}...`);
+    chrome.windows.create({
+      url: `popup/kbrag.html?${params.toString()}`,
+      type: 'popup',
+      width: 450,
+      height: 550,
+      top: 100,
+      left: 100
+    });
+
   } catch (error) {
     console.error('Save to knowledge base error:', error);
     showNotification(false, '保存失败: ' + error.message);

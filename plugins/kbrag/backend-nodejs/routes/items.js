@@ -14,9 +14,19 @@ const embeddingQueue = [];
  * 将知识条目添加到向量化队列
  */
 function queueForEmbedding(id) {
+    console.log('[kbrag] queueForEmbedding called for:', id);
+
+    // 检查是否配置了 Embedding 服务
+    if (!embeddingService.isConfigured()) {
+        console.log('[kbrag] Embedding service not configured, skipping auto-embed');
+        return;
+    }
+
     if (!embeddingQueue.includes(id)) {
         embeddingQueue.push(id);
-        processEmbeddingQueue();
+        console.log('[kbrag] Added to embedding queue, queue length:', embeddingQueue.length);
+        // 使用 setTimeout 确保异步处理不会阻塞响应
+        setTimeout(() => processEmbeddingQueue(), 100);
     }
 }
 
@@ -24,32 +34,51 @@ function queueForEmbedding(id) {
  * 处理向量化队列
  */
 async function processEmbeddingQueue() {
-    if (isProcessingQueue || embeddingQueue.length === 0) return;
+    if (isProcessingQueue) {
+        console.log('[kbrag] Queue already being processed, skipping');
+        return;
+    }
+    if (embeddingQueue.length === 0) {
+        console.log('[kbrag] Queue is empty, nothing to process');
+        return;
+    }
 
     isProcessingQueue = true;
-    console.log('[kbrag] Processing embedding queue, items:', embeddingQueue.length);
+    console.log('[kbrag] Starting to process embedding queue, items:', embeddingQueue.length);
 
     while (embeddingQueue.length > 0) {
         const id = embeddingQueue.shift();
+        console.log('[kbrag] Processing item:', id);
         try {
             const db = getDb();
             const item = db.prepare('SELECT * FROM knowledge_items WHERE id = ?').get(id);
-            if (!item || item.embedded === 1) continue;
+            if (!item) {
+                console.log('[kbrag] Item not found:', id);
+                continue;
+            }
+            if (item.embedded === 1) {
+                console.log('[kbrag] Item already embedded:', id);
+                continue;
+            }
 
             // 获取嵌入向量
             const text = `${item.title}\n\n${item.content}`;
+            console.log('[kbrag] Getting embedding for text length:', text.length);
             const embedding = await embeddingService.getEmbedding(text);
 
             if (embedding) {
+                console.log('[kbrag] Got embedding, vector length:', embedding.length);
                 // 保存向量
-                await vectorStore.saveVector(id, embedding);
+                await vectorStore.store(id, embedding);
 
                 // 更新状态
                 db.prepare('UPDATE knowledge_items SET embedded = 1 WHERE id = ?').run(id);
-                console.log('[kbrag] Auto-embedded item:', id);
+                console.log('[kbrag] ✓ Auto-embedded item:', id);
+            } else {
+                console.log('[kbrag] No embedding returned for:', id);
             }
         } catch (error) {
-            console.error('[kbrag] Auto-embedding failed for', id, error.message);
+            console.error('[kbrag] Auto-embedding failed for', id, ':', error.message);
             // 不重新加入队列，避免无限循环
         }
         // 短暂延迟避免请求过快
@@ -57,6 +86,7 @@ async function processEmbeddingQueue() {
     }
 
     isProcessingQueue = false;
+    console.log('[kbrag] Finished processing embedding queue');
 }
 
 /**

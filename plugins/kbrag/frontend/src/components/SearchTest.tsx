@@ -80,8 +80,8 @@ export const SearchTest: React.FC<SearchTestProps> = ({ onViewItem }) => {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">检索测试</h1>
-                <p className="text-gray-500 mt-1">测试知识库的检索效果</p>
+                <h1 className="text-2xl font-bold text-gray-900">知识检索</h1>
+                <p className="text-gray-500 mt-1">检索知识库内容</p>
             </div>
 
             {/* 搜索表单 */}

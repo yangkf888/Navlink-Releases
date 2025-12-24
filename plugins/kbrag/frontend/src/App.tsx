@@ -116,7 +116,7 @@ function App() {
                         ...categoryItems
                     ] : undefined
                 },
-                { id: 'search', label: '检索测试', icon: 'fas fa-search' },
+                { id: 'search', label: '知识检索', icon: 'fas fa-search' },
                 { id: 'config', label: '配置', icon: 'fas fa-cog' },
             ],
             activeId: selectedCategory ? `category:${selectedCategory}` : activeView,

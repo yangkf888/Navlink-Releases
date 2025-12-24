@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保存到知识库</title>
+    <link rel="stylesheet" href="add.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>📚 保存到知识库</h2>
+        </div>
+
+        <form id="kbragForm">
+            <!-- 内容预览 -->
+            <div class="form-section">
+                <div class="preview-card" style="flex-direction: column; align-items: flex-start;">
+                    <div id="titlePreview" class="title-preview" style="margin-bottom: 8px;"></div>
+                    <div id="contentPreview" class="url-preview"
+                        style="max-height: 100px; overflow: hidden; font-size: 12px; color: #666;"></div>
+                </div>
+            </div>
+
+            <!-- 标题 -->
+            <div class="form-section">
+                <label for="title" class="form-label">标题 *</label>
+                <input type="text" id="title" class="form-input" placeholder="请输入标题" required>
+            </div>
+
+            <!-- 分类选择 -->
+            <div class="form-section">
+                <label for="category" class="form-label">选择分类</label>
+                <select id="category" class="form-select">
+                    <option value="">未分类</option>
+                </select>
+            </div>
+
+            <!-- 标签 -->
+            <div class="form-section">
+                <label for="tags" class="form-label">标签（用逗号分隔）</label>
+                <input type="text" id="tags" class="form-input" placeholder="例如: 技术, AI, 编程">
+            </div>
+
+            <!-- 备注 -->
+            <div class="form-section">
+                <label for="note" class="form-label">备注（可选）</label>
+                <textarea id="note" class="form-textarea" placeholder="添加个人备注..." rows="2"></textarea>
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="button-group">
+                <button type="button" id="cancelBtn" class="btn btn-secondary">取消</button>
+                <button type="submit" id="submitBtn" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+
+        <!-- 加载状态 -->
+        <div id="loading" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p>保存中...</p>
+        </div>
+    </div>
+
+    <script src="kbrag.js"></script>
+</body>
+
+</html>

@@ -129,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, categories = [], ca
                         className="p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-center"
                     >
                         <i className="fas fa-search text-green-500 text-2xl mb-2"></i>
-                        <p className="text-sm text-gray-700">检索测试</p>
+                        <p className="text-sm text-gray-700">知识检索</p>
                     </button>
                     <button
                         onClick={() => onNavigate('config')}
@@ -158,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, categories = [], ca
                     <li>在「配置」页面设置 Embedding API（推荐 OpenAI text-embedding-3-small）</li>
                     <li>通过 Chrome 扩展保存网页内容到知识库</li>
                     <li>在「知识列表」中管理已保存的内容</li>
-                    <li>在「检索测试」中测试语义搜索效果</li>
+                    <li>在「知识检索」中测试语义搜索效果</li>
                     <li>AI 对话时将自动检索相关知识</li>
                 </ol>
             </div>
