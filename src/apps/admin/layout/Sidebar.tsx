@@ -23,7 +23,8 @@ import {
     HeartPulse,
     Image,
     Database,
-    ScrollText
+    ScrollText,
+    ArrowUpCircle
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { usePermissions } from '@/shared/hooks/usePermissions';
@@ -78,6 +79,7 @@ const menuItems: MenuItem[] = [
             { id: 'users', label: '用户管理', icon: Users, path: '/admin/users', requiredPermissions: ['user:view'] },
             { id: 'permissions', label: '权限管理', icon: Shield, path: '/admin/permissions', requiredPermissions: ['system:manage'] },
             { id: 'logs', label: '系统日志', icon: ScrollText, path: '/admin/logs', requiredPermissions: ['system:view'] },
+            { id: 'update', label: '系统升级', icon: ArrowUpCircle, path: '/admin/settings/update', requiredPermissions: ['system:manage'] },
         ]
     },
 ];

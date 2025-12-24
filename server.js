@@ -796,6 +796,9 @@ app.delete('/api/logs/clear', authenticateToken, requireAdmin, async (req, res) 
 
 import uploadRoutes from './server/routes/upload.js';
 import navlinkRoutes from './server/routes/navlink.js';
+import systemRoutes from './server/routes/system.js';
+import { upgradeService } from './server/services/UpgradeService.js';
+import { updateService } from './server/services/UpdateService.js';
 import { UPLOAD_DIR } from './server/config.js';
 
 
@@ -803,6 +806,8 @@ import { UPLOAD_DIR } from './server/config.js';
 // Mount Routes
 app.use('/api', uploadRoutes);
 app.use('/api', navlinkRoutes);
+// 系统升级路由 - 部分接口需要管理员权限，在路由内部处理
+app.use('/api/system', systemRoutes);
 
 // Serve Uploads
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -1150,7 +1155,12 @@ app.get('*', async (req, res, next) => {
 
     // 设置 PluginManager 的 io 实例
     pluginManager.io = io;
-    serverLogger.info('Socket.IO initialized and bound to PluginManager');
+    // 设置 UpgradeService 的 io 实例，用于推送升级进度
+    upgradeService.setSocketIO(io);
+    serverLogger.info('Socket.IO initialized and bound to PluginManager and UpgradeService');
+
+    // 启动定时更新检查任务（每天检查一次新版本）
+    updateService.startScheduledCheck();
 
     // Socket.IO 连接处理（可选：添加认证）
     io.on('connection', (socket) => {

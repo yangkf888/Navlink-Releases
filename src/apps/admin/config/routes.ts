@@ -19,6 +19,7 @@ import Users from '../pages/System/Users';
 import Permissions from '../pages/System/Permissions';
 import Logs from '../pages/System/Logs';
 import Monitor from '../pages/System/Monitor';
+import SystemUpdate from '../pages/System/SystemUpdate';
 
 /**
  * 路由权限配置
@@ -152,5 +153,11 @@ export const adminRoutes: RouteConfig[] = [
         component: Monitor,
         permission: 'system:view',
         title: '监控面板'
+    },
+    {
+        path: '/settings/update',
+        component: SystemUpdate,
+        permission: 'system:manage',
+        title: '系统升级'
     },
 ];
