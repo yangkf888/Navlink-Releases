@@ -16,6 +16,8 @@ import { AuthService } from './server/services/AuthService.js';
 import cacheService from './server/services/CacheService.js';
 import ConfigService from './server/services/ConfigService.js';
 import systemMaintenanceService from './server/services/SystemMaintenanceService.js';
+import { licenseService } from './server/services/LicenseService.js';
+import { requireLicense } from './server/middleware/license.js';
 import { authenticateToken, requireAdmin, optionalAuth, requirePermission } from './server/middleware/auth.js';
 import { PERMISSIONS, getRolePermissions, getAllRoles, updateRolePermissions } from './server/config/permissions.js';
 import logger, { createLogger, LogQuery } from './server/utils/logger.js';
@@ -95,6 +97,9 @@ serviceRegistry.startHealthCheck();
 // 启动系统自动维护任务 (VACUUM & Cleanup)
 systemMaintenanceService.startSchedule();
 
+// 初始化授权服务
+await licenseService.init();
+
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './server/config/swagger.js';
 
@@ -111,6 +116,9 @@ app.use(securityLoggerMiddleware);
 
 // HPP Protection - HTTP Parameter Pollution
 app.use(hppProtection);
+
+// 授权验证中间件 (拦截未授权请求)
+app.use('/api', requireLicense);
 
 // ==========================================================================
 // 插件内容服务 - /plugin-content/:pluginId/*
@@ -352,7 +360,8 @@ app.post('/api/plugin-market/:id/update', authenticateToken, requireAdmin, async
 // 卸载插件 - 仅管理员
 app.delete('/api/plugin-market/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const result = await pluginMarketService.uninstallPlugin(req.params.id);
+        const deleteData = req.query.deleteData === 'true';
+        const result = await pluginMarketService.uninstallPlugin(req.params.id, { deleteData });
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });

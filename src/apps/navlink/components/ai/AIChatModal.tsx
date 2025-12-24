@@ -6,6 +6,21 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp: number;
+    sources?: RAGSource[];
+}
+
+interface RAGSource {
+    id: string;
+    title: string;
+    url?: string;
+    score?: number;
+}
+
+interface RAGResponse {
+    context: string;
+    sources: RAGSource[];
+    count: number;
+    method: 'semantic' | 'keyword';
 }
 
 interface AIChatModalProps {
@@ -20,6 +35,8 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
     const [showProviderMenu, setShowProviderMenu] = useState(false);
+    const [ragEnabled, setRagEnabled] = useState(true);
+    const [showSources, setShowSources] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // 自动滚动到底部
@@ -53,6 +70,10 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             if (savedMessages) {
                 setMessages(JSON.parse(savedMessages));
             }
+            const savedRagEnabled = localStorage.getItem('ai_rag_enabled');
+            if (savedRagEnabled !== null) {
+                setRagEnabled(savedRagEnabled === 'true');
+            }
         }
     }, [isOpen]);
 
@@ -62,6 +83,40 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             localStorage.setItem('ai_chat_history_modal', JSON.stringify(messages.slice(-20)));
         }
     }, [messages]);
+
+    // 保存 RAG 设置
+    useEffect(() => {
+        localStorage.setItem('ai_rag_enabled', String(ragEnabled));
+    }, [ragEnabled]);
+
+    // 调用 RAG API 获取知识上下文
+    const fetchRAGContext = async (query: string): Promise<RAGResponse | null> => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/plugins/kbrag/api/search/rag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ query, limit: 3 })
+            });
+
+            if (!response.ok) {
+                console.warn('[RAG] Failed to fetch context:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            if (data.success && data.data.count > 0) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.warn('[RAG] Error fetching context:', error);
+            return null;
+        }
+    };
 
     const handleSendMessage = async () => {
         if (!inputMessage.trim() || isLoading) return;
@@ -77,10 +132,9 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
         setIsLoading(true);
 
         try {
-            // 获取选中的 AI 提供商
             const aiConfig = config.aiConfig;
             let provider = null;
-            
+
             if (selectedProviderId) {
                 provider = aiConfig?.providers.find(p => p.id === selectedProviderId && p.enabled);
             } else {
@@ -100,11 +154,15 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                 return;
             }
 
-            // 构造请求
+            // RAG: 获取知识库上下文
+            let ragContext: RAGResponse | null = null;
+            if (ragEnabled) {
+                ragContext = await fetchRAGContext(userMessage.content);
+            }
+
             const baseUrl = provider.baseUrl || 'https://api.openai.com/v1';
             const apiUrl = `${baseUrl}/chat/completions`;
 
-            // 使用配置的模型
             let modelName = provider.model;
             if (!modelName) {
                 if (baseUrl.includes('deepseek')) {
@@ -114,18 +172,35 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                 }
             }
 
+            // 构建消息列表
+            const apiMessages: { role: string; content: string }[] = [];
+
+            if (ragContext) {
+                apiMessages.push({
+                    role: 'system',
+                    content: `你是一个智能助手。请根据以下知识库内容来回答用户的问题。如果知识库内容与问题相关，请优先使用这些信息。如果知识库内容不足以回答问题，可以结合你的知识进行补充说明。
+
+【知识库参考】
+${ragContext.context}
+
+请在回答中适当引用以上来源。`
+                });
+            }
+
+            apiMessages.push(
+                ...messages.map(m => ({
+                    role: m.role,
+                    content: m.content
+                })),
+                {
+                    role: 'user',
+                    content: userMessage.content
+                }
+            );
+
             const requestBody = {
                 model: modelName,
-                messages: [
-                    ...messages.map(m => ({
-                        role: m.role,
-                        content: m.content
-                    })),
-                    {
-                        role: 'user',
-                        content: userMessage.content
-                    }
-                ],
+                messages: apiMessages,
                 temperature: 0.7,
                 max_tokens: 2000
             };
@@ -150,7 +225,8 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             const aiMessage: Message = {
                 role: 'assistant',
                 content: aiContent,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                sources: ragContext?.sources
             };
             setMessages(prev => [...prev, aiMessage]);
         } catch (error) {
@@ -178,7 +254,6 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
         }
     };
 
-    // ESC 关闭
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -191,18 +266,16 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
     if (!isOpen) return null;
 
-    // 获取当前选中的提供商
     const currentProvider = config.aiConfig?.providers.find(
         p => p.id === (selectedProviderId || config.aiConfig?.defaultProvider)
     ) || config.aiConfig?.providers.find(p => p.enabled);
 
     return (
-        <div 
+        <div
             className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
             onClick={onClose}
         >
-            {/* 对话框容器 */}
-            <div 
+            <div
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -228,8 +301,7 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                                 >
                                     <Icon icon="fa-solid fa-sliders" />
                                 </button>
-                                
-                                {/* 下拉菜单 */}
+
                                 {showProviderMenu && (
                                     <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[200px] z-10">
                                         {config.aiConfig.providers.filter(p => p.enabled).map(provider => (
@@ -239,15 +311,14 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                                                     setSelectedProviderId(provider.id === selectedProviderId ? null : provider.id);
                                                     setShowProviderMenu(false);
                                                 }}
-                                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                    (selectedProviderId === provider.id || (!selectedProviderId && config.aiConfig?.defaultProvider === provider.id))
-                                                        ? 'bg-blue-50 text-blue-600'
-                                                        : 'text-gray-700 hover:bg-gray-50'
-                                                }`}
+                                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${(selectedProviderId === provider.id || (!selectedProviderId && config.aiConfig?.defaultProvider === provider.id))
+                                                    ? 'bg-blue-50 text-blue-600'
+                                                    : 'text-gray-700 hover:bg-gray-50'
+                                                    }`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span>{provider.name}</span>
-                                                    {config.aiConfig?.defaultProvider === provider.id && !selectedProviderId && (
+                                                    {(config.aiConfig?.defaultProvider === provider.id && !selectedProviderId) && (
                                                         <Icon icon="fa-solid fa-check" className="text-blue-600" />
                                                     )}
                                                     {selectedProviderId === provider.id && (
@@ -280,6 +351,12 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                             <Icon icon="fa-solid fa-sparkles" className="text-6xl mb-4 text-purple-300" />
                             <p className="text-lg font-medium text-gray-600">开始与 AI 对话</p>
                             <p className="text-sm mt-2">问我任何问题，我会尽力帮助您</p>
+                            {ragEnabled && (
+                                <p className="text-xs mt-4 text-blue-500 flex items-center gap-1">
+                                    <Icon icon="fa-solid fa-book" />
+                                    知识库检索已开启，AI 会参考您保存的知识
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -288,14 +365,51 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                                     key={index}
                                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
-                                    <div
-                                        className={`max-w-[75%] rounded-2xl px-5 py-3 ${
-                                            msg.role === 'user'
+                                    <div className="max-w-[75%]">
+                                        <div
+                                            className={`rounded-2xl px-5 py-3 ${msg.role === 'user'
                                                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
                                                 : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
-                                        }`}
-                                    >
-                                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                                }`}
+                                        >
+                                            <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                        </div>
+
+                                        {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                                            <div className="mt-2">
+                                                <button
+                                                    onClick={() => setShowSources(showSources === `${index}` ? null : `${index}`)}
+                                                    className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                                                >
+                                                    <Icon icon="fa-solid fa-book-open" />
+                                                    参考了 {msg.sources.length} 个知识来源
+                                                    <Icon icon={showSources === `${index}` ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} />
+                                                </button>
+
+                                                {showSources === `${index}` && (
+                                                    <div className="mt-2 space-y-1">
+                                                        {msg.sources.map((source, sIdx) => (
+                                                            <div
+                                                                key={sIdx}
+                                                                className="text-xs bg-blue-50 text-blue-700 px-3 py-2 rounded-lg border border-blue-100"
+                                                            >
+                                                                <div className="font-medium truncate">{source.title}</div>
+                                                                {source.url && (
+                                                                    <a
+                                                                        href={source.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-500 hover:underline truncate block"
+                                                                    >
+                                                                        {source.url}
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -317,20 +431,38 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
                 {/* 输入框 */}
                 <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-                    <div className="flex gap-3">
-                        <input
-                            type="text"
-                            value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                            placeholder="输入您的问题... (按 Enter 发送)"
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            disabled={isLoading}
-                        />
+                    <div className="flex gap-2 items-start">
+                        <div className="flex-1 relative">
+                            {/* 知识库开关 - 在输入框内部左侧 */}
+                            <button
+                                onClick={() => setRagEnabled(!ragEnabled)}
+                                className={`absolute left-1.5 top-1.5 px-3 h-9 rounded-lg flex items-center gap-1.5 transition-all text-sm z-10 ${ragEnabled
+                                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                    }`}
+                                title={ragEnabled ? '知识库检索已开启（点击关闭）' : '知识库检索已关闭（点击开启）'}
+                            >
+                                <Icon icon="fa-solid fa-book" />
+                            </button>
+                            <textarea
+                                value={inputMessage}
+                                onChange={(e) => setInputMessage(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage();
+                                    }
+                                }}
+                                placeholder={ragEnabled ? "输入问题，AI 会参考知识库..." : "输入您的问题..."}
+                                className="w-full min-h-[60px] max-h-[120px] pl-14 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                                disabled={isLoading}
+                                rows={2}
+                            />
+                        </div>
                         <button
                             onClick={handleSendMessage}
                             disabled={!inputMessage.trim() || isLoading}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                            className="h-[60px] px-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shrink-0"
                             title="发送"
                         >
                             <Icon icon="fa-solid fa-paper-plane" />
@@ -338,7 +470,7 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                         {messages.length > 0 && (
                             <button
                                 onClick={handleClearHistory}
-                                className="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"
+                                className="h-[60px] px-4 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors shrink-0"
                                 title="清空记录"
                             >
                                 <Icon icon="fa-solid fa-trash" />
@@ -346,7 +478,7 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                         )}
                     </div>
                     <p className="text-xs text-gray-400 mt-2 text-center">
-                        按 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">ESC</kbd> 关闭
+                        按 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">Enter</kbd> 发送，<kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">Shift+Enter</kbd> 换行
                     </p>
                 </div>
             </div>

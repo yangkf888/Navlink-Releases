@@ -95,7 +95,7 @@ export default function SystemUpdate() {
 
     // 获取认证 token
     const getAuthHeaders = () => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('auth_token');
         return {
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : ''
@@ -272,6 +272,38 @@ export default function SystemUpdate() {
             console.error('Failed to cleanup backups:', err);
         }
     };
+
+    // 删除备份
+    const deleteBackup = async (name: string) => {
+        try {
+            const response = await fetch('/api/system/backups/delete', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ name })
+            });
+
+            if (response.ok) {
+                setAlertMessage({
+                    title: '删除成功',
+                    message: '备份已成功删除'
+                });
+                fetchBackups();
+            } else {
+                const data = await response.json();
+                setAlertMessage({
+                    title: '删除失败',
+                    message: data.error || '删除备份失败'
+                });
+            }
+        } catch (err) {
+            setAlertMessage({
+                title: '删除失败',
+                message: '网络错误，无法删除备份'
+            });
+        }
+    };
+
+    const [backupToDelete, setBackupToDelete] = useState<string | null>(null);
 
     // 初始化数据加载
     useEffect(() => {
@@ -542,7 +574,7 @@ export default function SystemUpdate() {
                 ) : backups.length > 0 ? (
                     <div className="space-y-2">
                         {backups.map((backup, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
                                 <div className="flex items-center gap-3">
                                     <Clock size={16} className="text-gray-400" />
                                     <div>
@@ -553,6 +585,15 @@ export default function SystemUpdate() {
                                         </div>
                                     </div>
                                 </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => setBackupToDelete(backup.name)}
+                                >
+                                    <Trash2 size={16} />
+                                    删除
+                                </Button>
                             </div>
                         ))}
                     </div>
@@ -570,6 +611,22 @@ export default function SystemUpdate() {
                 confirmVariant="primary"
                 onConfirm={performUpgrade}
                 onCancel={() => setConfirmUpgrade(false)}
+            />
+
+            {/* 确认删除备份对话框 */}
+            <ConfirmDialog
+                isOpen={!!backupToDelete}
+                title="删除备份"
+                message={`确定要删除备份 "${backupToDelete}" 吗？此操作不可恢复。`}
+                confirmText="删除"
+                confirmVariant="danger"
+                onConfirm={() => {
+                    if (backupToDelete) {
+                        deleteBackup(backupToDelete);
+                        setBackupToDelete(null);
+                    }
+                }}
+                onCancel={() => setBackupToDelete(null)}
             />
 
             {/* 提示对话框 */}

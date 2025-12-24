@@ -111,8 +111,12 @@ export default function PluginMarket() {
     // State for confirmation modal (Uninstall or Update)
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; pluginId: string; type: 'uninstall' | 'update' } | null>(null);
 
+    // State for delete data option
+    const [deleteData, setDeleteData] = useState(false);
+
     // Triggered by card buttons
     function requestUninstall(pluginId: string) {
+        setDeleteData(false); // Reset
         setConfirmModal({ isOpen: true, pluginId, type: 'uninstall' });
     }
 
@@ -127,18 +131,18 @@ export default function PluginMarket() {
         setConfirmModal(null); // Close modal
 
         if (type === 'uninstall') {
-            await executeUninstall(pluginId);
+            await executeUninstall(pluginId, deleteData);
         } else if (type === 'update') {
             await executeUpdate(pluginId);
         }
     }
 
-    async function executeUninstall(pluginId: string) {
-        console.log('[Debug] Executing uninstall for:', pluginId);
+    async function executeUninstall(pluginId: string, deleteData: boolean = false) {
+        console.log('[Debug] Executing uninstall for:', pluginId, 'Delete Data:', deleteData);
         try {
             setInstalling(pluginId);
             const token = localStorage.getItem('auth_token');
-            const response = await fetch(`/api/plugin-market/${pluginId}`, {
+            const response = await fetch(`/api/plugin-market/${pluginId}${deleteData ? '?deleteData=true' : ''}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -158,6 +162,8 @@ export default function PluginMarket() {
             setInstalling(null);
         }
     }
+
+    // ... (executeUpdate function unchanged) ...
 
     async function executeUpdate(pluginId: string) {
         console.log('[Debug] Executing update for:', pluginId);
@@ -285,16 +291,26 @@ export default function PluginMarket() {
             )}
 
             {/* Confirmation Modal */}
-            {confirmModal && (
+            {/* Uninstall Modal - Specialized */}
+            {confirmModal && confirmModal.type === 'uninstall' && (
+                <UninstallDialog
+                    isOpen={confirmModal.isOpen}
+                    pluginId={confirmModal.pluginId}
+                    onConfirm={handleConfirm}
+                    onCancel={() => setConfirmModal(null)}
+                    deleteData={deleteData}
+                    setDeleteData={setDeleteData}
+                />
+            )}
+
+            {/* General Confirm Modal (For Update) */}
+            {confirmModal && confirmModal.type === 'update' && (
                 <ConfirmDialog
                     isOpen={confirmModal.isOpen}
-                    title={confirmModal.type === 'uninstall' ? "确认卸载插件?" : "确认更新插件?"}
-                    message={confirmModal.type === 'uninstall'
-                        ? `即将卸载插件 ${confirmModal.pluginId}。\n此操作将永久删除该插件的所有文件和数据，且无法恢复。`
-                        : `即将更新插件 ${confirmModal.pluginId} 到最新版本。\n更新过程中插件将简短停止。`
-                    }
-                    confirmText={confirmModal.type === 'uninstall' ? "确认卸载" : "确认更新"}
-                    confirmVariant={confirmModal.type === 'uninstall' ? "danger" : "primary"}
+                    title="确认更新插件?"
+                    message={`即将更新插件 ${confirmModal.pluginId} 到最新版本。\n更新过程中插件将简短停止。`}
+                    confirmText="确认更新"
+                    confirmVariant="primary"
                     onConfirm={handleConfirm}
                     onCancel={() => setConfirmModal(null)}
                 />
@@ -309,6 +325,74 @@ interface PluginCardProps {
     onInstall: () => void;
     onUpdate: () => void;
     onUninstall: () => void;
+}
+
+interface UninstallDialogProps {
+    isOpen: boolean;
+    pluginId: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    deleteData: boolean;
+    setDeleteData: (val: boolean) => void;
+}
+
+function UninstallDialog({ isOpen, pluginId, onConfirm, onCancel, deleteData, setDeleteData }: UninstallDialogProps) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 text-red-600">
+                        <Trash2 size={24} />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900">确认卸载插件?</h3>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <p className="text-gray-600 mb-6 pl-13">
+                    即将卸载插件 {pluginId}。<br />
+                    此操作将永久删除该插件的所有文件，且无法恢复。
+                </p>
+
+                {/* Checkbox */}
+                <div className="mb-6 pl-13">
+                    <div className="flex items-center gap-2 bg-red-50 p-3 rounded-lg border border-red-100">
+                        <input
+                            type="checkbox"
+                            id="deleteData-custom"
+                            checked={deleteData}
+                            onChange={(e) => setDeleteData(e.target.checked)}
+                            className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                        />
+                        <label htmlFor="deleteData-custom" className="text-sm text-red-700 font-medium cursor-pointer">
+                            同时删除插件数据文件 (数据库/配置等)
+                        </label>
+                    </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 justify-end">
+                    <button
+                        onClick={onCancel}
+                        className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                    >
+                        取消
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium"
+                    >
+                        确认卸载
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: PluginCardProps) {
@@ -361,12 +445,12 @@ function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: Pl
                         {installing ? (
                             <>
                                 <Loader className="animate-spin" size={16} />
-                                <span>安装中...</span>
+                                <span className="ml-2">安装中...</span>
                             </>
                         ) : (
                             <>
                                 <Download size={16} />
-                                <span>安装</span>
+                                <span className="ml-2">安装</span>
                             </>
                         )}
                     </button>
@@ -381,12 +465,12 @@ function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: Pl
                                 {installing ? (
                                     <>
                                         <Loader className="animate-spin" size={16} />
-                                        <span>更新中...</span>
+                                        <span className="ml-2">更新中...</span>
                                     </>
                                 ) : (
                                     <>
                                         <ArrowUpCircle size={16} />
-                                        <span>更新</span>
+                                        <span className="ml-2">更新</span>
                                     </>
                                 )}
                             </button>
@@ -397,7 +481,7 @@ function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: Pl
                             className="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                         >
                             <Trash2 size={16} />
-                            <span>卸载</span>
+                            <span className="ml-2">卸载</span>
                         </button>
                     </>
                 )}

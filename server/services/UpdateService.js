@@ -14,12 +14,14 @@ export class UpdateService {
     constructor() {
         // GitHub 仓库配置
         this.owner = 'txwebroot';
-        this.repo = 'NavLink';
+        this.repo = 'Navlink-Releases';
+        // 检查更新的 URL (指向公共发布仓库)
+        this.latestReleaseUrl = 'https://api.github.com/repos/txwebroot/Navlink-Releases/releases/latest';
         this.githubApiBase = 'https://api.github.com';
 
         // Docker 镜像配置
         this.imageRegistry = 'ghcr.io';
-        this.imageName = `${this.imageRegistry}/${this.owner.toLowerCase()}/navlink`;
+        this.imageName = `${this.imageRegistry}/${this.owner.toLowerCase()}/navlink-releases`;
 
         // 缓存配置
         this.cachedRelease = null;
@@ -301,16 +303,21 @@ export class UpdateService {
      */
     async fetchJson(url) {
         return new Promise((resolve, reject) => {
+            // ⚠️ 安全警告：
+            // 尽量避免使用硬编码 Token。如果必须使用，请确保该 Token 只有只读权限。
             const options = {
                 headers: {
                     'User-Agent': 'NavLink-UpdateService/1.0',
-                    'Accept': 'application/vnd.github.v3+json',
-                    // 如果有 GitHub Token，添加认证头
-                    ...(process.env.GITHUB_TOKEN ? {
-                        'Authorization': `token ${process.env.GITHUB_TOKEN}`
-                    } : {})
+                    'Accept': 'application/vnd.github.v3+json'
                 }
             };
+
+            // 只有在配置了 Token 时才添加 Authorization 头
+            // 对于公共仓库 (Navlink-Releases)，通常不需要 Token
+            const token = process.env.GITHUB_TOKEN || process.env.PLUGIN_REGISTRY_TOKEN;
+            if (token) {
+                options.headers['Authorization'] = `token ${token}`;
+            }
 
             https.get(url, options, (response) => {
                 // 处理重定向

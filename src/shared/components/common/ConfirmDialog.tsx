@@ -10,6 +10,7 @@ interface ConfirmDialogProps {
     confirmVariant?: 'danger' | 'primary';
     onConfirm: () => void;
     onCancel: () => void;
+    children?: React.ReactNode;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -20,7 +21,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     cancelText = '取消',
     confirmVariant = 'danger',
     onConfirm,
-    onCancel
+    onCancel,
+    children
 }) => {
     if (!isOpen) return null;
 
@@ -43,8 +45,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 {/* 标题 */}
                 <div className="flex items-start gap-3 mb-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${confirmVariant === 'danger'
-                            ? 'bg-red-100 text-red-600'
-                            : 'bg-blue-100 text-blue-600'
+                        ? 'bg-red-100 text-red-600'
+                        : 'bg-blue-100 text-blue-600'
                         }`}>
                         <Icon icon={confirmVariant === 'danger' ? 'fa-solid fa-exclamation-triangle' : 'fa-solid fa-info-circle'} className="text-xl" />
                     </div>
@@ -58,6 +60,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                     {message}
                 </p>
 
+                {children && (
+                    <div className="mb-6 pl-13">
+                        {children}
+                    </div>
+                )}
+
                 {/* 按钮 */}
                 <div className="flex gap-3 justify-end">
                     <button
@@ -69,8 +77,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                     <button
                         onClick={onConfirm}
                         className={`px-5 py-2.5 rounded-lg transition-colors font-medium text-white ${confirmVariant === 'danger'
-                                ? 'bg-red-500 hover:bg-red-600'
-                                : 'bg-blue-500 hover:bg-blue-600'
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-blue-500 hover:bg-blue-600'
                             }`}
                     >
                         {confirmText}

@@ -17,7 +17,7 @@ export class UpgradeService {
     constructor() {
         // Docker 镜像配置
         this.imageRegistry = 'ghcr.io';
-        this.imageName = `${this.imageRegistry}/txwebroot/navlink`;
+        this.imageName = `${this.imageRegistry}/txwebroot/navlink-releases`;
 
         // 容器配置
         this.containerName = process.env.CONTAINER_NAME || 'navlink-app';
@@ -269,26 +269,35 @@ export class UpgradeService {
     }
 
     /**
-     * 重启容器以应用升级
+     * 重启容器以应用升级 (使用 Watchtower)
      */
     async restartContainer() {
-        this.pushProgress('restart', 90, '正在重启容器...');
+        this.pushProgress('restart', 90, '正在启动 Watchtower 更新容器...');
 
         try {
-            // 使用 docker-compose restart 或 docker restart
-            // 优先尝试 docker-compose
-            try {
-                await execAsync('docker-compose restart navlink', { timeout: 60000 });
-            } catch {
-                // 如果 docker-compose 不可用，尝试直接重启容器
-                await execAsync(`docker restart ${this.containerName}`, { timeout: 60000 });
-            }
+            // 使用 Watchtower 来执行"销毁旧容器 -> 创建新容器"的操作
+            // 这是 Docker 容器自我更新的标准做法
+            // 注意: 这会立即杀死当前进程，所以需要确保响应已经发出
+            const cmd = `docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower --run-once ${this.containerName}`;
 
-            this.pushProgress('restart', 100, '升级完成，容器正在重启...');
+            console.log(`[UpgradeService] Executing: ${cmd}`);
+
+            // 下面的命令执行后，当前容器会被杀死，所以 await 可能永远不会返回
+            // 我们不 await 它，或者设置一个很短的超时让它在此之前断开连接
+            exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`[UpgradeService] Watchtower failed: ${error.message}`);
+                    console.error(stderr);
+                } else {
+                    console.log(`[UpgradeService] Watchtower output: ${stdout}`);
+                }
+            });
+
+            this.pushProgress('restart', 100, '升级指令已发送，容器即将重启...');
 
             return { success: true };
         } catch (error) {
-            throw new Error(`重启容器失败: ${error.message}`);
+            throw new Error(`启动更新服务失败: ${error.message}`);
         }
     }
 
@@ -326,8 +335,10 @@ export class UpgradeService {
             // 3. 拉取新镜像
             await this.pullImage(version);
 
-            // 4. 重启容器
-            await this.restartContainer();
+            // 4. 重启容器 (延迟执行，确保 HTTP 响应能发出)
+            setTimeout(() => {
+                this.restartContainer().catch(err => console.error('[UpgradeService] Restart failed:', err));
+            }, 2000);
 
             this.upgradeStatus.inProgress = false;
             this.upgradeStatus.stage = 'completed';
@@ -418,6 +429,34 @@ export class UpgradeService {
         } catch (error) {
             console.error('[UpgradeService] Failed to cleanup backups:', error);
             return { deleted: 0, error: error.message };
+        }
+    }
+
+    /**
+     * 删除指定备份
+     */
+    async deleteBackup(backupName) {
+        // 安全检查: 防止路径遍历
+        if (!backupName || typeof backupName !== 'string' ||
+            backupName.includes('..') || backupName.includes('/') ||
+            !backupName.startsWith('pre-upgrade-')) {
+            throw new Error('无效的备份名称');
+        }
+
+        const backupPath = path.join(this.backupDir, backupName);
+
+        try {
+            await fs.access(backupPath);
+        } catch {
+            throw new Error('备份不存在');
+        }
+
+        try {
+            await fs.rm(backupPath, { recursive: true, force: true });
+            console.log(`[UpgradeService] Deleted backup: ${backupName}`);
+            return { success: true };
+        } catch (error) {
+            throw new Error(`删除备份失败: ${error.message}`);
         }
     }
 }

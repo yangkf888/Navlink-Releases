@@ -6,18 +6,30 @@ set -e
 # 配置
 REGISTRY="${REGISTRY:-ghcr.io}"  # 默认使用 GitHub Container Registry
 GITHUB_USERNAME="${GITHUB_USERNAME:-txwebroot}"  # 修改为您的 GitHub 用户名
-IMAGE_NAME="navlink"
-VERSION="${1:-latest}"
+IMAGE_NAME="navlink-releases"
+# 默认从 package.json 读取版本号
+DEFAULT_VERSION=$(node -p "require('./package.json').version")
+VERSION="${1:-$DEFAULT_VERSION}"
 
 FULL_IMAGE="$REGISTRY/$GITHUB_USERNAME/$IMAGE_NAME:$VERSION"
 
-echo "🚀 NavLink Docker 镜像构建"
+echo "🚀 NavLink Docker 镜像构建与发布"
 echo "=========================="
 echo "仓库: $REGISTRY"
-echo "用户名: $GITHUB_USERNAME"
-echo "镜像名: $IMAGE_NAME"
+echo "用户: $GITHUB_USERNAME"
+echo "镜像: $IMAGE_NAME"
 echo "版本: $VERSION"
-echo "完整镜像: $FULL_IMAGE"
+echo "目标: $FULL_IMAGE"
+echo ""
+
+# 0. 编译前端
+echo "🔨 编译前端资源..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ 前端编译失败"
+    exit 1
+fi
+echo "✅ 前端编译完成"
 echo ""
 
 # 检查是否登录
@@ -27,18 +39,21 @@ if [ "$REGISTRY" = "ghcr.io" ]; then
     echo "请确保已创建 Personal Access Token (classic)"
     echo "权限: write:packages, read:packages, delete:packages"
     echo ""
-    read -p "是否已登录 GitHub？(y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "✅ 已确认登录"
+    # 自动检查 docker login 状态 (简单检查)
+    if docker info 2>/dev/null | grep -q "Username"; then
+         echo "✅ 检测到 Docker 登录状态"
     else
-        echo "请先登录："
-        echo "export CR_PAT=YOUR_TOKEN"
-        echo "echo \$CR_PAT | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin"
-        exit 1
+        read -p "是否已登录 GitHub？(y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "请先登录："
+            echo "export CR_PAT=YOUR_TOKEN"
+            echo "echo \$CR_PAT | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin"
+            exit 1
+        fi
     fi
 else
-    # Docker Hub
+    # Docker Hub Logic
     if ! docker info | grep -q "Username"; then
         echo "⚠️  未登录 Docker Hub"
         read -p "是否现在登录？(y/N): " -n 1 -r

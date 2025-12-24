@@ -12,6 +12,9 @@
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Install docker-cli for self-upgrade capabilities
+RUN apk add --no-cache docker-cli
+
 # Install production dependencies only
 COPY package*.json ./
 RUN npm ci --only=production
@@ -36,7 +39,7 @@ RUN chown -R node:node /app
 # 如果需要更高安全性，可以在 docker-compose.yml 中设置 user: "1000:1000"
 
 # 关联 GitHub 仓库（使镜像显示在仓库页面）
-LABEL org.opencontainers.image.source="https://github.com/txwebroot/NavLink"
+LABEL org.opencontainers.image.source="https://github.com/txwebroot/Navlink-Releases"
 LABEL org.opencontainers.image.description="NavLink - 智能导航与插件管理系统"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
@@ -44,9 +47,9 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 EXPOSE 3001
 
 # 预设所有必需的环境变量（可被 docker-compose 覆盖）
-# 插件商城配置
-ENV PLUGIN_REGISTRY_URL="https://raw.githubusercontent.com/txwebroot/NavLink/refs/heads/main/Navlink-plugins/plugin-registry.json" \
-    PLUGIN_REGISTRY_TOKEN="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"
+# 插件商城配置 (指向公共仓库，无需 Token)
+ENV PLUGIN_REGISTRY_URL="https://raw.githubusercontent.com/txwebroot/Navlink-Releases/main/plugins/registry.json" \
+    PLUGIN_REGISTRY_TOKEN=""
 
 # 核心配置
 ENV NODE_ENV="production" \

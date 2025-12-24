@@ -189,6 +189,7 @@ export class PluginManager {
 
                             this.app.use(`/api/plugins/${pluginId}`, statusCheckMiddleware, router);
                             logger.info(`✓ 插件 ${pluginId} 已挂载到 /api/plugins/${pluginId}`);
+                            logger.info(`  💡 首次启动可能较慢，插件需要初始化数据库和加载依赖，请耐心等待或者过一会再刷新！`);
 
                             // 添加调试路由
                             this.app.get(`/api/plugins/${pluginId}/debug`, (req, res) => {

@@ -45,6 +45,15 @@ const handleResponse = async (response: Response) => {
             throw new ApiError(errorData.error || '权限不足', 403);
         }
 
+        if (response.status === 402) {
+            // 需要授权 License
+            // 避免在激活页面无限循环
+            if (!window.location.pathname.includes('/activate')) {
+                window.location.href = '/activate';
+            }
+            throw new ApiError('License Required', 402);
+        }
+
         const errorData = await response.json().catch(() => ({}));
         throw new ApiError(errorData.error || 'Request failed', response.status);
     }
@@ -71,6 +80,13 @@ export const api = {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify(config),
+        });
+        return handleResponse(response);
+    },
+
+    getLicenseStatus: async (): Promise<{ valid: boolean; instanceId: string; license?: any }> => {
+        const response = await fetch(`${API_BASE}/system/license/status`, {
+            headers: getHeaders()
         });
         return handleResponse(response);
     },

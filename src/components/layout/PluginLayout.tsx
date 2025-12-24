@@ -234,7 +234,7 @@ const PluginLayout: React.FC = () => {
                         <>
                             <span className="flex-1 text-left truncate">{item.label}</span>
                             {hasChildren && (
-                                <div className={`ml-2 transition-transform duration-200 text-xs text-gray-400 ${isOpen ? 'rotate-90' : ''}`}>
+                                <div className={`mr-3 transition-transform duration-200 text-xs text-gray-400 ${isOpen ? 'rotate-90' : ''}`}>
                                     <i className="fa-solid fa-angle-right"></i>
                                 </div>
                             )}

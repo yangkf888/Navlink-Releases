@@ -4,8 +4,8 @@
 // 插件安装时创建右键菜单
 chrome.runtime.onInstalled.addListener(() => {
   console.log('NavLink Helper installed');
-  
-  // 创建右键菜单项
+
+  // 创建右键菜单项 - 添加链接
   chrome.contextMenus.create({
     id: 'addToNavLink',
     title: '添加到 NavLink',
@@ -26,6 +26,27 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '选择分类添加...',
     contexts: ['page', 'link']
   });
+
+  // ========== 知识库相关菜单 ==========
+  chrome.contextMenus.create({
+    id: 'separator1',
+    type: 'separator',
+    contexts: ['page', 'selection']
+  });
+
+  // 保存选中文本到知识库
+  chrome.contextMenus.create({
+    id: 'saveToKnowledgeBase',
+    title: '保存到知识库',
+    contexts: ['selection']
+  });
+
+  // 保存整页到知识库
+  chrome.contextMenus.create({
+    id: 'savePageToKnowledgeBase',
+    title: '保存整页到知识库',
+    contexts: ['page']
+  });
 });
 
 // 右键菜单点击事件
@@ -34,6 +55,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await handleAddLink(info, tab, false);
   } else if (info.menuItemId === 'addToRecentCategory') {
     await handleAddLink(info, tab, true);
+  } else if (info.menuItemId === 'saveToKnowledgeBase') {
+    // 保存选中文本到知识库
+    await handleSaveToKnowledgeBase(info, tab, 'selection');
+  } else if (info.menuItemId === 'savePageToKnowledgeBase') {
+    // 保存整页到知识库
+    await handleSaveToKnowledgeBase(info, tab, 'page');
   }
 });
 
@@ -52,13 +79,13 @@ async function handleAddLink(info, tab, useRecentCategory) {
     // 获取链接信息
     const url = info.linkUrl || info.pageUrl || tab.url;
     const title = info.selectionText || tab.title || '';
-    
+
     // 获取 favicon
     const faviconUrl = await getFaviconUrl(url, tab);
-    
+
     // 检查是否已登录
     const settings = await chrome.storage.sync.get(['serverUrl', 'authToken']);
-    
+
     if (!settings.authToken) {
       // 未登录，打开设置页面
       chrome.runtime.openOptionsPage();
@@ -81,7 +108,7 @@ async function handleAddLink(info, tab, useRecentCategory) {
       const height = 650;
       const left = (screen.width - width) / 2;
       const top = (screen.height - height) / 2;
-      
+
       chrome.windows.create({
         url: `popup/add.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&icon=${encodeURIComponent(faviconUrl)}`,
         type: 'popup',
@@ -101,12 +128,12 @@ async function handleAddLink(info, tab, useRecentCategory) {
 async function getFaviconUrl(url, tab) {
   try {
     const domain = new URL(url).hostname;
-    
+
     // 方案1: 尝试从标签页获取 favIconUrl
     if (tab && tab.favIconUrl && !tab.favIconUrl.includes('chrome://')) {
       return tab.favIconUrl;
     }
-    
+
     // 方案2: 使用 Google Favicon 服务
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
   } catch (error) {
@@ -119,7 +146,7 @@ async function getFaviconUrl(url, tab) {
 async function addToRecentCategory(url, title, faviconUrl, settings) {
   try {
     const recentCategory = await chrome.storage.local.get('recentCategory');
-    
+
     if (!recentCategory.recentCategory) {
       return {
         success: false,
@@ -212,5 +239,92 @@ class NavLinkAPI {
     }
 
     return await saveResponse.json();
+  }
+}
+
+// ========== 知识库功能 ==========
+
+// 处理保存到知识库
+async function handleSaveToKnowledgeBase(info, tab, type) {
+  try {
+    // 检查是否已登录
+    const settings = await chrome.storage.sync.get(['serverUrl', 'authToken']);
+
+    if (!settings.authToken) {
+      chrome.runtime.openOptionsPage();
+      showNotification(false, '请先在设置页面登录 NavLink');
+      return;
+    }
+
+    let content, title;
+
+    if (type === 'selection') {
+      // 保存选中文本
+      content = info.selectionText;
+      title = `${tab.title} - 选段`;
+    } else {
+      // 保存整页内容 - 需要注入脚本获取页面内容
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            // 获取页面主要文本内容
+            const textContent = document.body.innerText || document.body.textContent;
+            return textContent.substring(0, 50000); // 限制最大长度
+          }
+        });
+        content = results[0]?.result || '';
+        title = tab.title;
+      } catch (e) {
+        console.error('Failed to get page content:', e);
+        showNotification(false, '无法获取页面内容，请检查页面权限');
+        return;
+      }
+    }
+
+    if (!content || content.trim().length < 10) {
+      showNotification(false, '内容太短，无法保存');
+      return;
+    }
+
+    // 调用知识库 API 保存
+    const api = new KnowledgeBaseAPI(settings.serverUrl, settings.authToken);
+    await api.saveKnowledge({
+      title: title,
+      content: content.trim(),
+      url: tab.url,
+      tags: []
+    });
+
+    showNotification(true, `已保存到知识库: ${title.substring(0, 30)}...`);
+  } catch (error) {
+    console.error('Save to knowledge base error:', error);
+    showNotification(false, '保存失败: ' + error.message);
+  }
+}
+
+// 知识库 API 封装类
+class KnowledgeBaseAPI {
+  constructor(baseUrl, token) {
+    this.baseUrl = baseUrl || 'http://localhost:3001';
+    this.token = token || '';
+  }
+
+  async saveKnowledge(data) {
+    const response = await fetch(`${this.baseUrl}/api/plugins/kbrag/api/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `保存失败 (${response.status})`);
+    }
+
+    return await response.json();
   }
 }

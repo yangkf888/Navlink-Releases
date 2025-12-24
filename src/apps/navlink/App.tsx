@@ -190,8 +190,8 @@ function AppContent() {
             >
                 {/* Gradient Overlay for vertical transition */}
                 <div className={`absolute inset-0 ${hasBgImage
-                    ? 'bg-gradient-to-b from-black/40 via-black/20 to-[var(--theme-bg)]'
-                    : 'bg-gradient-to-b from-[var(--hero-bg)] via-[var(--hero-bg)] via-60% to-[var(--theme-bg)]'
+                    ? ''
+                    : 'bg-gradient-to-b from-[var(--hero-bg)] via-[var(--hero-bg)] via-70% to-[var(--theme-bg)]'
                     }`}></div>
 
                 {!hasBgImage && (

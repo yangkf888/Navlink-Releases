@@ -2,6 +2,7 @@ import express from 'express';
 import { updateService } from '../services/UpdateService.js';
 import { upgradeService } from '../services/UpgradeService.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { licenseService } from '../services/LicenseService.js';
 
 const router = express.Router();
 
@@ -235,6 +236,104 @@ router.post('/backups/cleanup', authenticateToken, requireAdmin, async (req, res
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+/**
+ * @swagger
+ * /api/system/backups/delete:
+ *   post:
+ *     summary: 删除指定备份
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 删除结果
+ */
+router.post('/backups/delete', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { name } = req.body;
+        const result = await upgradeService.deleteBackup(name);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+/**
+ * @swagger
+ * /api/system/license/info:
+ *   get:
+ *     summary: 获取授权信息 (包括机器码)
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: 授权信息
+ */
+router.get('/license/info', async (req, res) => {
+    try {
+        const info = licenseService.getStatus();
+        res.json(info);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/system/license/activate:
+ *   post:
+ *     summary: 激活 License
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               licenseKey:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 激活结果
+ */
+router.post('/license/activate', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { licenseKey } = req.body;
+        if (!licenseKey) {
+            throw new Error('请输入 License Key');
+        }
+
+        const result = await licenseService.activate(licenseKey);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/system/license/status:
+ *   get:
+ *     summary: 获取授权状态 (公开)
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: 授权状态
+ */
+router.get('/license/status', (req, res) => {
+    res.json(licenseService.getStatus());
 });
 
 export default router;

@@ -10,6 +10,8 @@ import PluginLayout from './components/layout/PluginLayout';
 import { PluginIframe } from './components/PluginIframe';
 import PluginGuard from './components/PluginGuard';
 import DynamicPluginRoute from './components/DynamicPluginRoute';
+import { LicenseGuard } from './components/common/LicenseGuard';
+import LicenseActivation from './pages/LicenseActivation';
 
 // 使用 iframe 架构支持动态安装插件
 // 通过 postMessage 实现统一UI和动态侧边栏
@@ -25,7 +27,9 @@ function App() {
                             v7_relativeSplatPath: true,
                         }}
                     >
+                        <LicenseGuard />
                         <Routes>
+                            <Route path="/activate" element={<LicenseActivation />} />
                             <Route path="/" element={<NavLinkHome />} />
                             <Route path="/store" element={<AppStore />} />
                             <Route path="/admin/*" element={<AdminApp />} />

@@ -17,7 +17,7 @@
 **方式 A：** 直接下载
 
 ```bash
-curl -O https://raw.githubusercontent.com/txwebroot/NavLink/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/txwebroot/Navlink-Releases/main/docker-compose.yml
 ```
 
 **方式 B：** 从安装包解压

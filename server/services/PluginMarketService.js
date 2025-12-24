@@ -16,7 +16,7 @@ export class PluginMarketService {
 
         // 插件仓库配置 (GitHub或自定义服务器)
         this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
-            'https://raw.githubusercontent.com/your-org/navlink-plugins/main/registry.json';
+            'https://raw.githubusercontent.com/txwebroot/Navlink-Releases/main/plugins/registry.json';
 
         // 本地缓存
         this.cachedRegistry = null;
@@ -296,8 +296,8 @@ export class PluginMarketService {
     /**
      * 卸载插件
      */
-    async uninstallPlugin(pluginId) {
-        console.log(`[PluginMarket] Uninstalling plugin: ${pluginId}`);
+    async uninstallPlugin(pluginId, options = {}) {
+        console.log(`[PluginMarket] Uninstalling plugin: ${pluginId} (Delete Data: ${options.deleteData})`);
 
         const plugin = this.pluginManager.plugins.get(pluginId);
         if (!plugin) {
@@ -313,7 +313,41 @@ export class PluginMarketService {
         const pluginDir = path.join(this.pluginsDir, pluginId);
         await fs.rm(pluginDir, { recursive: true, force: true });
 
-        // 3. 从内存中移除
+        // 3. (可选) 删除插件数据
+        if (options.deleteData) {
+            const dataRoot = path.join(process.cwd(), 'data');
+
+            // 3.1 删除数据库文件 (data/<pluginId>.db) 及 WAL 模式附属文件
+            const dbFiles = [
+                `${pluginId}.db`,
+                `${pluginId}.db-shm`,  // SQLite WAL shared memory
+                `${pluginId}.db-wal`   // SQLite WAL write-ahead log
+            ];
+
+            for (const dbFile of dbFiles) {
+                const dbPath = path.join(dataRoot, dbFile);
+                try {
+                    await fs.rm(dbPath, { force: true });
+                    console.log(`[PluginMarket] Deleted: ${dbPath}`);
+                } catch (err) {
+                    // 忽略文件不存在的错误
+                    if (err.code !== 'ENOENT') {
+                        console.warn(`[PluginMarket] Failed to delete ${dbFile}: ${err.message}`);
+                    }
+                }
+            }
+
+            // 3.2 删除数据目录 (data/plugins/<pluginId>)
+            const dataDir = path.join(dataRoot, 'plugins', pluginId);
+            try {
+                await fs.rm(dataDir, { recursive: true, force: true });
+                console.log(`[PluginMarket] Deleted data directory: ${dataDir}`);
+            } catch (err) {
+                console.warn(`[PluginMarket] Failed to delete data directory: ${err.message}`);
+            }
+        }
+
+        // 4. 从内存中移除
         this.pluginManager.plugins.delete(pluginId);
 
         console.log(`[PluginMarket] ✓ Plugin ${pluginId} uninstalled successfully`);

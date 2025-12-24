@@ -5,11 +5,16 @@ import Login from './pages/Auth/Login';
 import { adminRoutes } from './config/routes';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import LicenseActivation from '../../pages/LicenseActivation';
+
 export default function AdminApp() {
     return (
         <Routes>
             {/* 登录页面 - 不需要AdminLayout */}
             <Route path="/login" element={<Login />} />
+
+            {/* License 激活页面 - 不需要AdminLayout/登录 */}
+            <Route path="/license/activate" element={<LicenseActivation />} />
 
             {/* 其他页面 - 需要AdminLayout和认证 */}
             <Route path="/*" element={

@@ -35,6 +35,13 @@ export async function apiCall(
             // 未认证 - 跳转登录
             window.location.href = '/admin/login';
             throw new ApiError(401, 'Unauthorized');
+        } else if (response.status === 402) {
+            // 需要授权 License
+            // 避免在激活页面无限循环
+            if (!window.location.pathname.includes('/license/activate')) {
+                window.location.href = '/admin/license/activate';
+            }
+            throw new ApiError(402, 'License Required');
         } else if (response.status === 403) {
             // 权限不足 - 显示提示，不跳转
             const errorData = await response.json().catch(() => ({}));
