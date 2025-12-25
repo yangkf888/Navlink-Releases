@@ -134,6 +134,14 @@ export const BasicSettings: React.FC = () => {
                         <div className="flex gap-2"><Input type="color" className="w-10 h-10 p-1" value={config.theme?.textColor} onChange={e => update(c => ({ ...c, theme: { ...c.theme, textColor: e.target.value } }))} /><Input value={config.theme?.textColor} onChange={e => update(c => ({ ...c, theme: { ...c.theme, textColor: e.target.value } }))} /></div>
                     </div>
                     <div>
+                        <Label>导航菜单字体颜色</Label>
+                        <div className="flex gap-2"><Input type="color" className="w-10 h-10 p-1" value={config.theme?.navMenuColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, navMenuColor: e.target.value } }))} /><Input value={config.theme?.navMenuColor || ''} placeholder="留空使用自动颜色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, navMenuColor: e.target.value } }))} /></div>
+                    </div>
+                    <div>
+                        <Label>格言字体颜色</Label>
+                        <div className="flex gap-2"><Input type="color" className="w-10 h-10 p-1" value={config.theme?.quoteColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, quoteColor: e.target.value } }))} /><Input value={config.theme?.quoteColor || ''} placeholder="留空使用自动颜色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, quoteColor: e.target.value } }))} /></div>
+                    </div>
+                    <div>
                         <Label>分类标题大小 (px)</Label>
                         <Input
                             type="number"

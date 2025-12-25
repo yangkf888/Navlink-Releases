@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '../components/StatCard';
 import QuickAction from '../components/QuickAction';
+import ResourceMonitor from '../components/ResourceMonitor';
 import {
     FileText,
     Users,
@@ -35,12 +36,10 @@ export default function Dashboard() {
         users: 0,
         views: 0
     });
-    const [notifications, setNotifications] = useState<any[]>([]);
 
     // 加载统计数据
     useEffect(() => {
         loadStats();
-        loadNotifications();
     }, []);
 
     async function loadStats() {
@@ -123,18 +122,6 @@ export default function Dashboard() {
         }
     }
 
-    async function loadNotifications() {
-        // TODO: 实现通知加载
-        setNotifications([
-            {
-                id: 1,
-                title: '系统启动成功',
-                message: 'NavLink 已成功启动',
-                time: '刚刚'
-            }
-        ]);
-    }
-
     // 定义快捷访问并添加权限要求
     const quickActions = [
         {
@@ -208,6 +195,30 @@ export default function Dashboard() {
             iconBgColor: 'bg-gray-50',
             iconColor: 'text-gray-600',
             permission: 'config:view'
+        },
+        {
+            icon: FileText,
+            label: '热门网址',
+            onClick: () => navigate('/admin/settings/promo'),
+            iconBgColor: 'bg-orange-50',
+            iconColor: 'text-orange-600',
+            permission: 'nav:view'
+        },
+        {
+            icon: Users,
+            label: '链接健康',
+            onClick: () => navigate('/admin/settings/health'),
+            iconBgColor: 'bg-teal-50',
+            iconColor: 'text-teal-600',
+            permission: 'config:view'
+        },
+        {
+            icon: Eye,
+            label: '系统设置',
+            onClick: () => navigate('/admin/system'),
+            iconBgColor: 'bg-slate-50',
+            iconColor: 'text-slate-600',
+            permission: 'system:view'
         }
     ];
 
@@ -256,46 +267,25 @@ export default function Dashboard() {
                 />
             </div>
 
-            {/* 内容区域 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* 快捷访问 */}
-                <div className="lg:col-span-2">
-                    <div className="bg-white rounded-xl border border-gray-200 p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷访问</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {filteredQuickActions.map((action, index) => (
-                                <QuickAction
-                                    key={index}
-                                    icon={action.icon}
-                                    label={action.label}
-                                    onClick={action.onClick}
-                                    iconBgColor={action.iconBgColor}
-                                    iconColor={action.iconColor}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 通知列表 */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-900">通知</h2>
-                        <button className="text-sm text-blue-600 hover:text-blue-700">
-                            查看全部
-                        </button>
-                    </div>
-                    <div className="space-y-4">
-                        {notifications.map(notif => (
-                            <div key={notif.id} className="border-b border-gray-100 pb-4 last:border-0">
-                                <div className="text-sm font-medium text-gray-900">{notif.title}</div>
-                                <div className="text-xs text-gray-500 mt-1">{notif.message}</div>
-                                <div className="text-xs text-gray-400 mt-2">{notif.time}</div>
-                            </div>
-                        ))}
-                    </div>
+            {/* 快捷访问 - 全宽布局 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷访问</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {filteredQuickActions.map((action, index) => (
+                        <QuickAction
+                            key={index}
+                            icon={action.icon}
+                            label={action.label}
+                            onClick={action.onClick}
+                            iconBgColor={action.iconBgColor}
+                            iconColor={action.iconColor}
+                        />
+                    ))}
                 </div>
             </div>
+
+            {/* 资源监控 */}
+            <ResourceMonitor />
         </div>
     );
 }

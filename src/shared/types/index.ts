@@ -106,6 +106,8 @@ export interface ThemeConfig {
   backgroundColor?: string; // Page background
   textColor?: string;       // Main text color
   navbarBgColor?: string;   // Navbar background when scrolled
+  navMenuColor?: string;    // Navigation menu font color
+  quoteColor?: string;      // Header quote (motto) font color
   baseFontSize?: number;    // Root font size in px
   categoryTitleSize?: number;    // Category title font size in px (default: 20)
   subCategoryTitleSize?: number; // Subcategory tab font size in px (default: 12)

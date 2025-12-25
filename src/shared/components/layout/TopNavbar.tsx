@@ -92,12 +92,28 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
     const visibleNavItems = config.topNav?.filter(item => isAuthenticated || !item.hidden) || [];
     const isDarkText = textColorClass.includes('text-gray-800') || textColorClass.includes('text-black');
 
-    const linkColorClass = isDarkText
-        ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-        : 'text-white/80 hover:text-white hover:bg-white/10';
+    // 使用自定义导航菜单颜色或自动颜色
+    const navMenuColor = config.theme?.navMenuColor;
+    const linkColorClass = navMenuColor
+        ? '' // 使用内联样式
+        : (isDarkText
+            ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            : 'text-white/80 hover:text-white hover:bg-white/10');
+    const linkColorStyle: React.CSSProperties = navMenuColor
+        ? { color: navMenuColor }
+        : {};
 
     const logoColorClass = isDarkText ? 'text-gray-800' : 'text-white';
-    const quoteColorClass = isDarkText ? 'text-gray-500' : 'text-white/70';
+
+    // 使用自定义格言颜色或自动颜色
+    const quoteColor = config.theme?.quoteColor;
+    const quoteColorClass = quoteColor
+        ? '' // 使用内联样式
+        : (isDarkText ? 'text-gray-500' : 'text-white/70');
+    const quoteColorStyle: React.CSSProperties = quoteColor
+        ? { color: quoteColor }
+        : {};
+
     const iconButtonClass = isDarkText ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white';
     const mobileMenuButtonClass = isDarkText ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white';
     const borderColorClass = isDarkText ? 'border-gray-200' : 'border-white/20';
@@ -144,6 +160,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                     key={link.id}
                                     href={link.url}
                                     className={`flex items-center gap-2 px-2 py-2 text-sm font-medium rounded-lg transition-all ${linkColorClass}`}
+                                    style={linkColorStyle}
                                 >
                                     {link.icon && <i className={link.icon}></i>}
                                     <span>{link.title}</span>
@@ -171,7 +188,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
 
                 {/* Right side: Quote + User/Search */}
                 <div className="flex items-center space-x-4">
-                    <span className={`hidden md:block text-xs mr-4 truncate max-w-[500px] ${quoteColorClass}`} title={config.headerQuote}>
+                    <span className={`hidden md:block text-xs mr-4 truncate max-w-[500px] ${quoteColorClass}`} style={quoteColorStyle} title={config.headerQuote}>
                         {config.headerQuote || '对你竖大拇指的人，不一定是在夸你，也可能是用炮在瞄你。'}
                     </span>
                     <div className={`flex items-center gap-6 pl-6 sm:border-l ${borderColorClass}`}>

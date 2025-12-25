@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import https from 'https';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import AdmZip from 'adm-zip';
@@ -41,6 +40,15 @@ export class PluginMarketService {
             this.cachedRegistry = response.plugins || [];
             this.lastFetch = now;
 
+            // 自动保存到本地作为备份 (下次远程失败时可用)
+            try {
+                const backupPath = path.join(process.cwd(), 'data/plugin-registry.json');
+                await fs.writeFile(backupPath, JSON.stringify(response, null, 4), 'utf-8');
+                console.log('[PluginMarket] Backup saved to:', backupPath);
+            } catch (backupErr) {
+                console.warn('[PluginMarket] Failed to save local backup:', backupErr.message);
+            }
+
             return this.enrichWithLocalStatus(this.cachedRegistry);
         } catch (error) {
             console.error('[PluginMarket] Failed to fetch registry:', error.message);
@@ -50,23 +58,24 @@ export class PluginMarketService {
                 return this.enrichWithLocalStatus(this.cachedRegistry);
             }
 
-            // Fallback: 总是尝试加载本地模拟数据 (无论环境如何)
-            console.log('[PluginMarket] Remote fetch failed, attempting to load mock data from docs...');
+            // Fallback: 尝试加载本地 registry 文件 (data 目录在生产环境也存在)
+            console.log('[PluginMarket] Remote fetch failed, attempting to load local registry...');
+            const fallbackPath = path.join(process.cwd(), 'data/plugin-registry.json');
+
             try {
-                const mockPath = path.join(process.cwd(), 'docs/plugin-registry-example.json');
-                if (await fs.access(mockPath).then(() => true).catch(() => false)) {
-                    const mockContent = await fs.readFile(mockPath, 'utf-8');
-                    const mockData = JSON.parse(mockContent);
-                    console.log('[PluginMarket] Successfully loaded mock data:', mockData.plugins?.length, 'plugins');
-                    return this.enrichWithLocalStatus(mockData.plugins || []);
-                } else {
-                    console.warn('[PluginMarket] Mock file not found at:', mockPath);
+                if (await fs.access(fallbackPath).then(() => true).catch(() => false)) {
+                    const content = await fs.readFile(fallbackPath, 'utf-8');
+                    const data = JSON.parse(content);
+                    console.log('[PluginMarket] Successfully loaded local registry from:', fallbackPath, 'plugins:', data.plugins?.length);
+                    this.cachedRegistry = data.plugins || [];
+                    this.lastFetch = now;
+                    return this.enrichWithLocalStatus(this.cachedRegistry);
                 }
             } catch (err) {
-                console.warn('[PluginMarket] Failed to load mock docs:', err);
+                console.warn('[PluginMarket] Failed to load local registry:', err.message);
             }
 
-            throw new Error('Failed to fetch plugin registry and no local mock data found');
+            throw new Error('Failed to fetch plugin registry (remote unavailable and no local backup at data/plugin-registry.json)');
         }
     }
 
@@ -403,33 +412,30 @@ export class PluginMarketService {
     }
 
     /**
-     * 从URL获取JSON
+     * 从URL获取JSON (使用全局 fetch API)
      */
     async fetchJson(url) {
-        return new Promise((resolve, reject) => {
-            https.get(url, {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+        try {
+            const response = await fetch(url, {
                 headers: {
                     'User-Agent': 'NavLink-PluginMarket/1.0',
                     'Accept': 'application/json',
                     ...(process.env.PLUGIN_REGISTRY_TOKEN ? { 'Authorization': `token ${process.env.PLUGIN_REGISTRY_TOKEN}` } : {})
-                }
-            }, (response) => {
-                if (response.statusCode !== 200) {
-                    reject(new Error(`HTTP ${response.statusCode}`));
-                    return;
-                }
+                },
+                signal: controller.signal
+            });
 
-                let data = '';
-                response.on('data', chunk => data += chunk);
-                response.on('end', () => {
-                    try {
-                        resolve(JSON.parse(data));
-                    } catch (error) {
-                        reject(new Error('Invalid JSON response'));
-                    }
-                });
-            }).on('error', reject);
-        });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return await response.json();
+        } finally {
+            clearTimeout(timeout);
+        }
     }
 
     /**
