@@ -47,10 +47,6 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 EXPOSE 3001
 
 # 预设所有必需的环境变量（可被 docker-compose 覆盖）
-# 插件商城配置 (指向公共仓库，无需 Token)
-ENV PLUGIN_REGISTRY_URL="https://raw.githubusercontent.com/txwebroot/Navlink-Releases/main/plugins/registry.json" \
-    PLUGIN_REGISTRY_TOKEN=""
-
 # 核心配置
 ENV NODE_ENV="production" \
     PORT="3001"
