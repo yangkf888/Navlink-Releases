@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import https from 'https';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
