@@ -15,7 +15,7 @@ export class PluginMarketService {
 
         // 插件仓库配置 (GitHub或自定义服务器)
         this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
-            'https://raw.githubusercontent.com/txwebroot/Navlink-Releases/main/plugins/registry.json';
+            'https://apps.webxx.top/api/registry.json';
 
         // 本地缓存
         this.cachedRegistry = null;

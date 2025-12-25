@@ -267,13 +267,11 @@ router.post('/backups/delete', authenticateToken, requireAdmin, async (req, res)
         res.status(500).json({ error: error.message });
     }
 });
-
-
 /**
  * @swagger
  * /api/system/license/info:
  *   get:
- *     summary: 获取授权信息 (包括机器码)
+ *     summary: 获取授权信息 (包括设备指纹)
  *     tags: [System]
  *     responses:
  *       200:
@@ -292,7 +290,7 @@ router.get('/license/info', async (req, res) => {
  * @swagger
  * /api/system/license/activate:
  *   post:
- *     summary: 激活 License
+ *     summary: 激活 License (新版 - 在线激活)
  *     tags: [System]
  *     security:
  *       - bearerAuth: []
@@ -302,20 +300,51 @@ router.get('/license/info', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               licenseKey:
+ *               code:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               navmanageUrl:
  *                 type: string
  *     responses:
  *       200:
  *         description: 激活结果
  */
-router.post('/license/activate', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/license/activate', async (req, res) => {
     try {
-        const { licenseKey } = req.body;
-        if (!licenseKey) {
-            throw new Error('请输入 License Key');
+        const { code, email, navmanageUrl } = req.body;
+
+        if (!code || !email) {
+            throw new Error('请输入激活码和邮箱');
         }
 
-        const result = await licenseService.activate(licenseKey);
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://licenses.webxx.top';
+        const result = await licenseService.activate(code, email, serverUrl);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/system/license/request-migrate:
+ *   post:
+ *     summary: 申请迁移码
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/license/request-migrate', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { email, navmanageUrl } = req.body;
+
+        if (!email) {
+            throw new Error('请输入邮箱');
+        }
+
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://licenses.webxx.top';
+        const result = await licenseService.requestNewCode(email, serverUrl);
         res.json(result);
     } catch (error) {
         res.status(400).json({ error: error.message });

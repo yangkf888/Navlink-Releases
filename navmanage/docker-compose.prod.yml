@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  navmanage:
+    # 使用导入的本地镜像 (名字必须与导入的一致)
+    image: navmanage:local
+    container_name: navmanage
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    volumes:
+      # 数据挂载 (根据宝塔面板的实际路径调整)
+      - ./data:/app/backend/data
+      - ./uploads:/app/backend/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      # 引用 .env 中的变量
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - LICENSE_PRIVATE_KEY=${LICENSE_PRIVATE_KEY}
+      - BASE_URL=${BASE_URL:-http://localhost:3010}

@@ -20,6 +20,7 @@ import Permissions from '../pages/System/Permissions';
 import Logs from '../pages/System/Logs';
 import Monitor from '../pages/System/Monitor';
 import SystemUpdate from '../pages/System/SystemUpdate';
+import LicenseManagement from '../pages/System/LicenseManagement';
 
 /**
  * 路由权限配置
@@ -159,5 +160,11 @@ export const adminRoutes: RouteConfig[] = [
         component: SystemUpdate,
         permission: 'system:manage',
         title: '系统升级'
+    },
+    {
+        path: '/settings/license',
+        component: LicenseManagement,
+        permission: 'system:manage',
+        title: '授权管理'
     },
 ];

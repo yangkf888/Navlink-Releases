@@ -1,177 +1,237 @@
-import fs from 'fs/promises';
+/**
+ * 授权服务 (License Service) - 新版
+ * 基于在线激活 + 硬件指纹绑定
+ */
+import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto';
-import EC from 'elliptic';
+import { fingerprintService } from './FingerprintService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ec = new EC.ec('secp256k1');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
+const DB_PATH = path.join(DATA_DIR, 'navlink.db');
 
-/**
- * 授权服务 (License Service)
- * 负责 License 的验证、激活和状态管理
- */
-export class LicenseService {
+class LicenseService {
     constructor() {
-        // 内置公钥 (用于验证签名)
-        // ⚠️ 在生产环境中，请替换为您自己的公钥
-        this.publicKey = '04862015b7e5f1721724aa5c31794a16faec7b86399a32e5c97a5a34f0343d2039d05e7e3d8d6dac2a50cbcc4dbd68985047e5ed50d00edd48f8bb5b44d5fafa58';
-
-        this.dataDir = path.join(__dirname, '../../data');
-        this.instanceIdPath = path.join(this.dataDir, 'instance.id');
-        this.licensePath = path.join(this.dataDir, 'license.key');
-
-        this.instanceId = null;
-        this.license = null;
+        this.db = null;
         this.isValid = false;
+        this.licenseInfo = null;
+        this.fingerprint = null;
+    }
 
-        // 缓存验证结果
-        this.lastValidation = 0;
-        this.validationCacheDuration = 60 * 1000; // 1分钟
+    /**
+     * 获取数据库连接
+     */
+    getDb() {
+        if (!this.db) {
+            this.db = new Database(DB_PATH);
+            this.db.pragma('journal_mode = WAL');
+        }
+        return this.db;
     }
 
     /**
      * 初始化服务
      */
     async init() {
-        await this.ensureInstanceId();
-        await this.loadLicense();
+        // 确保 license_auth 表存在
+        this.ensureTable();
+
+        // 获取当前指纹
+        this.fingerprint = fingerprintService.getFingerprint();
+
+        // 检查授权
+        this.checkLicense();
+
+        console.log('[LicenseService] Initialized, valid:', this.isValid);
     }
 
     /**
-     * 确保实例 ID 存在 (机器绑定核心)
+     * 确保授权表存在
      */
-    async ensureInstanceId() {
+    ensureTable() {
         try {
-            // 尝试读取现有 ID
-            this.instanceId = await fs.readFile(this.instanceIdPath, 'utf-8');
+            const db = this.getDb();
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS license_auth (
+                    id INTEGER PRIMARY KEY,
+                    auth_token TEXT NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    user_email TEXT,
+                    activated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
         } catch (error) {
-            // 如果不存在，生成新的 UUID 作为实例 ID
-            this.instanceId = crypto.randomUUID();
-            await fs.mkdir(this.dataDir, { recursive: true });
-            await fs.writeFile(this.instanceIdPath, this.instanceId);
-            console.log('[LicenseService] Generated new Instance ID:', this.instanceId);
+            console.error('[LicenseService] Failed to create table:', error);
         }
     }
 
     /**
-     * 获取实例 ID
+     * 检查授权状态
      */
-    getInstanceId() {
-        return this.instanceId;
-    }
-
-    /**
-     * 加载并验证 License
-     */
-    async loadLicense() {
+    checkLicense() {
         try {
-            const licenseData = await fs.readFile(this.licensePath, 'utf-8');
-            this.license = JSON.parse(Buffer.from(licenseData, 'base64').toString());
-            this.isValid = this.verifyLicense(this.license);
+            const db = this.getDb();
+            const license = db.prepare('SELECT * FROM license_auth LIMIT 1').get();
 
-            if (this.isValid) {
-                console.log('[LicenseService] License loaded and verified for:', this.license.issuedTo);
-            } else {
-                console.warn('[LicenseService] License loaded but INVALID');
-            }
-        } catch (error) {
-            // 无 License 或格式错误
-            this.license = null;
-            this.isValid = false;
-            // console.warn('[LicenseService] No valid license found');
-        }
-    }
-
-    /**
-     * 验证 License 对象
-     */
-    verifyLicense(licenseData) {
-        if (!licenseData || !licenseData.signature) return false;
-
-        // 1. 检查机器绑定
-        if (licenseData.instanceId !== this.instanceId) {
-            console.warn(`[LicenseService] Instance ID mismatch: expected ${this.instanceId}, got ${licenseData.instanceId}`);
-            return false;
-        }
-
-        // 2. 检查过期时间
-        if (licenseData.expiresAt) {
-            const expires = new Date(licenseData.expiresAt);
-            if (expires < new Date()) {
-                console.warn('[LicenseService] License expired at:', expires);
-                return false;
-            }
-        }
-
-        // 3. 验证签名
-        try {
-            // 构建待签名的原始数据 (必须与签发时完全一致)
-            const payload = { ...licenseData };
-            delete payload.signature;
-
-            // 关键：确保字段顺序一致 (这就要求签发和验证使用相同的序列化逻辑)
-            // 这里我们规定：payload 应该是去除 signature 后的 JSON 字符串
-            // 为了避免 JSON 序列化不确定性，我们在签发时应该对 payload 签名，
-            // License 数据结构: { payload: { "instanceId":... }, signature: "..." }
-            // 但为了简单，用户提供的格式是打平的。我们尝试重构 payload。
-            // 简单起见，我们只对几个核心关键字段拼接签名：
-            // method 1: specific fields connection (recommended for robustness)
-            const signString = `${payload.instanceId}|${payload.issuedTo}|${payload.expiresAt || ''}`;
-            const msgHash = crypto.createHash('sha256').update(signString).digest('hex');
-
-            const key = ec.keyFromPublic(this.publicKey, 'hex');
-            return key.verify(msgHash, licenseData.signature);
-        } catch (error) {
-            console.error('[LicenseService] Verification error:', error);
-            return false;
-        }
-    }
-
-    /**
-     * 激活 License
-     */
-    async activate(licenseKey) {
-        try {
-            // 1. Base64 解码
-            const jsonStr = Buffer.from(licenseKey, 'base64').toString();
-            const licenseData = JSON.parse(jsonStr);
-
-            // 2. 验证
-            if (!this.verifyLicense(licenseData)) {
-                throw new Error('无效的 License Key 或不匹配的机器码');
+            if (!license) {
+                // 无授权记录 → 需要激活
+                this.isValid = false;
+                this.licenseInfo = null;
+                console.log('[LicenseService] No license found, activation required');
+                return;
             }
 
-            // 3. 保存
-            await fs.mkdir(this.dataDir, { recursive: true });
-            await fs.writeFile(this.licensePath, licenseKey);
+            // 对比硬件指纹
+            const currentFp = this.fingerprint.hash;
+            const storedFp = license.fingerprint;
 
-            // 4. 更新状态
-            this.license = licenseData;
+            if (currentFp !== storedFp) {
+                // 硬件变化 → 清除授权
+                console.warn('[LicenseService] Hardware fingerprint mismatch!');
+                console.warn(`  Stored: ${storedFp}`);
+                console.warn(`  Current: ${currentFp}`);
+
+                this.clearLicense();
+                this.isValid = false;
+                this.licenseInfo = null;
+                return;
+            }
+
+            // 授权有效
             this.isValid = true;
-
-            return { success: true, issuedTo: licenseData.issuedTo };
+            this.licenseInfo = {
+                email: license.user_email,
+                activatedAt: license.activated_at
+            };
+            console.log('[LicenseService] License valid for:', license.user_email);
 
         } catch (error) {
-            throw new Error(`激活失败: ${error.message}`);
+            console.error('[LicenseService] Check error:', error);
+            this.isValid = false;
         }
     }
 
     /**
-     * 获取当前状态
+     * 获取授权状态
      */
     getStatus() {
         return {
             valid: this.isValid,
-            instanceId: this.instanceId,
-            license: this.isValid ? {
-                issuedTo: this.license.issuedTo,
-                expiresAt: this.license.expiresAt,
-                features: this.license.features
-            } : null
+            needsActivation: !this.isValid,
+            fingerprint: this.fingerprint?.hash,
+            license: this.licenseInfo
         };
+    }
+
+    /**
+     * 激活授权 (调用 NavManage 平台)
+     */
+    async activate(code, email, navmanageUrl) {
+        try {
+            const fingerprint = fingerprintService.getFingerprint();
+
+            const response = await fetch(`${navmanageUrl}/api/activation/activate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code,
+                    email,
+                    fingerprint: fingerprint.hash,
+                    fingerprintDetails: fingerprint.factors
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || '激活失败');
+            }
+
+            // 保存授权到本地
+            this.saveLicense(data.authToken, fingerprint.hash, email);
+
+            // 更新状态
+            this.isValid = true;
+            this.fingerprint = fingerprint;
+            this.licenseInfo = { email, activatedAt: new Date().toISOString() };
+
+            return { success: true, email: data.email, name: data.name };
+
+        } catch (error) {
+            console.error('[LicenseService] Activation error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 保存授权到数据库
+     */
+    saveLicense(authToken, fingerprint, email) {
+        const db = this.getDb();
+
+        // 清除旧记录
+        db.prepare('DELETE FROM license_auth').run();
+
+        // 插入新记录
+        db.prepare(
+            `INSERT INTO license_auth (auth_token, fingerprint, user_email) VALUES (?, ?, ?)`
+        ).run(authToken, fingerprint, email);
+    }
+
+    /**
+     * 清除授权
+     */
+    clearLicense() {
+        try {
+            const db = this.getDb();
+            db.prepare('DELETE FROM license_auth').run();
+            this.isValid = false;
+            this.licenseInfo = null;
+            console.log('[LicenseService] License cleared');
+        } catch (error) {
+            console.error('[LicenseService] Clear error:', error);
+        }
+    }
+
+    /**
+     * 申请迁移码
+     */
+    async requestNewCode(email, navmanageUrl) {
+        try {
+            const db = this.getDb();
+            const license = db.prepare('SELECT auth_token FROM license_auth LIMIT 1').get();
+
+            if (!license) {
+                throw new Error('当前没有有效授权');
+            }
+
+            const response = await fetch(`${navmanageUrl}/api/activation/request-new-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    authToken: license.auth_token,
+                    email
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || '申请失败');
+            }
+
+            // 清除本地授权
+            this.clearLicense();
+
+            return { success: true, newActivationCode: data.newActivationCode };
+
+        } catch (error) {
+            console.error('[LicenseService] Request new code error:', error);
+            throw error;
+        }
     }
 }
 
