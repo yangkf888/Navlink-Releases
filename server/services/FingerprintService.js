@@ -30,23 +30,14 @@ class FingerprintService {
             totalMemGB: Math.round(os.totalmem() / (1024 ** 3)),
         };
 
-        // Docker 环境特有标识
-        if (process.env.HOSTNAME) {
-            factors.containerId = process.env.HOSTNAME;
-        }
+        // 注意: 不再收集 Docker 环境变量 HOSTNAME (containerId)
+        // 因为如果用户没有在 docker-compose.yml 中设置 hostname，
+        // Docker 会使用容器ID作为 HOSTNAME，升级后会变化
+        // 只使用 hostname (os.hostname()) + platform + arch + cpu + memory
 
-        // 尝试获取 Docker 容器 ID
-        try {
-            if (fs.existsSync('/proc/self/cgroup')) {
-                const cgroup = fs.readFileSync('/proc/self/cgroup', 'utf-8');
-                const match = cgroup.match(/docker\/([a-f0-9]{12,})/);
-                if (match) {
-                    factors.dockerId = match[1].slice(0, 12);
-                }
-            }
-        } catch (e) {
-            // 非 Docker 环境
-        }
+        // 注意: 不再收集 Docker 容器 ID (dockerId)
+        // 因为容器升级/重建后 ID 会变化，会导致指纹不匹配
+        // 使用 hostname + platform + arch + cpu + memory 足以标识设备
 
         return factors;
     }
