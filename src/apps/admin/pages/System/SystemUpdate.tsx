@@ -141,11 +141,13 @@ export default function SystemUpdate() {
     }, []);
 
     // 检查更新
-    const checkForUpdate = useCallback(async () => {
+    const checkForUpdate = useCallback(async (forceRefresh = false) => {
         try {
             setLoading(prev => ({ ...prev, check: true }));
             setError(null);
-            const response = await fetch('/api/system/check-update');
+            // 支持强制刷新，绕过服务器缓存
+            const url = forceRefresh ? '/api/system/check-update?force=true' : '/api/system/check-update';
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 setUpdateCheck(data);
@@ -344,7 +346,7 @@ export default function SystemUpdate() {
                     variant="outline"
                     onClick={() => {
                         fetchVersionInfo();
-                        checkForUpdate();
+                        checkForUpdate(true); // 强制刷新，绕过缓存
                     }}
                     className="gap-2"
                     disabled={loading.check}
@@ -526,7 +528,7 @@ export default function SystemUpdate() {
                         {loading.check ? (
                             <Loader2 className="animate-spin text-blue-500" size={24} />
                         ) : (
-                            <Button onClick={checkForUpdate} className="gap-2">
+                            <Button onClick={() => checkForUpdate()} className="gap-2">
                                 <RefreshCw size={16} />
                                 检查更新
                             </Button>

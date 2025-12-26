@@ -37,6 +37,11 @@ router.get('/version', async (req, res) => {
  */
 router.get('/check-update', async (req, res) => {
     try {
+        // 支持强制刷新参数
+        const forceRefresh = req.query.force === 'true';
+        if (forceRefresh) {
+            updateService.clearCache();
+        }
         const result = await updateService.checkForUpdate();
         res.json(result);
     } catch (error) {
