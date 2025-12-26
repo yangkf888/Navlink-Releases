@@ -12,6 +12,7 @@ import {
     ArrowUpCircle
 } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/common/ConfirmDialog';
+import { AlertDialog } from '@/shared/components/common/AlertDialog';
 
 interface MarketPlugin {
     id: string;
@@ -36,6 +37,7 @@ export default function PluginMarket() {
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [installing, setInstalling] = useState<string | null>(null);
     const [error, setError] = useState('');
+    const [installSuccessDialog, setInstallSuccessDialog] = useState(false);
 
     useEffect(() => {
         loadMarketPlugins();
@@ -100,7 +102,8 @@ export default function PluginMarket() {
 
             // 刷新列表
             await loadMarketPlugins();
-            alert('插件安装成功!');
+            // 显示安装成功对话框
+            setInstallSuccessDialog(true);
         } catch (err: any) {
             alert(`安装失败: ${err.message}`);
         } finally {
@@ -315,6 +318,16 @@ export default function PluginMarket() {
                     onCancel={() => setConfirmModal(null)}
                 />
             )}
+
+            {/* 插件安装成功对话框 */}
+            <AlertDialog
+                isOpen={installSuccessDialog}
+                title="🎉 插件安装成功！"
+                message={`插件已下载并解压到 plugins 目录。\n\n请按以下步骤启用插件：\n\n1. 前往「插件管理」页面\n2. 点击「扫描插件」刷新列表\n3. 找到新插件并点击「启动」\n\n⚠️ 首次启动需要下载依赖，可能需要 1-2 分钟，请耐心等待。\n📋 启动完成后，刷新页面即可使用新插件。`}
+                variant="success"
+                buttonText="知道了"
+                onClose={() => setInstallSuccessDialog(false)}
+            />
         </div>
     );
 }

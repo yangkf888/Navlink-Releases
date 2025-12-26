@@ -225,7 +225,7 @@ export class UpgradeService {
 
         const imageTag = targetVersion === 'latest'
             ? `${this.imageName}:latest`
-            : `${this.imageName}:v${targetVersion.replace(/^v/, '')}`;
+            : `${this.imageName}:${targetVersion.replace(/^v/, '')}`;
 
         return new Promise((resolve, reject) => {
             console.log(`[UpgradeService] Pulling image: ${imageTag}`);

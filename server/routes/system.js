@@ -367,6 +367,74 @@ router.get('/license/status', (req, res) => {
 
 /**
  * @swagger
+ * /api/health-check-schedule:
+ *   post:
+ *     summary: 保存链接健康检测定时任务配置
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *                 description: 是否启用定时检测
+ *               time:
+ *                 type: string
+ *                 description: 检测时间 (格式: HH:mm)
+ *     responses:
+ *       200:
+ *         description: 保存成功
+ */
+router.post('/health-check-schedule', authenticateToken, async (req, res) => {
+    try {
+        const { enabled, time } = req.body;
+
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                error: '参数 enabled 必须是布尔值'
+            });
+        }
+
+        if (!time || !/^\d{2}:\d{2}$/.test(time)) {
+            return res.status(400).json({
+                success: false,
+                error: '参数 time 格式错误，应为 HH:mm'
+            });
+        }
+
+        // 导入 LinkHealthScheduleService
+        const { linkHealthScheduleService } = await import('../services/LinkHealthScheduleService.js');
+
+        // 更新定时任务配置
+        await linkHealthScheduleService.updateSchedule(enabled, time);
+
+        console.log('[健康检测定时任务] 配置已更新:', { enabled, time });
+
+        res.json({
+            success: true,
+            message: '定时任务配置已保存' + (enabled ? `，将在每天 ${time} 自动执行健康检查` : ''),
+            config: {
+                enabled,
+                time
+            },
+            status: linkHealthScheduleService.getStatus()
+        });
+    } catch (error) {
+        console.error('[健康检测定时任务] 保存配置失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @swagger
  * /api/system/metrics:
  *   get:
  *     summary: 获取系统资源使用指标

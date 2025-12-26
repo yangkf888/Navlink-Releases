@@ -285,10 +285,44 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
             const token = localStorage.getItem('auth_token');
 
             if (user) {
-                // 编辑模式 - 目前不支持编辑，只显示提示
-                alert('编辑功能开发中，请使用删除后重建的方式');
-                onClose();
-                return;
+                // 编辑模式 - 更新用户
+                const updateData: any = {};
+
+                // 只提交有变化的字段
+                if (formData.username !== user.username) {
+                    updateData.username = formData.username;
+                }
+                if (formData.email !== user.email) {
+                    updateData.email = formData.email;
+                }
+                if (formData.password) {
+                    updateData.password = formData.password;
+                }
+                if (formData.role !== user.role) {
+                    updateData.role = formData.role;
+                }
+
+                // 如果没有任何变化，直接关闭
+                if (Object.keys(updateData).length === 0) {
+                    onClose();
+                    return;
+                }
+
+                const response = await fetch(`/api/users/${user.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to update user');
+                }
+
+                onSave();
             } else {
                 // 新建用户
                 if (!formData.password) {
@@ -339,7 +373,6 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="请输入用户名"
                             required
-                            disabled={!!user}
                         />
                     </div>
 
@@ -356,21 +389,19 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
                         />
                     </div>
 
-                    {!user && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                密码
-                            </label>
-                            <input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="请输入密码"
-                                required
-                            />
-                        </div>
-                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {user ? '新密码（留空则不修改）' : '密码'}
+                        </label>
+                        <input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={user ? '留空则保持原密码' : '请输入密码'}
+                            required={!user}
+                        />
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -420,6 +451,7 @@ function UserDialog({ user, onClose, onSave }: { user: User | null; onClose: () 
         </div>
     );
 }
+
 
 // 导出组件（权限保护已在路由层统一处理）
 export default UsersPage;

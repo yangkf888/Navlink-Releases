@@ -262,6 +262,69 @@ export class AuthService {
     }
 
     /**
+     * 更新用户信息 (仅管理员)
+     * @param {Object} adminUser - 管理员用户
+     * @param {string} userId - 要更新的用户ID
+     * @param {Object} userData - 更新数据 { username, email, password, role }
+     */
+    async updateUser(adminUser, userId, userData) {
+        if (adminUser.role !== 'admin') {
+            throw { code: 403, message: 'Only admins can update users' };
+        }
+
+        // 防止管理员降级自己
+        if (adminUser.id === userId && userData.role && userData.role !== 'admin') {
+            throw { code: 400, message: 'Cannot demote yourself' };
+        }
+
+        return new Promise(async (resolve, reject) => {
+            const { username, email, password, role } = userData;
+
+            // 构建动态更新语句
+            const updates = [];
+            const params = [];
+
+            if (username) {
+                updates.push('username = ?');
+                params.push(username);
+            }
+            if (email !== undefined) {
+                updates.push('email = ?');
+                params.push(email);
+            }
+            if (password) {
+                const passwordHash = await bcrypt.hash(password, 10);
+                updates.push('password_hash = ?');
+                params.push(passwordHash);
+            }
+            if (role) {
+                updates.push('role = ?');
+                params.push(role);
+            }
+
+            if (updates.length === 0) {
+                return reject({ code: 400, message: 'No fields to update' });
+            }
+
+            updates.push('updated_at = datetime(\'now\')');
+            params.push(userId);
+
+            const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+
+            this.db.run(sql, params, (err) => {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) {
+                        return reject({ code: 409, message: 'Username already exists' });
+                    }
+                    return reject({ code: 500, message: 'Failed to update user' });
+                }
+                console.log('[AuthService] User updated:', { userId, fields: updates.length - 1 });
+                resolve({ success: true });
+            });
+        });
+    }
+
+    /**
      * 删除用户 (仅管理员)
      */
     async deleteUser(adminUser, userId) {

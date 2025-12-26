@@ -179,7 +179,7 @@ export const LinkHealthSettings: React.FC = () => {
         setIsSavingSchedule(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/health-check-schedule', {
+            const response = await fetch('/api/system/health-check-schedule', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

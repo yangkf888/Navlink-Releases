@@ -138,18 +138,62 @@ export default function PluginGuard({ pluginId, children }: PluginGuardProps) {
     }
 
     if (status === 'error') {
-        // 出错时，为了不完全阻断（比如网络抖动），也许显示一个带重试的界面
-        // 或者如果觉得出错也得拦，就显示错误页。这里偏向安全：显示错误。
+        // 检查是否有token，判断是未登录还是其他错误
+        const hasToken = !!localStorage.getItem('auth_token');
+
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-red-100 text-center">
-                    <p className="text-red-500 font-medium mb-4">验证插件状态失败</p>
-                    <button
-                        onClick={checkStatus}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        重试
-                    </button>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+                <div className="bg-white p-8 rounded-xl shadow-lg border border-red-100 text-center max-w-md">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                        {hasToken ? '插件状态验证失败' : '请先登录'}
+                    </h2>
+
+                    <p className="text-gray-600 mb-6">
+                        {hasToken
+                            ? '无法连接到服务器或验证插件状态，可能是网络问题或服务暂时不可用。'
+                            : '您需要登录管理后台才能访问此插件功能。'
+                        }
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row justify-center gap-3">
+                        {hasToken ? (
+                            <>
+                                <button
+                                    onClick={checkStatus}
+                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                                >
+                                    重试连接
+                                </button>
+                                <button
+                                    onClick={() => navigate('/admin/plugins')}
+                                    className="px-5 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium"
+                                >
+                                    插件管理
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={() => navigate('/admin/login')}
+                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                                >
+                                    前往登录
+                                </button>
+                                <button
+                                    onClick={() => navigate('/')}
+                                    className="px-5 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium"
+                                >
+                                    返回首页
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         );

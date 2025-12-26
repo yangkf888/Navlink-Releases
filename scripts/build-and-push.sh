@@ -22,14 +22,15 @@ echo "版本: $VERSION"
 echo "目标: $FULL_IMAGE"
 echo ""
 
-# 0. 编译前端
-echo "🔨 编译前端资源..."
-npm run build
+# 0. 编译前端 + 混淆后端
+echo "🔨 编译前端资源 + 混淆后端代码..."
+npm run build:all
 if [ $? -ne 0 ]; then
-    echo "❌ 前端编译失败"
+    echo "❌ 构建失败"
     exit 1
 fi
 echo "✅ 前端编译完成"
+echo "✅ 后端代码混淆完成"
 echo ""
 
 # 检查是否登录
@@ -67,41 +68,87 @@ else
     fi
 fi
 
-# 构建镜像
-echo "📦 构建镜像..."
-docker build -t $FULL_IMAGE .
-
-# 如果版本不是 latest，也打上 latest 标签
-if [ "$VERSION" != "latest" ]; then
-    LATEST_IMAGE="$REGISTRY/$GITHUB_USERNAME/$IMAGE_NAME:latest"
-    echo "🏷️  添加 latest 标签..."
-    docker tag $FULL_IMAGE $LATEST_IMAGE
+# 检查混淆后的代码是否存在
+echo "🔍 检查混淆后的代码..."
+if [ ! -d "dist-server" ]; then
+    echo "❌ 错误: dist-server 目录不存在"
+    echo "   混淆后的后端代码丢失，请重新运行: npm run build:all"
+    exit 1
 fi
 
-# 显示镜像信息
-echo ""
-echo "📊 镜像信息:"
-docker images | grep "$GITHUB_USERNAME/$IMAGE_NAME"
+if [ ! -f "dist-server/server.js" ]; then
+    echo "❌ 错误: dist-server/server.js 不存在"
+    echo "   请重新运行: npm run build:all"
+    exit 1
+fi
 
-# 确认推送
+echo "✅ 混淆代码检查通过"
 echo ""
-read -p "是否推送到 $REGISTRY？(y/N): " -n 1 -r
+
+# 设置多架构构建器
+echo "🔧 配置多架构构建器..."
+BUILDER_NAME="navlink-multiarch"
+
+# 检查构建器是否存在，不存在则创建
+if ! docker buildx inspect $BUILDER_NAME > /dev/null 2>&1; then
+    echo "   创建新的构建器: $BUILDER_NAME"
+    docker buildx create --name $BUILDER_NAME --driver docker-container --bootstrap
+fi
+
+# 使用构建器
+docker buildx use $BUILDER_NAME
+echo "✅ 构建器已就绪"
+echo ""
+
+# 确认构建
+echo "📦 准备构建多架构镜像..."
+echo "   目标平台: linux/amd64 (Intel/AMD), linux/arm64 (Mac M系列/ARM服务器)"
+echo "   目标镜像: $FULL_IMAGE"
+if [ "$VERSION" != "latest" ]; then
+    LATEST_IMAGE="$REGISTRY/$GITHUB_USERNAME/$IMAGE_NAME:latest"
+    echo "   同时标记: $LATEST_IMAGE"
+fi
+echo ""
+
+read -p "是否构建并推送到 $REGISTRY？(y/N): " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ 取消推送"
+    echo "❌ 取消构建"
     exit 0
 fi
 
-# 推送镜像
-echo "⬆️  推送镜像..."
-docker push $FULL_IMAGE
+# 构建并推送多架构镜像
+echo ""
+echo "📦 构建多架构镜像并推送..."
+echo "   ⏳ 这可能需要几分钟，请耐心等待..."
+echo ""
 
 if [ "$VERSION" != "latest" ]; then
-    docker push $LATEST_IMAGE
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        -t $FULL_IMAGE \
+        -t $LATEST_IMAGE \
+        --push \
+        .
+else
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        -t $FULL_IMAGE \
+        --push \
+        .
 fi
 
 echo ""
 echo "✅ 发布成功！"
+echo ""
+echo "🏗️  多架构支持:"
+echo "   ✓ linux/amd64 (Intel/AMD 服务器)"
+echo "   ✓ linux/arm64 (Mac M系列/ARM 服务器)"
+echo ""
+echo "🔐 安全信息:"
+echo "   ✓ 后端代码已混淆 (46个文件)"
+echo "   ✓ 源代码未打包进镜像"
+echo "   ✓ 破解难度: ⭐⭐⭐"
 echo ""
 echo "📋 镜像信息:"
 echo "   $FULL_IMAGE"

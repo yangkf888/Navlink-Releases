@@ -13,12 +13,27 @@ interface Props {
 export default function AdminLayout({ children }: Props) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [version, setVersion] = useState('2.0');
     const { isAuthenticated, isLoaded } = useConfig();
     const navigate = useNavigate();
 
     // 启用会话管理和Token刷新
     useSessionManager();
     useTokenRefresh();
+
+    // 获取版本号
+    useEffect(() => {
+        fetch('/api/health')
+            .then(res => res.json())
+            .then(data => {
+                if (data.version) {
+                    setVersion(data.version);
+                }
+            })
+            .catch(() => {
+                // 静默失败，保持默认版本号
+            });
+    }, []);
 
     // 检查登录状态 - 未登录则重定向到登录页面
     useEffect(() => {
@@ -86,7 +101,7 @@ export default function AdminLayout({ children }: Props) {
                 </main>
 
                 <footer className="bg-white border-t border-gray-200 px-6 py-3 text-center text-sm text-gray-500">
-                    Powered by NavLink v2.0
+                    Powered by NavLink v{version}
                 </footer>
             </div>
         </div>

@@ -263,7 +263,16 @@ app.post('/api/market/install', authenticateToken, async (req, res) => {
 
 // --- Core Routes ---
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', version: '2.0.0', mode: 'gateway' });
+    // 从 package.json 读取版本号
+    let version = '2.0.0';
+    try {
+        const packagePath = path.join(__dirname, 'package.json');
+        const packageData = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+        version = packageData.version || version;
+    } catch {
+        // 静默失败，使用默认版本号
+    }
+    res.json({ status: 'ok', version, mode: 'gateway' });
 });
 
 // --- Plugin Management ---
@@ -552,6 +561,16 @@ app.put('/api/users/:id/status', authenticateToken, requireAdmin, async (req, re
     }
 });
 
+// 更新用户信息 (仅管理员)
+app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        await authService.updateUser(req.user, req.params.id, req.body);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(error.code || 500).json({ error: error.message });
+    }
+});
+
 // 删除用户 (仅管理员)
 app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
@@ -591,6 +610,7 @@ app.get('/api/permissions', authenticateToken, (req, res) => {
 app.get('/api/user/permissions', authenticateToken, (req, res) => {
     const permissions = getRolePermissions(req.user.role);
     res.json({
+        username: req.user.username,
         role: req.user.role,
         permissions
     });

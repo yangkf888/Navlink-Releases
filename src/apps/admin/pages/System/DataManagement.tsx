@@ -140,20 +140,17 @@ export const DataSettings: React.FC = () => {
             return;
         }
 
-        let fileToUpload: File;
+        let parsedConfig: any;
 
         try {
-            // 尝试解析JSON以验证格式，并创建一个文件对象
-            const parsed = JSON.parse(importJson);
+            // 尝试解析JSON以验证格式
+            parsedConfig = JSON.parse(importJson);
 
             // Basic validation
-            if (!parsed.categories || !parsed.hero) {
+            if (!parsedConfig.categories || !parsedConfig.hero) {
                 showAlert('格式错误', '配置格式不正确，缺少必要字段(categories/hero)', 'error');
                 return;
             }
-
-            const blob = new Blob([importJson], { type: 'application/json' });
-            fileToUpload = new File([blob], 'config_import.json', { type: 'application/json' });
 
         } catch (e) {
             showAlert('导入失败', 'JSON 格式错误，请检查内容是否完整正确', 'error');
@@ -165,9 +162,6 @@ export const DataSettings: React.FC = () => {
             setIsLoading(true);
 
             try {
-                const formData = new FormData();
-                formData.append('file', fileToUpload);
-
                 const token = localStorage.getItem('auth_token');
 
                 if (!token) {
@@ -176,12 +170,14 @@ export const DataSettings: React.FC = () => {
                     return;
                 }
 
-                const response = await fetch('/api/config/import', {
+                // 直接使用 POST /api/config 保存配置
+                const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: {
+                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: formData
+                    body: JSON.stringify(parsedConfig)
                 });
 
                 if (response.ok) {
@@ -189,6 +185,8 @@ export const DataSettings: React.FC = () => {
                     if (result.success) {
                         showAlert('导入成功', '配置已成功导入！页面将刷新以应用更改。', 'success');
                         setImportJson('');
+                        // 清除本地缓存
+                        localStorage.removeItem('navlink_app_config');
                         // 延迟刷新页面
                         setTimeout(() => {
                             window.location.reload();

@@ -21,9 +21,11 @@ RUN npm ci --only=production
 
 # 🔑 直接复制本地构建好的 dist（需要先执行 npm run build）
 COPY dist ./dist
-# Copy backend source code
-COPY server.js ./
-COPY server ./server
+
+# 🔒 复制混淆后的后端代码（需要先执行 npm run build:all）
+# 注意：这些是混淆后的代码，原始代码不会打包到镜像中
+COPY dist-server/server.js ./
+COPY dist-server/server ./server
 
 # 复制 .env.example 作为配置参考模板
 # 注意：.env 文件不应该包含在镜像中（已在 .dockerignore 中排除）

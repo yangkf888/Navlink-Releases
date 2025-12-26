@@ -4,6 +4,12 @@ node_modules
 .env
 .env.local
 .DS_Store
+
+# 排除原始后端代码（只打包混淆后的代码）
+server/*
+server.js
+!dist-server
+
 # Do not copy plugins into the image - they will be mounted via volumes
 # Plugins are loaded dynamically at runtime
 plugins/*
@@ -17,3 +23,4 @@ tmp_packages/*
 .vscode
 .idea
 Navlink-plugins
+navmanage

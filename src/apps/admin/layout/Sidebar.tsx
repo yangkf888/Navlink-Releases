@@ -89,7 +89,7 @@ const menuItems: MenuItem[] = [
 export default function Sidebar({ collapsed, onToggle }: Props) {
     const location = useLocation();
     const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']);
-    const { hasAnyPermission, loading } = usePermissions();
+    const { hasAnyPermission, loading, getUsername, getRoleDisplayName } = usePermissions();
 
     const toggleSection = (sectionId: string) => {
         setExpandedSections(prev =>
@@ -286,12 +286,12 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
             <div className="border-t border-gray-200 p-4 overflow-x-hidden">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        A
+                        {getUsername().charAt(0).toUpperCase()}
                     </div>
                     {!collapsed && (
                         <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">Administrator</div>
-                            <div className="text-xs text-gray-500">超级管理员</div>
+                            <div className="text-sm font-medium text-gray-900">{getUsername()}</div>
+                            <div className="text-xs text-gray-500">{getRoleDisplayName()}</div>
                         </div>
                     )}
                 </div>

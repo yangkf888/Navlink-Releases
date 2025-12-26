@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 
 export interface UserPermissions {
+    username: string;
     role: string;
     permissions: string[];
 }
+
+// 角色显示名称映射
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+    'admin': '超级管理员',
+    'editor': '编辑',
+    'viewer': '访客'
+};
 
 /**
  * 权限管理Hook
@@ -69,6 +77,21 @@ export function usePermissions() {
         return permissions?.role === 'admin';
     };
 
+    /**
+     * 获取当前用户名
+     */
+    const getUsername = (): string => {
+        return permissions?.username || 'Unknown';
+    };
+
+    /**
+     * 获取角色显示名称
+     */
+    const getRoleDisplayName = (): string => {
+        if (!permissions?.role) return '未知角色';
+        return ROLE_DISPLAY_NAMES[permissions.role] || permissions.role;
+    };
+
     return {
         permissions,
         loading,
@@ -76,6 +99,8 @@ export function usePermissions() {
         hasAnyPermission,
         hasAllPermissions,
         isAdmin,
+        getUsername,
+        getRoleDisplayName,
         reload: loadPermissions
     };
 }

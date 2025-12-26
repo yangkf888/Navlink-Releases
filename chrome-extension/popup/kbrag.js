@@ -2,15 +2,33 @@
 let settings = {};
 let kbragData = {};
 
+// 安全的 URI 解码函数
+function safeDecodeURIComponent(str) {
+    if (!str) return '';
+    try {
+        return decodeURIComponent(str);
+    } catch (e) {
+        // 如果解码失败，尝试替换常见的编码问题
+        try {
+            // 替换可能的问题字符后再尝试
+            return decodeURIComponent(str.replace(/%(?![0-9A-Fa-f]{2})/g, '%25'));
+        } catch (e2) {
+            // 如果还是失败，返回原字符串
+            console.warn('Failed to decode URI component:', str);
+            return str;
+        }
+    }
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // 从 URL 参数获取内容信息
         const params = new URLSearchParams(window.location.search);
         kbragData = {
-            title: decodeURIComponent(params.get('title') || ''),
-            content: decodeURIComponent(params.get('content') || ''),
-            url: decodeURIComponent(params.get('url') || '')
+            title: safeDecodeURIComponent(params.get('title') || ''),
+            content: safeDecodeURIComponent(params.get('content') || ''),
+            url: safeDecodeURIComponent(params.get('url') || '')
         };
 
         // 获取设置
