@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { updateService } from './UpdateService.js';
+import { licenseService } from './LicenseService.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -319,6 +320,18 @@ export class UpgradeService {
         };
 
         try {
+            // 0. 验证授权状态
+            this.pushProgress('validate', 2, '正在验证授权状态...');
+            const validation = await licenseService.validateOnline();
+
+            if (!validation.valid) {
+                if (validation.shouldClear) {
+                    licenseService.clearLicense();
+                    console.log('[UpgradeService] License cleared due to:', validation.status);
+                }
+                throw new Error(validation.message);
+            }
+
             // 1. 预检查
             this.pushProgress('check', 5, '正在进行升级前检查...');
             const checkResult = await this.preUpgradeCheck();

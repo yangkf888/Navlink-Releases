@@ -54,9 +54,31 @@ export async function initDatabase() {
             name TEXT,
             max_activations INTEGER DEFAULT 3,
             used_activations INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            expires_at TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // 数据库迁移：为旧版本的 users 表添加缺失的列
+    try {
+        const tableInfo = db.exec("PRAGMA table_info(users)");
+        if (tableInfo.length > 0) {
+            const columns = tableInfo[0].values.map(row => row[1]); // 列名在第2个位置
+
+            if (!columns.includes('status')) {
+                db.run("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'");
+                console.log('[Database] Migration: Added status column to users table');
+            }
+
+            if (!columns.includes('expires_at')) {
+                db.run("ALTER TABLE users ADD COLUMN expires_at TEXT");
+                console.log('[Database] Migration: Added expires_at column to users table');
+            }
+        }
+    } catch (e) {
+        console.error('[Database] Migration error:', e);
+    }
 
     // 激活码表 (每个激活码只能用一次)
     db.run(`

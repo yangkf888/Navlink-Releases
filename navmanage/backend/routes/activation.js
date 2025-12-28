@@ -53,7 +53,7 @@ router.get('/users', authenticateToken, async (req, res) => {
 // 更新用户信息
 router.put('/users/:id', authenticateToken, async (req, res) => {
     try {
-        const { email, name, maxActivations } = req.body;
+        const { email, name, maxActivations, status, expiresAt } = req.body;
         const userId = parseInt(req.params.id);
 
         // 检查用户是否存在
@@ -75,9 +75,11 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
             `UPDATE users SET 
                 email = COALESCE(?, email),
                 name = COALESCE(?, name),
-                max_activations = COALESCE(?, max_activations)
+                max_activations = COALESCE(?, max_activations),
+                status = COALESCE(?, status),
+                expires_at = ?
              WHERE id = ?`,
-            [email, name, maxActivations, userId]
+            [email, name, maxActivations, status, expiresAt || null, userId]
         );
 
         // 返回更新后的用户信息

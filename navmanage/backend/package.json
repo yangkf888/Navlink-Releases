@@ -1,6 +1,6 @@
 {
     "name": "navmanage-backend",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "NavLink License and Plugin Management System",
     "type": "module",
     "main": "server.js",

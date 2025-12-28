@@ -97,6 +97,12 @@ export const hppProtection = hpp();
  * 输入验证和清理
  */
 export const validateInput = (req, res, next) => {
+    // 跳过知识库路由的XSS检测，因为知识库需要保存代码内容
+    // kbrag 插件可能存储包含 <script> 等代码示例的技术文档
+    if (req.path.includes('/api/plugins/kbrag')) {
+        return next();
+    }
+
     // 检查常见的XSS攻击模式
     const checkXSS = (value) => {
         if (typeof value === 'string') {

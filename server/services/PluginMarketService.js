@@ -4,6 +4,7 @@ import path from 'path';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import AdmZip from 'adm-zip';
+import { licenseService } from './LicenseService.js';
 
 /**
  * 插件市场服务
@@ -237,6 +238,16 @@ export class PluginMarketService {
      */
     async updatePlugin(pluginId) {
         console.log(`[PluginMarket] Updating plugin: ${pluginId}`);
+
+        // 验证授权状态
+        const validation = await licenseService.validateOnline();
+        if (!validation.valid) {
+            if (validation.shouldClear) {
+                licenseService.clearLicense();
+                console.log('[PluginMarket] License cleared due to:', validation.status);
+            }
+            throw new Error(validation.message);
+        }
 
         const plugin = this.pluginManager.plugins.get(pluginId);
         if (!plugin) {

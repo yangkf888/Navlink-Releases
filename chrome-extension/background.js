@@ -51,7 +51,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // 右键菜单点击事件
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === 'addToNavLink' || info.menuItemId === 'addWithDialog') {
+  if (info.menuItemId === 'addWithDialog') {
     await handleAddLink(info, tab, false);
   } else if (info.menuItemId === 'addToRecentCategory') {
     await handleAddLink(info, tab, true);
@@ -106,16 +106,15 @@ async function handleAddLink(info, tab, useRecentCategory) {
       // 打开选择对话框
       const width = 420;
       const height = 650;
-      const left = (screen.width - width) / 2;
-      const top = (screen.height - height) / 2;
 
+      // Service Worker 中无法访问 screen 对象，使用固定位置或不设置让浏览器自动定位
       chrome.windows.create({
         url: `popup/add.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&icon=${encodeURIComponent(faviconUrl)}`,
         type: 'popup',
         width: width,
         height: height,
-        left: Math.round(left),
-        top: Math.round(top)
+        left: 100,
+        top: 100
       });
     }
   } catch (error) {

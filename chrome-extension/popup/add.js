@@ -3,15 +3,41 @@ let api = null;
 let allCategories = { categories: [], promo: [] };  // 修改为对象结构
 let linkData = {};
 
+// 安全的 URI 解码函数
+function safeDecodeURIComponent(str) {
+  if (!str) return '';
+  try {
+    // 先尝试解码一次
+    let decoded = decodeURIComponent(str);
+    // 检查是否还有需要解码的内容（双重编码的情况）
+    if (decoded.includes('%')) {
+      try {
+        decoded = decodeURIComponent(decoded);
+      } catch (e) {
+        // 如果二次解码失败，使用一次解码的结果
+      }
+    }
+    return decoded;
+  } catch (e) {
+    // 如果解码失败，尝试替换常见的编码问题
+    try {
+      return decodeURIComponent(str.replace(/%(?![0-9A-Fa-f]{2})/g, '%25'));
+    } catch (e2) {
+      console.warn('Failed to decode URI component:', str);
+      return str;
+    }
+  }
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     // 从 URL 参数获取链接信息
     const params = new URLSearchParams(window.location.search);
     linkData = {
-      url: decodeURIComponent(params.get('url') || ''),
-      title: decodeURIComponent(params.get('title') || ''),
-      icon: decodeURIComponent(params.get('icon') || '')
+      url: safeDecodeURIComponent(params.get('url') || ''),
+      title: safeDecodeURIComponent(params.get('title') || ''),
+      icon: safeDecodeURIComponent(params.get('icon') || '')
     };
 
     // 初始化 API
@@ -38,7 +64,7 @@ function displayLinkInfo() {
   document.getElementById('iconPreview').src = linkData.icon || 'icons/icon48.png';
   document.getElementById('titlePreview').textContent = linkData.title;
   document.getElementById('urlPreview').textContent = linkData.url;
-  
+
   document.getElementById('title').value = linkData.title;
   document.getElementById('url').value = linkData.url;
   document.getElementById('icon').value = linkData.icon;
@@ -48,15 +74,15 @@ function displayLinkInfo() {
 async function loadCategories() {
   try {
     allCategories = await api.getCategories();
-    
+
     const categorySelect = document.getElementById('category');
     categorySelect.innerHTML = '<option value="">请选择分类</option>';
-    
+
     // 添加内容分类组
     if (allCategories.categories && allCategories.categories.length > 0) {
       const categoryGroup = document.createElement('optgroup');
       categoryGroup.label = '—— 内容分类 ——';
-      
+
       allCategories.categories.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat.id;
@@ -65,15 +91,15 @@ async function loadCategories() {
         option.dataset.hasSubCategories = cat.subCategories && cat.subCategories.length > 0;
         categoryGroup.appendChild(option);
       });
-      
+
       categorySelect.appendChild(categoryGroup);
     }
-    
+
     // 添加热门板块组
     if (allCategories.promo && allCategories.promo.length > 0) {
       const promoGroup = document.createElement('optgroup');
       promoGroup.label = '—— 热门板块 ——';
-      
+
       allCategories.promo.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat.id;
@@ -82,7 +108,7 @@ async function loadCategories() {
         option.dataset.hasSubCategories = 'false';
         promoGroup.appendChild(option);
       });
-      
+
       categorySelect.appendChild(promoGroup);
     }
 
@@ -91,7 +117,7 @@ async function loadCategories() {
     if (recent && recent.categoryId) {
       categorySelect.value = recent.categoryId;
       await handleCategoryChange();
-      
+
       if (recent.subCategoryName) {
         document.getElementById('subCategory').value = recent.subCategoryName;
       }
@@ -108,7 +134,7 @@ async function handleCategoryChange() {
   const categoryId = document.getElementById('category').value;
   const subCategorySection = document.getElementById('subCategorySection');
   const subCategorySelect = document.getElementById('subCategory');
-  
+
   if (!categoryId) {
     subCategorySection.style.display = 'none';
     return;
@@ -119,18 +145,18 @@ async function handleCategoryChange() {
   if (!category) {
     category = allCategories.promo?.find(c => c.id === categoryId);
   }
-  
+
   // 热门推广不显示子分类
   if (category && category.type === 'promo') {
     subCategorySection.style.display = 'none';
     return;
   }
-  
+
   if (category && category.subCategories && category.subCategories.length > 0) {
     // 显示子分类选择
     subCategorySection.style.display = 'block';
     subCategorySelect.innerHTML = '<option value="">添加到主分类</option>';
-    
+
     category.subCategories.forEach(sub => {
       const option = document.createElement('option');
       option.value = sub.name;  // 使用 name 而不是 id
@@ -146,7 +172,7 @@ async function handleCategoryChange() {
 function bindEvents() {
   // 分类选择变化
   document.getElementById('category').addEventListener('change', handleCategoryChange);
-  
+
   // 刷新图标
   document.getElementById('refreshIconBtn').addEventListener('click', () => {
     const url = document.getElementById('url').value;
@@ -178,15 +204,15 @@ function bindEvents() {
 // 表单提交处理
 async function handleSubmit(e) {
   e.preventDefault();
-  
+
   const submitBtn = document.getElementById('submitBtn');
   const loadingOverlay = document.getElementById('loading');
-  
+
   try {
     // 显示加载状态
     submitBtn.disabled = true;
     loadingOverlay.style.display = 'flex';
-    
+
     // 获取表单数据
     const categoryId = document.getElementById('category').value;
     const subCategoryName = document.getElementById('subCategory').value;  // 使用 name 而不是 id
@@ -194,35 +220,35 @@ async function handleSubmit(e) {
     const url = document.getElementById('url').value.trim();
     const description = document.getElementById('description').value.trim();
     let icon = document.getElementById('icon').value.trim();
-    
+
     // 获取图标模式
     const iconMode = document.querySelector('input[name="iconMode"]:checked').value;
-    
+
     console.log('=== 开始添加链接 ===');
     console.log('图标模式:', iconMode === 'local' ? '本地模式(下载到服务器)' : '在线模式(URL)');
     console.log('原始图标:', icon || '无');
-    
+
     if (!categoryId) {
       alert('请选择分类');
       submitBtn.disabled = false;
       loadingOverlay.style.display = 'none';
       return;
     }
-    
+
     if (!title) {
       alert('请输入标题');
       submitBtn.disabled = false;
       loadingOverlay.style.display = 'none';
       return;
     }
-    
+
     if (!url) {
       alert('请输入 URL');
       submitBtn.disabled = false;
       loadingOverlay.style.display = 'none';
       return;
     }
-    
+
     // 处理图标：如果是本地模式且图标不是图标代码，则下载到服务器
     if (iconMode === 'local') {
       if (!icon) {
@@ -232,7 +258,7 @@ async function handleSubmit(e) {
         // FontAwesome: fa-solid fa-home
         // Iconify: mdi:home, heroicons:home
         const isIconCode = icon.includes('fa-') || (icon.includes(':') && !icon.startsWith('http://') && !icon.startsWith('https://'));
-        
+
         if (!isIconCode && !icon.startsWith('/uploads/')) {
           try {
             console.log('本地模式：开始下载图标到服务器...', icon);
@@ -252,7 +278,7 @@ async function handleSubmit(e) {
     } else {
       console.log('在线模式：直接使用图标URL，不下载到服务器:', icon || '无');
     }
-    
+
     // 调用 API 添加链接
     console.log('最终使用的图标:', icon || '无');
     const result = await api.addLink(categoryId, subCategoryName, {
@@ -263,23 +289,23 @@ async function handleSubmit(e) {
     });
     console.log('链接添加成功');
     console.log('===================');
-    
+
     // 保存到最近使用的分类
     let category = allCategories.categories?.find(c => c.id === categoryId);
     if (!category) {
       category = allCategories.promo?.find(c => c.id === categoryId);
     }
     let categoryName = category ? category.name : '';
-    
+
     if (subCategoryName) {
       const subCategory = category?.subCategories?.find(s => s.name === subCategoryName);
       if (subCategory) {
         categoryName += ' / ' + subCategory.name;
       }
     }
-    
+
     await StorageManager.saveRecentCategory(categoryId, subCategoryName, categoryName);
-    
+
     // 保存到最近添加列表
     await StorageManager.addRecentLink({
       title,
@@ -287,7 +313,7 @@ async function handleSubmit(e) {
       icon,
       category: categoryName
     });
-    
+
     // 显示成功通知
     chrome.notifications.create({
       type: 'basic',
@@ -295,12 +321,12 @@ async function handleSubmit(e) {
       title: '添加成功',
       message: `已添加到「${categoryName}」`
     });
-    
+
     // 关闭窗口
     setTimeout(() => {
       window.close();
     }, 500);
-    
+
   } catch (error) {
     console.error('Submit error:', error);
     alert('添加失败: ' + error.message);

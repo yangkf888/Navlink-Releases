@@ -197,6 +197,81 @@ class LicenseService {
     }
 
     /**
+     * 在线验证授权状态
+     * 用于系统升级和插件升级前的授权检查
+     * @returns {Promise<{valid: boolean, status: string, shouldClear: boolean, message: string}>}
+     */
+    async validateOnline() {
+        const licenseInfo = this.getLicenseInfo();
+
+        // 未激活
+        if (!licenseInfo?.email) {
+            return {
+                valid: false,
+                status: 'not_activated',
+                shouldClear: false,
+                message: '系统尚未激活，请先激活后再升级'
+            };
+        }
+
+        const authUrl = process.env.AUTH_SERVER_URL || 'https://auth.webxx.top';
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(`${authUrl}/api/license/validate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: licenseInfo.email,
+                    fingerprint: this.fingerprint?.hash
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            // 服务器返回格式: { valid, status, shouldClear, message }
+            // status: 'active' | 'expired' | 'disabled' | 'deleted'
+            console.log('[LicenseService] Online validation result:', result);
+
+            return {
+                valid: result.valid === true,
+                status: result.status || 'unknown',
+                shouldClear: result.shouldClear === true,
+                message: result.message || (result.valid ? '授权有效' : '授权验证失败')
+            };
+
+        } catch (error) {
+            console.error('[LicenseService] Online validation error:', error);
+
+            // 网络错误
+            if (error.name === 'AbortError') {
+                return {
+                    valid: false,
+                    status: 'network_error',
+                    shouldClear: false,
+                    message: '连接激活服务器超时，请检查网络后重试'
+                };
+            }
+
+            return {
+                valid: false,
+                status: 'network_error',
+                shouldClear: false,
+                message: '无法连接激活服务器，请检查网络后重试'
+            };
+        }
+    }
+
+    /**
      * 申请迁移码
      */
     async requestNewCode(email, navmanageUrl) {

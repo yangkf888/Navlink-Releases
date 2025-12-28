@@ -37,6 +37,74 @@ router.post('/verify', async (req, res) => {
     }
 });
 
+// 升级前验证授权状态 (供 NavLink 升级前调用)
+router.post('/validate', async (req, res) => {
+    try {
+        const { email, fingerprint } = req.body;
+
+        if (!email) {
+            return res.json({
+                valid: false,
+                status: 'invalid_request',
+                shouldClear: false,
+                message: '缺少验证参数'
+            });
+        }
+
+        // 查询用户
+        const user = await dbGet('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (!user) {
+            return res.json({
+                valid: false,
+                status: 'not_found',
+                shouldClear: true,
+                message: '未找到用户记录，请重新激活'
+            });
+        }
+
+        // 检查用户状态
+        if (user.status === 'disabled') {
+            return res.json({
+                valid: false,
+                status: 'disabled',
+                shouldClear: true,
+                message: '账户已被禁用'
+            });
+        }
+
+        // 检查是否过期
+        if (user.expires_at) {
+            const expireDate = new Date(user.expires_at);
+            if (new Date() > expireDate) {
+                return res.json({
+                    valid: false,
+                    status: 'expired',
+                    shouldClear: false,  // 过期不清除许可
+                    message: '授权已过期，请续费后再升级'
+                });
+            }
+        }
+
+        // 验证通过
+        return res.json({
+            valid: true,
+            status: 'active',
+            shouldClear: false,
+            message: '授权有效'
+        });
+
+    } catch (error) {
+        console.error('[License Validate]', error);
+        res.status(500).json({
+            valid: false,
+            status: 'error',
+            shouldClear: false,
+            message: '服务器错误'
+        });
+    }
+});
+
 // ========== 需要认证的 API ==========
 
 // 获取所有 License

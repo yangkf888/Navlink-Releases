@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Copy, X, Edit2, Trash2 } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Copy, X, Edit2, Trash2, Search, ArrowUpDown } from 'lucide-react'
 
 interface UserData {
     id: number
@@ -9,6 +9,8 @@ interface UserData {
     active_codes?: number
     max_activations?: number
     used_activations?: number
+    status?: string
+    expires_at?: string
     last_activation?: string
     created_at: string
 }
@@ -45,12 +47,64 @@ export default function Licenses() {
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
     const [userCodes, setUserCodes] = useState<ActivationCode[]>([])
     const [form, setForm] = useState({ email: '', name: '', maxActivations: 3 })
-    const [editForm, setEditForm] = useState({ email: '', name: '', maxActivations: 3 })
+    const [editForm, setEditForm] = useState({ email: '', name: '', maxActivations: 3, status: 'active', expiresAt: '' })
     const [batchForm, setBatchForm] = useState({ count: 10, maxActivations: 3, validDays: '' }) // 批量生成表单
     const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'users' | 'licenses' | 'unbound'>('users')
 
+    // 搜索和排序状态
+    const [searchTerm, setSearchTerm] = useState('')
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
+
     const token = localStorage.getItem('navmanage_token')
+
+    // 过滤和排序用户列表
+    const filteredUsers = useMemo(() => {
+        let result = users.filter(user =>
+            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (user.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        )
+
+        if (sortConfig) {
+            result.sort((a, b) => {
+                const aVal = (a as any)[sortConfig.key] ?? ''
+                const bVal = (b as any)[sortConfig.key] ?? ''
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+                return 0
+            })
+        }
+        return result
+    }, [users, searchTerm, sortConfig])
+
+    // 过滤和排序已激活列表
+    const filteredLicenses = useMemo(() => {
+        let result = licenses.filter(license =>
+            license.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (license.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        )
+
+        if (sortConfig) {
+            result.sort((a, b) => {
+                const aVal = (a as any)[sortConfig.key] ?? ''
+                const bVal = (b as any)[sortConfig.key] ?? ''
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+                return 0
+            })
+        }
+        return result
+    }, [licenses, searchTerm, sortConfig])
+
+    // 点击表头排序
+    const handleSort = (key: string) => {
+        setSortConfig(prev => {
+            if (prev?.key === key) {
+                return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+            }
+            return { key, direction: 'asc' }
+        })
+    }
 
     useEffect(() => {
         fetchUsers()
@@ -220,7 +274,9 @@ export default function Licenses() {
         setEditForm({
             email: user.email,
             name: user.name || '',
-            maxActivations: user.max_activations || 3
+            maxActivations: user.max_activations || 3,
+            status: user.status || 'active',
+            expiresAt: user.expires_at || ''
         })
         setShowEditModal(true)
     }
@@ -290,25 +346,25 @@ export default function Licenses() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-6">
-                    <h1 className="text-2xl font-bold text-gray-900">授权管理</h1>
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
+                    <h1 className="text-xl lg:text-2xl font-bold text-gray-900">授权管理</h1>
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto">
                         <button
                             onClick={() => setActiveTab('users')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             用户管理
                         </button>
                         <button
                             onClick={() => setActiveTab('licenses')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'licenses' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'licenses' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             已激活列表
                         </button>
                         <button
                             onClick={() => setActiveTab('unbound')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'unbound' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'unbound' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             未绑定激活码
                         </button>
@@ -317,7 +373,7 @@ export default function Licenses() {
                 {activeTab === 'users' && (
                     <button
                         onClick={() => setShowUserModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                     >
                         <Plus size={20} />
                         添加用户
@@ -326,7 +382,7 @@ export default function Licenses() {
                 {activeTab === 'unbound' && (
                     <button
                         onClick={() => setShowBatchModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                     >
                         <Plus size={20} />
                         批量生成
@@ -334,26 +390,59 @@ export default function Licenses() {
                 )}
             </div>
 
+            {/* 搜索框 */}
+            {(activeTab === 'users' || activeTab === 'licenses') && (
+                <div className="mb-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <input
+                            type="text"
+                            placeholder="搜索邮箱或名称..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* 用户列表 */}
             {activeTab === 'users' && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">激活次数</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">激活码</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">最后激活</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
+                                    用户 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('email')}>
+                                    邮箱 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
+                                    状态 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('used_activations')}>
+                                    激活次数 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('expires_at')}>
+                                    过期时间 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('last_activation')}>
+                                    最后激活 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {users.map(user => (
+                            {filteredUsers.map(user => (
                                 <tr key={user.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-4 text-sm text-gray-900">{user.name || '-'}</td>
                                     <td className="px-4 py-4 text-sm text-gray-500">{user.email}</td>
+                                    <td className="px-4 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs ${user.status === 'disabled' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                            {user.status === 'disabled' ? '已禁用' : '启用'}
+                                        </span>
+                                    </td>
                                     <td className="px-4 py-4 text-sm">
                                         <span className={`px-2 py-1 rounded-full text-xs ${(user.used_activations || 0) >= (user.max_activations || 3)
                                             ? 'bg-red-100 text-red-700'
@@ -363,10 +452,12 @@ export default function Licenses() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-4 text-sm text-gray-500">
-                                        {user.active_codes || 0} / {user.code_count}
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-500">
-                                        {user.created_at?.split('T')[0]}
+                                        {user.expires_at ? (
+                                            <span className={new Date(user.expires_at) < new Date() ? 'text-red-500' : ''}>
+                                                {user.expires_at.split('T')[0]}
+                                                {new Date(user.expires_at) < new Date() && ' (已过期)'}
+                                            </span>
+                                        ) : '永久'}
                                     </td>
                                     <td className="px-4 py-4 text-sm text-gray-500">
                                         {user.last_activation?.split('T')[0] || '-'}
@@ -409,7 +500,7 @@ export default function Licenses() {
 
             {/* 未绑定激活码列表 */}
             {activeTab === 'unbound' && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
@@ -470,20 +561,30 @@ export default function Licenses() {
 
             {/* 已激活列表 */}
             {activeTab === 'licenses' && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">设备指纹</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">激活时间</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
+                                    用户 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('email')}>
+                                    邮箱 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('fingerprint')}>
+                                    设备指纹 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('activated_at')}>
+                                    激活时间 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
+                                    状态 <ArrowUpDown size={12} className="inline ml-1" />
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {licenses.map(license => (
+                            {filteredLicenses.map(license => (
                                 <tr key={license.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 text-sm text-gray-900">{license.name || '-'}</td>
                                     <td className="px-6 py-4 text-sm text-gray-500">{license.email}</td>
@@ -623,6 +724,28 @@ export default function Licenses() {
                                     max={99}
                                 />
                                 <p className="text-xs text-gray-400 mt-1">已使用: {selectedUser.used_activations || 0} 次</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">账户状态</label>
+                                <select
+                                    value={editForm.status}
+                                    onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="active">启用</option>
+                                    <option value="disabled">禁用</option>
+                                </select>
+                                <p className="text-xs text-gray-400 mt-1">禁用后用户无法升级且本地许可将被清除</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">过期时间</label>
+                                <input
+                                    type="date"
+                                    value={editForm.expiresAt ? editForm.expiresAt.split('T')[0] : ''}
+                                    onChange={e => setEditForm({ ...editForm, expiresAt: e.target.value ? e.target.value + 'T23:59:59Z' : '' })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">留空表示永久有效</p>
                             </div>
                         </div>
                         <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
