@@ -202,7 +202,7 @@ class LicenseService {
      * @returns {Promise<{valid: boolean, status: string, shouldClear: boolean, message: string}>}
      */
     async validateOnline() {
-        const licenseInfo = this.getLicenseInfo();
+        const licenseInfo = this.licenseInfo;
 
         // 未激活
         if (!licenseInfo?.email) {
@@ -214,13 +214,13 @@ class LicenseService {
             };
         }
 
-        const authUrl = process.env.AUTH_SERVER_URL || 'https://auth.webxx.top';
+        const authUrl = process.env.AUTH_SERVER_URL || 'https://licenses.webxx.top';
 
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(`${authUrl}/api/license/validate`, {
+            const response = await fetch(`${authUrl}/api/licenses/validate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -233,7 +233,19 @@ class LicenseService {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
+                let errorMsg = `Server error: ${response.status}`;
+                try {
+                    const errBody = await response.json();
+                    // 处理可能的错误格式
+                    if (errBody.message) errorMsg += ` - ${errBody.message}`;
+                    else if (errBody.error) errorMsg += ` - ${errBody.error}`;
+                    // 如果服务器直接返回了 { valid, status, message } 结构 (即使非200)
+                    if (typeof errBody.valid === 'boolean' && errBody.message) {
+                        return errBody;
+                    }
+                } catch (e) { /* Ignore parsing error */ }
+
+                throw new Error(errorMsg);
             }
 
             const result = await response.json();
@@ -253,20 +265,40 @@ class LicenseService {
             console.error('[LicenseService] Online validation error:', error);
 
             // 网络错误
-            if (error.name === 'AbortError') {
+            if (error.name === 'AbortError' || error.cause?.code === 'ETIMEDOUT') {
                 return {
                     valid: false,
                     status: 'network_error',
                     shouldClear: false,
-                    message: '连接激活服务器超时，请检查网络后重试'
+                    message: '连接激活服务器超时，请检查网络配置'
+                };
+            }
+
+            // 如果是 Server error (我们在上面抛出的)
+            if (error.message.startsWith('Server error:')) {
+                return {
+                    valid: false,
+                    status: 'server_error',
+                    shouldClear: false,
+                    message: `激活服务器响应错误 (${error.message.replace('Server error:', '').trim()})`
+                };
+            }
+
+            // 其他连接错误 (DNS, Refused, etc)
+            if (error.message.includes('fetch failed') || error.cause?.code?.startsWith('E')) {
+                return {
+                    valid: false,
+                    status: 'connection_failed',
+                    shouldClear: false,
+                    message: `无法连接激活服务器: ${error.cause?.code || '连接失败'}`
                 };
             }
 
             return {
                 valid: false,
-                status: 'network_error',
+                status: 'error',
                 shouldClear: false,
-                message: '无法连接激活服务器，请检查网络后重试'
+                message: `验证过程出错: ${error.message}`
             };
         }
     }

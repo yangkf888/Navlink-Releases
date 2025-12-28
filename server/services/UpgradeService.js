@@ -322,14 +322,27 @@ export class UpgradeService {
         try {
             // 0. 验证授权状态
             this.pushProgress('validate', 2, '正在验证授权状态...');
-            const validation = await licenseService.validateOnline();
+            let validation;
+            try {
+                validation = await licenseService.validateOnline();
+            } catch (validationError) {
+                console.error('[UpgradeService] License validation exception:', validationError);
+                throw new Error('授权验证服务暂时不可用，请稍后再试');
+            }
 
             if (!validation.valid) {
+                // 尝试清除许可证（出错也不影响主流程）
                 if (validation.shouldClear) {
-                    licenseService.clearLicense();
-                    console.log('[UpgradeService] License cleared due to:', validation.status);
+                    try {
+                        licenseService.clearLicense();
+                        console.log('[UpgradeService] License cleared due to:', validation.status);
+                    } catch (clearError) {
+                        console.error('[UpgradeService] Failed to clear license:', clearError);
+                    }
                 }
-                throw new Error(validation.message);
+                // 使用友好的错误信息
+                const friendlyMessage = validation.message || '授权验证失败，请联系管理员';
+                throw new Error(friendlyMessage);
             }
 
             // 1. 预检查

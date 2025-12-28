@@ -22,6 +22,8 @@ const CRITICAL_FILES = [
     'server/services/LicenseService.js',
     'server/services/FingerprintService.js',
     'server/services/AuthService.js',
+    'server/services/PluginMarketService.js',
+    'server/services/UpgradeService.js',
     'server/middleware/license.js'
 ];
 
@@ -55,7 +57,7 @@ const HIGH_SECURITY_OPTIONS = {
     stringArrayWrappersParametersMaxCount: 4,
     stringArrayWrappersType: 'function',
     stringArrayThreshold: 0.75,
-    transformObjectKeys: true,
+    transformObjectKeys: false,
     unicodeEscapeSequence: false
 };
 
@@ -79,7 +81,7 @@ const STANDARD_OPTIONS = {
     stringArrayRotate: true,
     stringArrayShuffle: true,
     stringArrayThreshold: 0.5,
-    transformObjectKeys: true,
+    transformObjectKeys: false,
     unicodeEscapeSequence: false
 };
 
@@ -141,7 +143,9 @@ function walkDirectory(dir, callback) {
                 return;
             }
             walkDirectory(filePath, callback);
-        } else if (file.endsWith('.js')) {
+
+        } else {
+            // 处理所有文件，不仅是 .js
             callback(filePath);
         }
     });
@@ -175,12 +179,33 @@ function main() {
             const relativePath = path.relative(serverDir, filePath);
             const outputPath = path.join(OUTPUT_DIR, 'server', relativePath);
 
-            const isCritical = isCriticalFile(filePath);
-            if (isCritical) criticalFiles++;
+            // 检查是否需要混淆
+            const ext = path.extname(filePath);
+            const shouldObfuscate = ext === '.js' || ext === '.cjs';
 
-            const options = isCritical ? HIGH_SECURITY_OPTIONS : STANDARD_OPTIONS;
-            if (obfuscateFile(filePath, outputPath, options)) {
-                successFiles++;
+            if (shouldObfuscate) {
+                // 混淆 JS/CJS 文件
+                const isCritical = isCriticalFile(filePath);
+                if (isCritical) criticalFiles++;
+
+                // 暂时对所有文件使用标准混淆，避免高强度混淆导致的兼容性问题
+                const options = STANDARD_OPTIONS;
+                if (obfuscateFile(filePath, outputPath, options)) {
+                    successFiles++;
+                }
+            } else {
+                // 直接复制其他资源文件 (.json, .sql, .node 等)
+                try {
+                    const outputDir = path.dirname(outputPath);
+                    if (!fs.existsSync(outputDir)) {
+                        fs.mkdirSync(outputDir, { recursive: true });
+                    }
+                    fs.copyFileSync(filePath, outputPath);
+                    console.log(`📄 ${relativePath} [复制]`);
+                    successFiles++;
+                } catch (err) {
+                    console.error(`❌ 复制失败: ${relativePath}`, err.message);
+                }
             }
         });
     }

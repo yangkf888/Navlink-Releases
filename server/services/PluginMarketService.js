@@ -17,7 +17,7 @@ export class PluginMarketService {
 
         // 插件仓库配置 (GitHub或自定义服务器)
         this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
-            'https://apps.webxx.top/api/registry.json';
+            'https://licenses.webxx.top/api/registry.json';
 
         // 本地缓存
         this.cachedRegistry = null;
@@ -125,6 +125,30 @@ export class PluginMarketService {
      */
     async installPlugin(pluginId, options = {}) {
         console.log(`[PluginMarket] Installing plugin: ${pluginId} (Force: ${options.force})`);
+
+        // 0. 验证授权状态（升级调用时force=true，跳过验证因为updatePlugin已验证）
+        if (!options.force) {
+            let validation;
+            try {
+                validation = await licenseService.validateOnline();
+            } catch (validationError) {
+                console.error('[PluginMarket] License validation exception:', validationError);
+                throw new Error('授权验证服务暂时不可用，请稍后再试');
+            }
+
+            if (!validation.valid) {
+                if (validation.shouldClear) {
+                    try {
+                        licenseService.clearLicense();
+                        console.log('[PluginMarket] License cleared due to:', validation.status);
+                    } catch (clearError) {
+                        console.error('[PluginMarket] Failed to clear license:', clearError);
+                    }
+                }
+                const friendlyMessage = validation.message || '授权验证失败，请联系管理员';
+                throw new Error(friendlyMessage);
+            }
+        }
 
         // 1. 从注册表获取插件信息
         const marketPlugins = await this.getMarketPlugins();
@@ -240,13 +264,25 @@ export class PluginMarketService {
         console.log(`[PluginMarket] Updating plugin: ${pluginId}`);
 
         // 验证授权状态
-        const validation = await licenseService.validateOnline();
+        let validation;
+        try {
+            validation = await licenseService.validateOnline();
+        } catch (validationError) {
+            console.error('[PluginMarket] License validation exception:', validationError);
+            throw new Error('授权验证服务暂时不可用，请稍后再试');
+        }
+
         if (!validation.valid) {
             if (validation.shouldClear) {
-                licenseService.clearLicense();
-                console.log('[PluginMarket] License cleared due to:', validation.status);
+                try {
+                    licenseService.clearLicense();
+                    console.log('[PluginMarket] License cleared due to:', validation.status);
+                } catch (clearError) {
+                    console.error('[PluginMarket] Failed to clear license:', clearError);
+                }
             }
-            throw new Error(validation.message);
+            const friendlyMessage = validation.message || '授权验证失败，请联系管理员';
+            throw new Error(friendlyMessage);
         }
 
         const plugin = this.pluginManager.plugins.get(pluginId);
