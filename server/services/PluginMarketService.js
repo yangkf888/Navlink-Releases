@@ -17,7 +17,7 @@ export class PluginMarketService {
 
         // 插件仓库配置 (GitHub或自定义服务器)
         this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
-            'https://licenses.webxx.top/api/registry.json';
+            'https://auth.webxx.top/api/registry.json';
 
         // 本地缓存
         this.cachedRegistry = null;

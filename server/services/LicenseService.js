@@ -214,7 +214,7 @@ class LicenseService {
             };
         }
 
-        const authUrl = process.env.AUTH_SERVER_URL || 'https://licenses.webxx.top';
+        const authUrl = process.env.AUTH_SERVER_URL || 'https://auth.webxx.top';
 
         try {
             const controller = new AbortController();

@@ -9,7 +9,7 @@
             "category": "Utility",
             "icon": "📦",
             "homepage": "",
-            "downloadUrl": "https://apps.webxx.top/api/plugins/docker/download/2.0.0",
+            "downloadUrl": "https://auth.webxx.top/api/plugins/docker/download/2.0.0",
             "changelog": ""
         },
         {
@@ -21,7 +21,7 @@
             "category": "Utility",
             "icon": "🚀",
             "homepage": "",
-            "downloadUrl": "https://apps.webxx.top/api/plugins/vps/download/2.0.0",
+            "downloadUrl": "https://auth.webxx.top/api/plugins/vps/download/2.0.0",
             "changelog": ""
         },
         {
@@ -33,7 +33,7 @@
             "category": "Utility",
             "icon": "📚",
             "homepage": "",
-            "downloadUrl": "https://apps.webxx.top/api/plugins/kbrag/download/2.0.0",
+            "downloadUrl": "https://auth.webxx.top/api/plugins/kbrag/download/2.0.0",
             "changelog": ""
         },
         {
@@ -45,7 +45,7 @@
             "category": "Utility",
             "icon": "📅",
             "homepage": "",
-            "downloadUrl": "https://apps.webxx.top/api/plugins/sub/download/2.0.0",
+            "downloadUrl": "https://auth.webxx.top/api/plugins/sub/download/2.0.0",
             "changelog": ""
         }
     ]

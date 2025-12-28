@@ -323,7 +323,7 @@ router.post('/license/activate', async (req, res) => {
             throw new Error('请输入激活码和邮箱');
         }
 
-        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://licenses.webxx.top';
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
         const result = await licenseService.activate(code, email, serverUrl);
         res.json(result);
     } catch (error) {
@@ -348,7 +348,7 @@ router.post('/license/request-migrate', authenticateToken, requireAdmin, async (
             throw new Error('请输入邮箱');
         }
 
-        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://licenses.webxx.top';
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
         const result = await licenseService.requestNewCode(email, serverUrl);
         res.json(result);
     } catch (error) {
