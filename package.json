@@ -1,6 +1,6 @@
 {
     "name": "navlink-next",
-    "version": "2.0.15",
+    "version": "2.0.16",
     "private": true,
     "type": "module",
     "scripts": {
@@ -49,6 +49,7 @@
         "multer": "^2.0.2",
         "node-cron": "^3.0.3",
         "node-fetch": "^3.3.2",
+        "pinyin-pro": "^3.27.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-hot-toast": "^2.6.0",
