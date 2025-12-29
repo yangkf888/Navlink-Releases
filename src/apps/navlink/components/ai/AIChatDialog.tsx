@@ -81,7 +81,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
             // 获取选中的 AI 提供商
             const aiConfig = config.aiConfig;
             let provider = null;
-            
+
             if (selectedProviderId) {
                 // 使用用户选择的提供商
                 provider = aiConfig?.providers.find(p => p.id === selectedProviderId && p.enabled);
@@ -130,7 +130,8 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                     }
                 ],
                 temperature: 0.7,
-                max_tokens: 2000
+                max_tokens: 2000,
+                stream: true  // 🔥 启用流式输出
             };
 
             const response = await fetch(apiUrl, {
@@ -147,15 +148,71 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                 throw new Error(errorData.error?.message || `API 请求失败: ${response.status}`);
             }
 
-            const data = await response.json();
-            const aiContent = data.choices?.[0]?.message?.content || '抱歉，没有收到回复。';
+            // 🔥 流式读取响应
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder('utf-8');
 
-            const aiMessage: Message = {
+            if (!reader) {
+                throw new Error('无法读取响应流');
+            }
+
+            // 先添加一个空的 AI 消息，后续逐步填充内容
+            const aiMessageId = Date.now();
+            const initialAiMessage: Message = {
                 role: 'assistant',
-                content: aiContent,
-                timestamp: Date.now()
+                content: '',
+                timestamp: aiMessageId
             };
-            setMessages(prev => [...prev, aiMessage]);
+            setMessages(prev => [...prev, initialAiMessage]);
+
+            let accumulatedContent = '';
+            let buffer = '';  // 用于处理跨块的不完整数据
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE 格式: 每行以 "data: " 开头
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';  // 保留最后一个可能不完整的行
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+                    if (trimmedLine.startsWith('data: ')) {
+                        try {
+                            const jsonStr = trimmedLine.slice(6);  // 去掉 "data: " 前缀
+                            const parsed = JSON.parse(jsonStr);
+                            const delta = parsed.choices?.[0]?.delta?.content;
+
+                            if (delta) {
+                                accumulatedContent += delta;
+                                // 实时更新消息内容
+                                setMessages(prev => prev.map(msg =>
+                                    msg.timestamp === aiMessageId
+                                        ? { ...msg, content: accumulatedContent }
+                                        : msg
+                                ));
+                            }
+                        } catch {
+                            // 解析失败则跳过（可能是不完整的 JSON）
+                        }
+                    }
+                }
+            }
+
+            // 如果最终内容为空，显示默认消息
+            if (!accumulatedContent) {
+                setMessages(prev => prev.map(msg =>
+                    msg.timestamp === aiMessageId
+                        ? { ...msg, content: '抱歉，没有收到回复。' }
+                        : msg
+                ));
+            }
+
         } catch (error) {
             console.error('AI 请求错误:', error);
             const errorMessage: Message = {
@@ -214,7 +271,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                                 >
                                     <Icon icon="fa-solid fa-sliders" />
                                 </button>
-                                
+
                                 {/* 下拉菜单 */}
                                 {showProviderMenu && (
                                     <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[180px] z-10">
@@ -225,11 +282,10 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                                                     setSelectedProviderId(provider.id === selectedProviderId ? null : provider.id);
                                                     setShowProviderMenu(false);
                                                 }}
-                                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                    (selectedProviderId === provider.id || (!selectedProviderId && config.aiConfig?.defaultProvider === provider.id))
+                                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${(selectedProviderId === provider.id || (!selectedProviderId && config.aiConfig?.defaultProvider === provider.id))
                                                         ? 'bg-blue-50 text-blue-600'
                                                         : 'text-gray-700 hover:bg-gray-50'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span>{provider.name}</span>
@@ -285,11 +341,10 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                         >
                                             <div
-                                                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                                                    msg.role === 'user'
+                                                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user'
                                                         ? 'bg-blue-500 text-white'
                                                         : 'bg-white text-gray-900 border border-gray-200'
-                                                }`}
+                                                    }`}
                                             >
                                                 <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                                             </div>

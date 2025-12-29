@@ -77,8 +77,16 @@ function initSchema(db) {
         username TEXT,
         password TEXT,
         private_key TEXT,
+        auth_type TEXT DEFAULT 'password',
         tags TEXT DEFAULT '',
         description TEXT DEFAULT '',
+        os_info TEXT,
+        cpu_info TEXT,
+        mem_info TEXT,
+        disk_info TEXT,
+        status TEXT DEFAULT 'unknown',
+        latency INTEGER,
+        last_check_time DATETIME,
         sort_order INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -92,6 +100,24 @@ function initSchema(db) {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS snippets (
+        id TEXT PRIMARY KEY,
+        category TEXT,
+        title TEXT NOT NULL,
+        command TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS snippet_categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     `;
 

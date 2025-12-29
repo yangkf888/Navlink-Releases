@@ -202,7 +202,8 @@ ${ragContext.context}
                 model: modelName,
                 messages: apiMessages,
                 temperature: 0.7,
-                max_tokens: 2000
+                max_tokens: 2000,
+                stream: true  // 🔥 启用流式输出
             };
 
             const response = await fetch(apiUrl, {
@@ -219,16 +220,72 @@ ${ragContext.context}
                 throw new Error(errorData.error?.message || `API 请求失败: ${response.status}`);
             }
 
-            const data = await response.json();
-            const aiContent = data.choices?.[0]?.message?.content || '抱歉，没有收到回复。';
+            // 🔥 流式读取响应
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder('utf-8');
 
-            const aiMessage: Message = {
+            if (!reader) {
+                throw new Error('无法读取响应流');
+            }
+
+            // 先添加一个空的 AI 消息，后续逐步填充内容
+            const aiMessageId = Date.now();
+            const initialAiMessage: Message = {
                 role: 'assistant',
-                content: aiContent,
-                timestamp: Date.now(),
+                content: '',
+                timestamp: aiMessageId,
                 sources: ragContext?.sources
             };
-            setMessages(prev => [...prev, aiMessage]);
+            setMessages(prev => [...prev, initialAiMessage]);
+
+            let accumulatedContent = '';
+            let buffer = '';  // 用于处理跨块的不完整数据
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE 格式: 每行以 "data: " 开头
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';  // 保留最后一个可能不完整的行
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+                    if (trimmedLine.startsWith('data: ')) {
+                        try {
+                            const jsonStr = trimmedLine.slice(6);  // 去掉 "data: " 前缀
+                            const parsed = JSON.parse(jsonStr);
+                            const delta = parsed.choices?.[0]?.delta?.content;
+
+                            if (delta) {
+                                accumulatedContent += delta;
+                                // 实时更新消息内容
+                                setMessages(prev => prev.map(msg =>
+                                    msg.timestamp === aiMessageId
+                                        ? { ...msg, content: accumulatedContent }
+                                        : msg
+                                ));
+                            }
+                        } catch {
+                            // 解析失败则跳过（可能是不完整的 JSON）
+                        }
+                    }
+                }
+            }
+
+            // 如果最终内容为空，显示默认消息
+            if (!accumulatedContent) {
+                setMessages(prev => prev.map(msg =>
+                    msg.timestamp === aiMessageId
+                        ? { ...msg, content: '抱歉，没有收到回复。' }
+                        : msg
+                ));
+            }
+
         } catch (error) {
             console.error('AI 请求错误:', error);
             const errorMessage: Message = {
