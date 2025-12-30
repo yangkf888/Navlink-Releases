@@ -205,14 +205,14 @@ features:
 
 <div style="display: flex; gap: 24px; margin: 24px 0; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px; text-align: center;">
-    <a href="./导航站首屏.png" target="_blank">
-      <img src="./导航站首屏.png" alt="NavLink 首页" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+    <a href="./home-screenshot.png" target="_blank">
+      <img src="./home-screenshot.png" alt="NavLink 首页" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
     </a>
     <p style="margin-top: 12px; font-weight: 600;">🏠 首页导航</p>
   </div>
   <div style="flex: 1; min-width: 300px; text-align: center;">
-    <a href="./管理后台.png" target="_blank">
-      <img src="./管理后台.png" alt="NavLink 后台" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+    <a href="./admin-screenshot.png" target="_blank">
+      <img src="./admin-screenshot.png" alt="NavLink 后台" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
     </a>
     <p style="margin-top: 12px; font-weight: 600;">⚙️ 后台管理</p>
   </div>
@@ -251,26 +251,26 @@ docker compose up -d
 
 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 24px 0;">
   <div style="text-align: center;">
-    <a href="./docker管理.jpg" target="_blank">
-      <img src="./docker管理.jpg" alt="Docker 管理" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <a href="./docker-plugin.jpg" target="_blank">
+      <img src="./docker-plugin.jpg" alt="Docker 管理" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
     </a>
     <p style="margin-top: 8px; font-weight: 600;">🐳 Docker 管理</p>
   </div>
   <div style="text-align: center;">
-    <a href="./vps管理.jpg" target="_blank">
-      <img src="./vps管理.jpg" alt="VPS 运维" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <a href="./vps-plugin.jpg" target="_blank">
+      <img src="./vps-plugin.jpg" alt="VPS 运维" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
     </a>
     <p style="margin-top: 8px; font-weight: 600;">🖥️ VPS 运维</p>
   </div>
   <div style="text-align: center;">
-    <a href="./sub管理.jpg" target="_blank">
-      <img src="./sub管理.jpg" alt="订阅监控" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <a href="./sub-plugin.jpg" target="_blank">
+      <img src="./sub-plugin.jpg" alt="订阅监控" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
     </a>
     <p style="margin-top: 8px; font-weight: 600;">📅 订阅监控</p>
   </div>
   <div style="text-align: center;">
-    <a href="./知识库管理.png" target="_blank">
-      <img src="./知识库管理.png" alt="知识库" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <a href="./kbrag-plugin.png" target="_blank">
+      <img src="./kbrag-plugin.png" alt="知识库" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
     </a>
     <p style="margin-top: 8px; font-weight: 600;">📚 知识库</p>
   </div>
