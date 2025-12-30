@@ -1,0 +1,15 @@
+{
+  "name": "navlink-website",
+  "version": "1.0.0",
+  "description": "NavLink 官方网站 - 基于 VitePress",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev docs",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.5.0",
+    "vue": "^3.5.13"
+  }
+}
