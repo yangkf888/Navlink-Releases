@@ -31,6 +31,7 @@ export default defineConfig({
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '功能特性', link: '/features/' },
             { text: '插件系统', link: '/plugins/' },
+            { text: 'Chrome 插件', link: 'https://github.com/txwebroot/Navlink-Releases/raw/refs/heads/main/chrome-extension.zip' },
             { text: '更新日志', link: '/changelog' },
             {
                 text: '相关链接',
