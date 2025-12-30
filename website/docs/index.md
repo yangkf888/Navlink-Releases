@@ -5,6 +5,9 @@ hero:
   name: NavLink
   text: 现代化智能导航站
   tagline: 自托管 · Docker 一键部署 · 丰富插件生态
+  image:
+    src: /home-2.jpg
+    alt: NavLink Home
   actions:
     - theme: brand
       text: 🚀 快速开始
