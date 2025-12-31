@@ -119,7 +119,7 @@ services:
 | 变量名 | 示例值 | 说明 |
 |--------|--------|------|
 | `NODE_ENV` | `production` | 运行环境 |
-| `PORT` | `3002` | 服务端口 |
+| `PORT` | `3001` | 服务端口 |
 | `JWT_SECRET` | `your-random-secret` | JWT 密钥 ⚠️ 必须修改 |
 | `JWT_EXPIRES_IN` | `24h` | Token 有效期 |
 | `SESSION_SECRET` | `your-session-secret` | Session 密钥 ⚠️ |
@@ -231,12 +231,13 @@ NavLink 支持在系统管理后台直接进行在线升级：
 <details>
 <summary><strong>端口冲突怎么办？</strong></summary>
 
-修改 docker-compose.yml 中的端口：
+修改 `.env` 文件中的 `PORT` 变量：
 
-```yaml
-ports:
-  - "8080:3002"  # 改为其他端口
+```bash
+PORT=3001  # 改为您需要的端口
 ```
+
+然后重启容器即可。
 
 </details>
 

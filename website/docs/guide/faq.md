@@ -251,11 +251,10 @@ docker exec -it navlink-app sh -c "rm -rf logs/*"
 <details>
 <summary>如何修改端口？</summary>
 
-修改 docker-compose.yml：
+修改 `.env` 文件中的 `PORT` 变量：
 
-```yaml
-ports:
-  - "8080:3002"  # 改为新端口
+```bash
+PORT=3001  # 改为您需要的端口
 ```
 
 然后重启：

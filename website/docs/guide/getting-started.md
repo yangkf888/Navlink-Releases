@@ -51,7 +51,7 @@ services:
     hostname: navlink-app  # 固定 hostname，防止升级后指纹变化需重新激活
     restart: unless-stopped
     ports:
-      - "8000:3002"
+      - "8000:3001"
     environment:
       - TZ=Asia/Shanghai
       - NODE_ENV=production
@@ -94,7 +94,7 @@ docker compose up -d
 docker run -d \
   --name navlink \
   --hostname navlink-app \
-  -p 8000:3002 \
+  -p 8000:3001 \
   -e TZ=Asia/Shanghai \
   -e JWT_SECRET=your-secret-key \
   -v $(pwd)/data:/app/data \
@@ -192,12 +192,13 @@ docker run -d \
 
 ### 端口被占用？
 
-修改 docker-compose.yml 中的端口映射：
+修改 `.env` 文件中的 `PORT` 变量：
 
-```yaml
-ports:
-  - "8080:3002"  # 改为 8080 或其他端口
+```bash
+PORT=3001  # 改为您需要的端口
 ```
+
+然后重启容器即可。
 
 ### 容器无法启动？
 
