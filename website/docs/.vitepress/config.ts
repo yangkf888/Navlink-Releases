@@ -133,6 +133,15 @@ export default defineConfig({
                                 { text: '链接健康', link: '/features/admin#链接健康' },
                                 { text: '系统升级', link: '/features/admin#系统升级' }
                             ]
+                        },
+                        {
+                            text: 'Chrome 扩展',
+                            link: '/features/chrome-extension',
+                            items: [
+                                { text: '安装扩展', link: '/features/chrome-extension#安装扩展' },
+                                { text: '使用方法', link: '/features/chrome-extension#使用方法' },
+                                { text: '保存到知识库', link: '/features/chrome-extension#保存到知识库' }
+                            ]
                         }
                     ]
                 }
