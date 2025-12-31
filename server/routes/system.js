@@ -372,6 +372,55 @@ router.get('/license/status', (req, res) => {
 
 /**
  * @swagger
+ * /api/system/license/recover:
+ *   post:
+ *     summary: 通过邮箱找回激活码
+ *     tags: [System]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 找回结果
+ */
+router.post('/license/recover', async (req, res) => {
+    try {
+        const { email, navmanageUrl } = req.body;
+
+        if (!email) {
+            throw new Error('请输入邮箱');
+        }
+
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
+
+        // 调用 navmanage 的 recover API
+        const response = await fetch(`${serverUrl}/api/activation/recover`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || '找回失败');
+        }
+
+        res.json(data);
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @swagger
  * /api/health-check-schedule:
  *   post:
  *     summary: 保存链接健康检测定时任务配置

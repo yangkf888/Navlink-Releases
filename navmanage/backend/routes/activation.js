@@ -462,6 +462,72 @@ router.post('/activate', async (req, res) => {
     }
 });
 
+// 邮箱找回激活码 (公开 API，用于忘记激活码的用户)
+router.post('/recover', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ success: false, error: '请输入邮箱' });
+        }
+
+        // 1. 验证邮箱对应的用户是否存在
+        const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+        if (!user) {
+            return res.status(400).json({ success: false, error: '该邮箱未注册' });
+        }
+
+        // 2. 检查用户是否被禁用
+        if (user.status === 'disabled') {
+            return res.status(400).json({ success: false, error: '该账户已被禁用，请联系管理员' });
+        }
+
+        // 3. 检查用户是否过期
+        if (user.expires_at) {
+            const expireDate = new Date(user.expires_at);
+            if (new Date() > expireDate) {
+                return res.status(400).json({ success: false, error: '该账户已过期，请联系管理员续期' });
+            }
+        }
+
+        // 4. 检查用户的激活配额
+        const maxActivations = user.max_activations || 3;
+        const usedActivations = user.used_activations || 0;
+        if (usedActivations >= maxActivations) {
+            return res.status(400).json({
+                success: false,
+                error: `您已达到最大激活次数 (${maxActivations}次)，请联系管理员增加配额`
+            });
+        }
+
+        // 5. 生成新激活码 (单次使用)
+        const newCode = generateActivationCode();
+        await dbRun(
+            `INSERT INTO activation_codes (code, user_id, plan_type, max_installs, remaining_installs)
+             VALUES (?, ?, 'personal', 1, 1)`,
+            [newCode, user.id]
+        );
+
+        // 6. 记录日志
+        await dbRun(
+            `INSERT INTO license_logs (user_id, action, ip_address, details)
+             VALUES (?, ?, ?, ?)`,
+            [user.id, 'recover', req.ip, `通过邮箱找回生成新激活码: ${newCode}`]
+        );
+
+        res.json({
+            success: true,
+            activationCode: newCode,
+            email: user.email,
+            remainingActivations: maxActivations - usedActivations
+        });
+
+    } catch (error) {
+        console.error('[Recover Error]', error);
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
+});
+
 // 申请新激活码 (迁移)
 router.post('/request-new-code', async (req, res) => {
     try {

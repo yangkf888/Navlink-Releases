@@ -11,6 +11,7 @@ export const requireLicense = (req, res, next) => {
         '/api/system/license/status',
         '/api/system/license/info',
         '/api/system/license/activate',
+        '/api/system/license/recover',      // 邮箱找回激活码
         '/api/system/license/request-migrate',
         '/api/config',   // 允许加载基础配置
         '/api/login',    // 允许登录
