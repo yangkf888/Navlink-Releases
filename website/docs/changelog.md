@@ -11,8 +11,26 @@
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.0.16</span>
+      <span class="version">v2.0.17</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2024-12-31</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type feature">✨ 新功能</span>
+        <ul>
+          <li><strong>忘记激活码找回</strong> - 激活页面添加"忘记激活码？通过邮箱找回"功能，用户可自助获取新激活码</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.0.16</span>
     </div>
     <div class="date">2024-12-29</div>
     <div class="changes">
