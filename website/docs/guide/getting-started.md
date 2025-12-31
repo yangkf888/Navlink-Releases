@@ -65,6 +65,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
 
+::: info 💡 这是简化配置
+以上为快速入门配置，生产环境建议参考 [Docker 部署详解](/guide/docker-deploy) 获取完整的环境变量配置。
+:::
+
 **3. 启动服务**
 
 ```bash

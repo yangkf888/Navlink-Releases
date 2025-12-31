@@ -103,6 +103,18 @@ NavLink 是一个功能丰富的现代化导航站系统。
   </ul>
 </div>
 
+<div class="feature-card">
+  <div class="feature-icon">🧩</div>
+  <h3>Chrome 扩展</h3>
+  <ul>
+    <li>一键保存当前页面</li>
+    <li>快捷键快速添加链接</li>
+    <li>自动获取网站信息</li>
+    <li>选择分类直接保存</li>
+    <li>支持私有链接同步</li>
+  </ul>
+</div>
+
 </div>
 
 <style>
@@ -186,3 +198,4 @@ NavLink 是一个功能丰富的现代化导航站系统。
 - [AI 助手](/features/ai-chat) - AI 对话功能
 - [主题定制](/features/customization) - 个性化配置
 - [后台管理](/features/admin) - 管理功能介绍
+- [Chrome 扩展](/features/chrome-extension) - 浏览器扩展使用

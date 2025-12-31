@@ -49,55 +49,53 @@
 ```yaml
 services:
   navlink:
-    # 使用 GitHub Container Registry 镜像
+    # 使用 GitHub Container Registry 镜像 (公共发布版)
     image: ghcr.io/txwebroot/navlink-releases:latest
     container_name: navlink-app
-    hostname: navlink-app  # 固定 hostname，防止升级后指纹变化需重新激活
+    hostname: navlink-app #固定hostname,防止在线升级指纹变化需要重新激活
     restart: unless-stopped
 
-    # 加载环境变量文件（可选）
+    # 加载 .env 文件中的环境变量
     env_file:
       - .env
 
     ports:
-      - "8000:3002"
+      - "8000:${PORT}"
 
     environment:
       # 核心配置
-      NODE_ENV: production
-      PORT: 3002
-      TZ: Asia/Shanghai
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
 
-      # 安全密钥（生产环境务必修改）
-      JWT_SECRET: your-jwt-secret-change-me
-      JWT_EXPIRES_IN: 24h
-      SESSION_SECRET: your-session-secret
-      ENCRYPTION_KEY: your-encryption-key
+      # 安全密钥
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
 
       # 默认管理员账号
-      DEFAULT_ADMIN_USERNAME: admin
-      DEFAULT_ADMIN_PASSWORD: admin123
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
 
-      # Redis 配置（可选）
-      REDIS_ENABLED: "false"
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      # Redis Configuration
+      REDIS_ENABLED: ${REDIS_ENABLED}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
 
-      # 备份配置（可选）
-      BACKUP_ENABLED: "true"
-      BACKUP_SCHEDULE: "0 3 * * *"
-      BACKUP_RETENTION_DAYS: 7
-      BACKUP_PATH: /app/data/backups
+      # Backup Configuration
+      BACKUP_ENABLED: ${BACKUP_ENABLED}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+      BACKUP_PATH: ${BACKUP_PATH}
 
     volumes:
-      # 数据持久化
+      # 持久化数据存储在当前目录
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
-      # Docker 插件需要挂载 docker.sock
+      # Docker socket挂载 - 允许Docker插件管理宿主机Docker
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # Redis 服务（可选，用于缓存）
   redis:
     image: redis:alpine
     container_name: navlink-redis
@@ -109,21 +107,32 @@ services:
 ::: warning ⚠️ 重要配置说明
 - `hostname: navlink-app` - **必须固定**，防止容器重建后指纹变化导致需要重新激活
 - `JWT_SECRET` - 生产环境**务必修改**为随机字符串
+- 所有环境变量需在 `.env` 文件中定义
 :::
 
 ## 环境变量说明
 
+以下变量需在 `.env` 文件中配置：
+
 <div class="var-table">
 
-| 变量名 | 默认值 | 说明 |
+| 变量名 | 示例值 | 说明 |
 |--------|--------|------|
-| `PORT` | `3002` | 服务端口 |
-| `TZ` | `UTC` | 时区设置 |
 | `NODE_ENV` | `production` | 运行环境 |
-| `JWT_SECRET` | 自动生成 | JWT 密钥 ⚠️ |
+| `PORT` | `3002` | 服务端口 |
+| `JWT_SECRET` | `your-random-secret` | JWT 密钥 ⚠️ 必须修改 |
 | `JWT_EXPIRES_IN` | `24h` | Token 有效期 |
-| `DEFAULT_ADMIN_PASSWORD` | `admin123` | 初始管理员密码 |
-| `LOG_LEVEL` | `info` | 日志级别 |
+| `SESSION_SECRET` | `your-session-secret` | Session 密钥 ⚠️ |
+| `ENCRYPTION_KEY` | `your-encryption-key` | 加密密钥 ⚠️ |
+| `DEFAULT_ADMIN_USERNAME` | `admin` | 初始管理员用户名 |
+| `DEFAULT_ADMIN_PASSWORD` | `admin123` | 初始管理员密码 ⚠️ 首次登录后修改 |
+| `REDIS_ENABLED` | `false` | 是否启用 Redis 缓存 |
+| `REDIS_HOST` | `redis` | Redis 主机地址 |
+| `REDIS_PORT` | `6379` | Redis 端口 |
+| `BACKUP_ENABLED` | `true` | 是否启用自动备份 |
+| `BACKUP_SCHEDULE` | `0 3 * * *` | 备份 Cron 表达式 |
+| `BACKUP_RETENTION_DAYS` | `7` | 备份保留天数 |
+| `BACKUP_PATH` | `/app/data/backups` | 备份存储路径 |
 
 </div>
 
@@ -182,6 +191,8 @@ nav.example.com {
 
 ## 升级指南
 
+### 方式一：命令行升级
+
 <div class="upgrade-steps">
 
 ```bash
@@ -196,6 +207,20 @@ docker logs -f navlink-app
 ```
 
 </div>
+
+### 方式二：后台在线升级
+
+NavLink 支持在系统管理后台直接进行在线升级：
+
+1. 登录管理后台
+2. 进入「系统管理」→「系统升级」
+3. 点击「检查更新」查看最新版本
+4. 点击「立即升级」自动完成升级
+
+::: info 💡 在线升级要求
+- 容器必须挂载 Docker Socket (`/var/run/docker.sock`)
+- 需要网络能够访问 GitHub Container Registry
+:::
 
 ::: tip 💡 升级前建议
 在后台「数据管理」中导出配置备份，以防万一。
