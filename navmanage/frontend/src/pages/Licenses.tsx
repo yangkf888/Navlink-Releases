@@ -36,6 +36,20 @@ interface ActiveLicense {
     activated_at: string
 }
 
+// 格式化为北京时间 (UTC+8)
+function formatBeijingTime(dateStr: string | undefined, showTime: boolean = true): string {
+    if (!dateStr) return '-'
+    const date = new Date(dateStr)
+    const options: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        ...(showTime && { hour: '2-digit', minute: '2-digit', hour12: false })
+    }
+    return date.toLocaleString('zh-CN', options)
+}
+
 export default function Licenses() {
     const [users, setUsers] = useState<UserData[]>([])
     const [licenses, setLicenses] = useState<ActiveLicense[]>([])
@@ -261,6 +275,24 @@ export default function Licenses() {
             fetchLicenses()
         } catch (error) {
             console.error('Failed to revoke:', error)
+        }
+    }
+
+    const deleteLicense = async (id: number) => {
+        if (!confirm('确定要删除此记录吗？此操作不可撤销。')) return
+        try {
+            const res = await fetch(`/api/activation/licenses/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            const data = await res.json()
+            if (res.ok) {
+                fetchLicenses()
+            } else {
+                alert(data.error || '删除失败')
+            }
+        } catch (error) {
+            console.error('Failed to delete license:', error)
         }
     }
 
@@ -592,7 +624,7 @@ export default function Licenses() {
                                         {license.fingerprint.substring(0, 12)}...
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-500">
-                                        {license.activated_at?.split('T')[0]}
+                                        {formatBeijingTime(license.activated_at)}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs ${license.status === 'active'
@@ -602,13 +634,21 @@ export default function Licenses() {
                                             {license.status === 'active' ? '活跃' : '已撤销'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        {license.status === 'active' && (
+                                    <td className="px-6 py-4 flex gap-2">
+                                        {license.status === 'active' ? (
                                             <button
                                                 onClick={() => revokeLicense(license.id)}
                                                 className="text-red-600 hover:text-red-800 text-sm"
                                             >
                                                 撤销
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => deleteLicense(license.id)}
+                                                className="text-gray-500 hover:text-red-600"
+                                                title="删除记录"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         )}
                                     </td>

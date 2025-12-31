@@ -70,6 +70,30 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
             }
         }
 
+        // 如果状态从非禁用变为禁用，自动撤销该用户所有活跃授权
+        if (status === 'disabled' && user.status !== 'disabled') {
+            const activeLicenses = await dbAll(
+                'SELECT id FROM active_licenses WHERE user_id = ? AND status = ?',
+                [userId, 'active']
+            );
+
+            if (activeLicenses.length > 0) {
+                // 撤销所有活跃授权
+                await dbRun(
+                    `UPDATE active_licenses SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP 
+                     WHERE user_id = ? AND status = 'active'`,
+                    [userId]
+                );
+
+                // 记录日志
+                await dbRun(
+                    `INSERT INTO license_logs (user_id, action, ip_address, details)
+                     VALUES (?, ?, ?, ?)`,
+                    [userId, 'disable_user', req.ip, `用户被禁用，自动撤销 ${activeLicenses.length} 个活跃授权`]
+                );
+            }
+        }
+
         // 更新用户
         await dbRun(
             `UPDATE users SET 
@@ -367,29 +391,57 @@ router.post('/activate', async (req, res) => {
             });
         }
 
-        // 6. 生成授权 Token
+        // 6. 撤销该用户所有现有的活跃授权（单设备授权模式）
+        const existingActiveLicenses = await dbAll(
+            'SELECT id FROM active_licenses WHERE user_id = ? AND status = ?',
+            [user.id, 'active']
+        );
+
+        if (existingActiveLicenses.length > 0) {
+            // 撤销所有旧授权
+            await dbRun(
+                `UPDATE active_licenses SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP 
+                 WHERE user_id = ? AND status = 'active'`,
+                [user.id]
+            );
+
+            // 返还激活次数
+            await dbRun(
+                'UPDATE users SET used_activations = used_activations - ? WHERE id = ?',
+                [existingActiveLicenses.length, user.id]
+            );
+
+            // 记录撤销日志
+            await dbRun(
+                `INSERT INTO license_logs (user_id, action, fingerprint, ip_address, details)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [user.id, 'auto_revoke', fingerprint, req.ip, `自动撤销 ${existingActiveLicenses.length} 个旧设备授权`]
+            );
+        }
+
+        // 7. 生成授权 Token
         const authToken = generateAuthToken(user.id, activation.id, fingerprint);
 
-        // 7. 保存激活记录
+        // 8. 保存激活记录
         await dbRun(
             `INSERT INTO active_licenses (user_id, activation_code_id, fingerprint, fingerprint_details, auth_token)
              VALUES (?, ?, ?, ?, ?)`,
             [user.id, activation.id, fingerprint, JSON.stringify(fingerprintDetails || {}), authToken]
         );
 
-        // 8. 将激活码标记为已使用
+        // 9. 将激活码标记为已使用
         await dbRun(
             'UPDATE activation_codes SET remaining_installs = 0, status = ? WHERE id = ?',
             ['used', activation.id]
         );
 
-        // 9. 增加用户的已使用激活次数
+        // 10. 增加用户的已使用激活次数
         await dbRun(
             'UPDATE users SET used_activations = used_activations + 1 WHERE id = ?',
             [user.id]
         );
 
-        // 10. 记录日志
+        // 11. 记录日志
         await dbRun(
             `INSERT INTO license_logs (user_id, action, fingerprint, ip_address, details)
              VALUES (?, ?, ?, ?, ?)`,
@@ -508,6 +560,32 @@ router.post('/licenses/:id/revoke', authenticateToken, async (req, res) => {
             `UPDATE active_licenses SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP WHERE id = ?`,
             [parseInt(req.params.id)]
         );
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 删除已撤销的激活记录
+router.delete('/licenses/:id', authenticateToken, async (req, res) => {
+    try {
+        const licenseId = parseInt(req.params.id);
+
+        // 只允许删除已撤销的记录
+        const license = await dbGet(
+            'SELECT * FROM active_licenses WHERE id = ?',
+            [licenseId]
+        );
+
+        if (!license) {
+            return res.status(404).json({ error: '记录不存在' });
+        }
+
+        if (license.status === 'active') {
+            return res.status(400).json({ error: '无法删除活跃状态的授权记录，请先撤销' });
+        }
+
+        await dbRun('DELETE FROM active_licenses WHERE id = ?', [licenseId]);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
