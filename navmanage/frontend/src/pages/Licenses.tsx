@@ -37,9 +37,19 @@ interface ActiveLicense {
 }
 
 // 格式化为北京时间 (UTC+8)
+// 注意：数据库存储的是 UTC 时间但没有时区标记，需要手动添加 'Z' 后缀
 function formatBeijingTime(dateStr: string | undefined, showTime: boolean = true): string {
     if (!dateStr) return '-'
-    const date = new Date(dateStr)
+    // 如果时间字符串没有时区信息，添加 'Z' 表示 UTC
+    let utcDateStr = dateStr
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('T')) {
+        // 格式如 "2025-12-31 03:02:00"，转换为 "2025-12-31T03:02:00Z"
+        utcDateStr = dateStr.replace(' ', 'T') + 'Z'
+    } else if (dateStr.includes('T') && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        // 格式如 "2025-12-31T03:02:00"
+        utcDateStr = dateStr + 'Z'
+    }
+    const date = new Date(utcDateStr)
     const options: Intl.DateTimeFormatOptions = {
         timeZone: 'Asia/Shanghai',
         year: 'numeric',
@@ -492,7 +502,7 @@ export default function Licenses() {
                                         ) : '永久'}
                                     </td>
                                     <td className="px-4 py-4 text-sm text-gray-500">
-                                        {user.last_activation?.split('T')[0] || '-'}
+                                        {formatBeijingTime(user.last_activation, false)}
                                     </td>
                                     <td className="px-4 py-4 flex gap-2">
                                         <button

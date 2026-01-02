@@ -1,0 +1,111 @@
+
+import { ReactNode, useState, useEffect } from 'react';
+import { Sidebar } from './Sidebar';
+import { GlobalSearchBar } from './GlobalSearchBar';
+import { VideoSource, Category } from '../types';
+
+interface NavParams {
+    sourceId?: number;
+    categoryId?: string;
+    categoryName?: string;
+    vodId?: string;
+    keyword?: string;
+}
+
+interface LayoutProps {
+    children: ReactNode;
+    sidebarProps: {
+        sources: VideoSource[];
+        categoriesMap: Record<number, Category[]>;
+        selectedSourceId: number | null;
+        onSourceChange: (id: number) => void;
+        onNavigate: (view: string, params?: Record<string, unknown>) => void;
+        activeView: string;
+        navParams: NavParams;
+    };
+}
+
+const COLLAPSED_KEY = 'video_sidebar_collapsed';
+
+export function Layout({ children, sidebarProps }: LayoutProps) {
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        return localStorage.getItem(COLLAPSED_KEY) === 'true';
+    });
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
+    }, [isCollapsed]);
+
+    // 处理全局搜索
+    const handleGlobalSearch = (keyword: string, sourceId: number | null) => {
+        sidebarProps.onNavigate('search', { keyword, sourceId });
+    };
+
+    // 移动端菜单按钮
+    const MobileMenuButton = () => (
+        <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden absolute top-16 left-4 z-10 p-2 text-gray-400 hover:text-white bg-gray-900/50 backdrop-blur rounded-lg"
+        >
+            <i className="fas fa-bars text-lg"></i>
+        </button>
+    );
+
+    return (
+        <div className="flex h-screen bg-gray-900 overflow-hidden relative">
+            {/* 移动端菜单按钮 (仅当 Sidebar 隐藏时显示) */}
+            {!mobileOpen && <MobileMenuButton />}
+
+            {/* 桌面端 Sidebar */}
+            <div
+                className={`
+                    hidden lg:flex flex-shrink-0 border-r border-gray-800 bg-gray-950 h-full overflow-hidden transition-all duration-300
+                    ${isCollapsed ? 'w-16' : 'w-72'}
+                `}
+            >
+                <Sidebar
+                    {...sidebarProps}
+                    collapsed={isCollapsed}
+                    onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+                />
+            </div>
+
+            {/* 移动端 Sidebar (抽屉) */}
+            {mobileOpen && (
+                <div className="fixed inset-0 z-50 lg:hidden">
+                    {/* 遮罩 */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setMobileOpen(false)}
+                    ></div>
+                    {/* 侧边栏内容 */}
+                    <div className="absolute left-0 top-0 bottom-0 w-64 bg-gray-950 shadow-2xl animate-slide-right">
+                        <Sidebar
+                            {...sidebarProps}
+                            isMobile={true}
+                            onCloseMobile={() => setMobileOpen(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* 主内容区域 - 自动填充剩余空间，可滚动 */}
+            <div className="flex-1 min-w-0 flex flex-col h-full relative">
+                {/* 全局搜索栏 */}
+                <GlobalSearchBar
+                    sources={sidebarProps.sources}
+                    onSearch={handleGlobalSearch}
+                    onNavigate={sidebarProps.onNavigate}
+                    activeView={sidebarProps.activeView}
+                />
+
+                {/* 内容区域 */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
+

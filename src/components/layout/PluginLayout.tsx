@@ -143,9 +143,15 @@ const PluginLayout: React.FC = () => {
 
     // 处理Sidebar项点击
     const handleSidebarItemClick = (itemId: string, isGroup: boolean = false) => {
-        if (isGroup) {
+        // 如果是纯组（如 sources-group, categories-group），只展开/折叠
+        if (isGroup && (itemId.endsWith('-group') || itemId === 'sources-group' || itemId === 'categories-group')) {
             toggleGroup(itemId);
             return;
+        }
+
+        // 如果是分类项（带 children 的），先展开再发送消息
+        if (isGroup) {
+            toggleGroup(itemId);
         }
 
         // 动态查找iframe（每次点击时都查找，确保能找到）
@@ -259,72 +265,75 @@ const PluginLayout: React.FC = () => {
         return (
             <>
                 {/* 桌面端Sidebar - 始终渲染容器，避免布局闪烁 */}
-                <aside className={`
+                {/* 只有当 items 存在且不为空时才显示侧边栏容器 */}
+                {pluginSidebarConfig && (!pluginSidebarConfig.items || pluginSidebarConfig.items.length === 0) ? null : (
+                    <aside className={`
                     hidden lg:flex flex-col flex-shrink-0
                     bg-white border-r border-gray-200 z-20 pt-2
                     transition-all duration-300 ease-in-out
                     ${widthClass}
                 `}>
-                    {pluginSidebarConfig ? (
-                        <>
-                            {!collapsed && (
-                                <div className="p-6 pt-4 mb-2">
-                                    <h2 className="text-xl font-bold text-gray-800">
-                                        {pluginSidebarConfig.title || '插件'}
-                                    </h2>
-                                    {pluginSidebarConfig.subtitle && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {pluginSidebarConfig.subtitle}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
+                        {pluginSidebarConfig ? (
+                            <>
+                                {!collapsed && (
+                                    <div className="p-6 pt-4 mb-2">
+                                        <h2 className="text-xl font-bold text-gray-800">
+                                            {pluginSidebarConfig.title || '插件'}
+                                        </h2>
+                                        {pluginSidebarConfig.subtitle && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {pluginSidebarConfig.subtitle}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
 
-                            <nav className="flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="space-y-0.5">
-                                    {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
-                                </div>
-                            </nav>
+                                <nav className="flex-1 overflow-y-auto custom-scrollbar">
+                                    <div className="space-y-0.5">
+                                        {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
+                                    </div>
+                                </nav>
 
-                            <div className="p-4 border-t border-gray-100">
-                                <button
-                                    onClick={() => setCollapsed(!collapsed)}
-                                    className={`
+                                <div className="p-4 border-t border-gray-100">
+                                    <button
+                                        onClick={() => setCollapsed(!collapsed)}
+                                        className={`
                                         w-full flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-[var(--theme-primary)] 
                                         hover:bg-gray-50 rounded-lg transition-colors
                                         ${collapsed ? '' : 'gap-2'}
                                     `}
-                                    title={collapsed ? '展开' : '收起'}
-                                >
-                                    {collapsed ? (
-                                        <i className="fa-solid fa-angles-right"></i>
-                                    ) : (
-                                        <>
-                                            <i className="fa-solid fa-angles-left"></i>
-                                            <span>收起</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        /* 加载占位符 - 保持布局稳定 */
-                        <div className="flex-1 flex items-center justify-center">
-                            {/* 骨架屏加载效果 */}
-                            {!collapsed && (
-                                <div className="w-full p-6 space-y-4 animate-pulse">
-                                    <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-                                    <div className="space-y-3 pt-4">
-                                        <div className="h-10 bg-gray-100 rounded"></div>
-                                        <div className="h-10 bg-gray-100 rounded"></div>
-                                        <div className="h-10 bg-gray-100 rounded"></div>
-                                        <div className="h-10 bg-gray-100 rounded"></div>
-                                    </div>
+                                        title={collapsed ? '展开' : '收起'}
+                                    >
+                                        {collapsed ? (
+                                            <i className="fa-solid fa-angles-right"></i>
+                                        ) : (
+                                            <>
+                                                <i className="fa-solid fa-angles-left"></i>
+                                                <span>收起</span>
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </aside>
+                            </>
+                        ) : (
+                            /* 加载占位符 - 保持布局稳定 */
+                            <div className="flex-1 flex items-center justify-center">
+                                {/* 骨架屏加载效果 */}
+                                {!collapsed && (
+                                    <div className="w-full p-6 space-y-4 animate-pulse">
+                                        <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                                        <div className="space-y-3 pt-4">
+                                            <div className="h-10 bg-gray-100 rounded"></div>
+                                            <div className="h-10 bg-gray-100 rounded"></div>
+                                            <div className="h-10 bg-gray-100 rounded"></div>
+                                            <div className="h-10 bg-gray-100 rounded"></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </aside>
+                )}
 
                 {/* 移动端Sidebar - 始终渲染 */}
                 {mobileOpen && (
@@ -389,7 +398,7 @@ const PluginLayout: React.FC = () => {
                 forceDarkText={useDarkText}
             />
 
-            <div className="pt-20 w-full h-[calc(100vh)] box-border flex relative">
+            <div className="pt-14 w-full h-[calc(100vh)] box-border flex relative">
                 {/* 只渲染插件Sidebar */}
                 {renderPluginSidebar()}
 

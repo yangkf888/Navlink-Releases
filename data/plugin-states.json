@@ -3,5 +3,6 @@
   "sub": true,
   "vps": true,
   "vps-2": false,
-  "kbrag": true
+  "kbrag": true,
+  "video": true
 }

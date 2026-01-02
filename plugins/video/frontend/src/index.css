@@ -1,0 +1,340 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局样式 */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+        'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 100, 0.4);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 100, 0.6);
+}
+
+/* 暗色模式滚动条 */
+.dark ::-webkit-scrollbar-thumb {
+    background: rgba(180, 180, 180, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(180, 180, 180, 0.5);
+}
+
+/* 视频卡片悬停效果 */
+.video-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* 视频封面 */
+.video-cover {
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
+
+/* 骨架屏动画 */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.skeleton {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(to right,
+            #f0f0f0 4%,
+            #e0e0e0 25%,
+            #f0f0f0 36%);
+    background-size: 1000px 100%;
+}
+
+.dark .skeleton {
+    background: linear-gradient(to right,
+            #2a2a2a 4%,
+            #3a3a3a 25%,
+            #2a2a2a 36%);
+    background-size: 1000px 100%;
+}
+
+/* Banner 轮播 */
+.banner-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.banner-slide {
+    transition: transform 0.5s ease-in-out;
+}
+
+/* 分类标签 */
+.category-tag {
+    @apply px-3 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer;
+}
+
+.category-tag:hover {
+    @apply bg-primary-500 text-white;
+}
+
+.category-tag.active {
+    @apply bg-primary-500 text-white;
+}
+
+/* 播放器容器 */
+.player-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 确保 ArtPlayer 填充整个容器 */
+.player-container .art-video-player {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.player-container video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+}
+
+/* 侧边栏专用滚动条 - 默认隐藏，悬停显示 */
+/* 侧边栏专用滚动条 - 隐藏以实现全宽效果 */
+.sidebar-scrollbar::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+    display: none;
+    /* 强制隐藏 */
+}
+
+.sidebar-scrollbar {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 2px;
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 100, 0.4);
+}
+
+/* 尝试使用 overlay 滚动条模式 */
+.scrollbar-overlay {
+    overflow-y: auto;
+}
+
+@supports (overflow-y: overlay) {
+    .scrollbar-overlay {
+        overflow-y: overlay;
+    }
+}
+
+/* ======================= */
+/* 主题切换样式 */
+/* ======================= */
+
+/* 暗黑主题（默认） */
+body.dark-theme,
+[data-theme="dark"] {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --border-color: #374151;
+}
+
+/* 明亮主题 */
+body.light-theme,
+[data-theme="light"] {
+    --bg-primary: #f9fafb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f3f4f6;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
+    --border-color: #e5e7eb;
+}
+
+/* 明亮主题下的整体样式覆盖 */
+[data-theme="light"] .bg-gray-900 {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] .bg-gray-950 {
+    background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-gray-800 {
+    background-color: #f3f4f6 !important;
+}
+
+[data-theme="light"] .bg-gray-800\/50 {
+    background-color: rgba(243, 244, 246, 0.5) !important;
+}
+
+[data-theme="light"] .bg-gray-700 {
+    background-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .text-white {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .text-gray-100 {
+    color: #1f2937 !important;
+}
+
+[data-theme="light"] .text-gray-200 {
+    color: #374151 !important;
+}
+
+[data-theme="light"] .text-gray-300 {
+    color: #4b5563 !important;
+}
+
+[data-theme="light"] .text-gray-400 {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .text-gray-500 {
+    color: #9ca3af !important;
+}
+
+[data-theme="light"] .border-gray-700,
+[data-theme="light"] .border-gray-800 {
+    border-color: #e5e7eb !important;
+}
+
+/* 明亮主题下的侧边栏 */
+[data-theme="light"] .border-r.border-gray-800 {
+    border-color: #e5e7eb !important;
+}
+
+/* 明亮主题下的卡片阴影 */
+[data-theme="light"] .video-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 明亮主题下的滚动条 */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 100, 0.3);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 100, 0.5);
+}
+
+/* 明亮主题下的骨架屏 */
+[data-theme="light"] .skeleton {
+    background: linear-gradient(to right,
+            #e5e7eb 4%,
+            #d1d5db 25%,
+            #e5e7eb 36%);
+    background-size: 1000px 100%;
+}
+
+/* 明亮主题下的播放器容器背景 */
+[data-theme="light"] .player-container {
+    background: #1f2937;
+}
+
+/* 明亮主题下的输入框 */
+[data-theme="light"] input::placeholder {
+    color: #9ca3af;
+}
+
+/* 确保主题过渡平滑 */
+body,
+.bg-gray-900,
+.bg-gray-950,
+.bg-gray-800,
+.bg-gray-700,
+.text-white,
+.text-gray-100,
+.text-gray-200,
+.text-gray-300,
+.text-gray-400,
+.text-gray-500 {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* CategoryNav Light Mode Overrides */
+[data-theme="light"] .bg-gray-900\/80 {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="light"] .bg-gray-950\/30 {
+    background-color: rgba(243, 244, 246, 0.8) !important;
+    /* gray-100/80 */
+    border-color: rgba(229, 231, 235, 0.5) !important;
+    /* border-gray-200/50 */
+}
+
+[data-theme="light"] .border-gray-800\/50 {
+    border-color: rgba(229, 231, 235, 1) !important;
+    /* border-gray-200 */
+}
+
+[data-theme="light"] .hover\:bg-gray-800:hover {
+    background-color: #e5e7eb !important;
+    /* hover:bg-gray-200 */
+    color: #111827 !important;
+    /* hover:text-gray-900 */
+}
+
+[data-theme="light"] .hover\:bg-gray-800\/50:hover {
+    background-color: rgba(229, 231, 235, 0.5) !important;
+    /* hover:bg-gray-200/50 */
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+    color: #111827 !important;
+    /* hover:text-gray-900 */
+}

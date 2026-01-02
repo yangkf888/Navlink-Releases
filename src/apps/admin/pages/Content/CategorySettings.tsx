@@ -30,13 +30,100 @@ export const CategorySettings: React.FC = () => {
 
     const handleDragEnd = (result: DropResult) => {
         if (!result.destination) return;
-        const { source, destination, type } = result;
+        const { source, destination, type, draggableId } = result;
 
+        // 主分类 Tab 拖拽排序
         if (type === 'CATEGORY_TAB') {
             const items = Array.from(config.categories);
             const [removed] = items.splice(source.index, 1);
             items.splice(destination.index, 0, removed);
             update(c => ({ ...c, categories: items }));
+            return;
+        }
+
+        // 子分类 Tab 拖拽排序
+        if (type === 'SUBCATEGORY_TAB') {
+            // droppableId 格式: subcats-{catIdx}
+            const sourceCatIdx = parseInt(source.droppableId.replace('subcats-', ''));
+            const destCatIdx = parseInt(destination.droppableId.replace('subcats-', ''));
+
+            // 只支持同一父分类内的排序
+            if (sourceCatIdx === destCatIdx) {
+                const newCategories = [...config.categories];
+                const subCategories = [...(newCategories[sourceCatIdx].subCategories || [])];
+                const [removed] = subCategories.splice(source.index, 1);
+                subCategories.splice(destination.index, 0, removed);
+                newCategories[sourceCatIdx] = { ...newCategories[sourceCatIdx], subCategories };
+                update(c => ({ ...c, categories: newCategories }));
+            }
+            return;
+        }
+
+        // 子分类内链接项拖拽排序
+        if (type === 'SUBCATEGORY_ITEM') {
+            // droppableId 格式: sub-{catIdx}-{subIdx}
+            const [, sourceCatIdx, sourceSubIdx] = source.droppableId.split('-').map(Number);
+            const [, destCatIdx, destSubIdx] = destination.droppableId.split('-').map(Number);
+
+            const newCategories = [...config.categories];
+
+            if (sourceCatIdx === destCatIdx && sourceSubIdx === destSubIdx) {
+                // 同一子分类内排序
+                const items = [...newCategories[sourceCatIdx].subCategories![sourceSubIdx].items];
+                const [removed] = items.splice(source.index, 1);
+                items.splice(destination.index, 0, removed);
+                newCategories[sourceCatIdx].subCategories![sourceSubIdx] = {
+                    ...newCategories[sourceCatIdx].subCategories![sourceSubIdx],
+                    items
+                };
+            } else {
+                // 跨子分类移动
+                const sourceItems = [...newCategories[sourceCatIdx].subCategories![sourceSubIdx].items];
+                const [removed] = sourceItems.splice(source.index, 1);
+                newCategories[sourceCatIdx].subCategories![sourceSubIdx] = {
+                    ...newCategories[sourceCatIdx].subCategories![sourceSubIdx],
+                    items: sourceItems
+                };
+
+                const destItems = [...newCategories[destCatIdx].subCategories![destSubIdx].items];
+                destItems.splice(destination.index, 0, removed);
+                newCategories[destCatIdx].subCategories![destSubIdx] = {
+                    ...newCategories[destCatIdx].subCategories![destSubIdx],
+                    items: destItems
+                };
+            }
+
+            update(c => ({ ...c, categories: newCategories }));
+            return;
+        }
+
+        // 普通分类内链接项拖拽排序
+        if (type === 'CATEGORY_ITEM') {
+            // droppableId 格式: cat-{catIdx}
+            const sourceCatIdx = parseInt(source.droppableId.replace('cat-', ''));
+            const destCatIdx = parseInt(destination.droppableId.replace('cat-', ''));
+
+            const newCategories = [...config.categories];
+
+            if (sourceCatIdx === destCatIdx) {
+                // 同一分类内排序
+                const items = [...(newCategories[sourceCatIdx].items || [])];
+                const [removed] = items.splice(source.index, 1);
+                items.splice(destination.index, 0, removed);
+                newCategories[sourceCatIdx] = { ...newCategories[sourceCatIdx], items };
+            } else {
+                // 跨分类移动
+                const sourceItems = [...(newCategories[sourceCatIdx].items || [])];
+                const [removed] = sourceItems.splice(source.index, 1);
+                newCategories[sourceCatIdx] = { ...newCategories[sourceCatIdx], items: sourceItems };
+
+                const destItems = [...(newCategories[destCatIdx].items || [])];
+                destItems.splice(destination.index, 0, removed);
+                newCategories[destCatIdx] = { ...newCategories[destCatIdx], items: destItems };
+            }
+
+            update(c => ({ ...c, categories: newCategories }));
+            return;
         }
     };
 
@@ -100,7 +187,7 @@ export const CategorySettings: React.FC = () => {
         if (targetSection === 'promo') {
             // Move from category to promo
             const newCategories = [...config.categories];
-            const newPromo = [...config.promo];
+            const newPromo = [...(config.promo || [])];
             const sourceCatIdx = newCategories.findIndex(c => c.id === sourceCategoryId);
 
             // Remove from source category
@@ -124,6 +211,7 @@ export const CategorySettings: React.FC = () => {
                     id: linkItem.id,
                     title: linkItem.title,
                     url: linkItem.url,
+                    icon: linkItem.icon || '',
                     color: linkItem.color || '#000000',
                     isAd: false
                 });
@@ -228,7 +316,7 @@ export const CategorySettings: React.FC = () => {
                                                             <Droppable droppableId={`subcats-${catIdx}`} type="SUBCATEGORY_TAB">
                                                                 {(provided) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
-                                                                        {cat.subCategories.map((sub, subIdx) => (
+                                                                        {(cat.subCategories || []).map((sub, subIdx) => (
                                                                             <Draggable key={`sub-${catIdx}-${subIdx}`} draggableId={`sub-${catIdx}-${subIdx}`} index={subIdx}>
                                                                                 {(provided) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="mb-4">

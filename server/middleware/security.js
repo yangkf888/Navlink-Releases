@@ -60,6 +60,9 @@ export const helmetConfig = helmet({
                 "'self'",
                 "ws:",
                 "wss:",
+                // 开发环境允许 localhost 连接
+                "http://localhost:*",
+                "http://127.0.0.1:*",
                 // Iconify 图标库 API
                 "https://api.iconify.design",
                 "https://api.unisvg.com",
@@ -69,7 +72,7 @@ export const helmetConfig = helmet({
             ],
             fontSrc: ["'self'", "data:", "https://cdnjs.cloudflare.com"],
             objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
+            mediaSrc: ["'self'", "blob:", "https:", "http:"],  // 允许 blob URL 和外部视频源
             frameSrc: ["'self'"], // 允许同源iframe (插件在主应用iframe中加载)
             // 允许来自任何localhost端口的iframe嵌套
             frameAncestors: ["'self'", "http://127.0.0.1:*", "http://localhost:*"],

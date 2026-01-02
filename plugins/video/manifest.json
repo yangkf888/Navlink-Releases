@@ -1,0 +1,10 @@
+{
+    "id": "video",
+    "name": "视频中心",
+    "version": "1.0.0",
+    "description": "视频聚合播放插件，支持多源视频接入与在线播放",
+    "type": "node",
+    "entry": "backend-nodejs/server.js",
+    "healthCheck": "/api/health",
+    "frontend": "frontend/dist"
+}

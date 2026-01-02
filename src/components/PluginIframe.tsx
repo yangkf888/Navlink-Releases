@@ -24,9 +24,11 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
     const token = localStorage.getItem('auth_token');
 
     // 🔑 使用相对路径，自动适配任何hostname和port（支持局域网访问）
+    // 添加时间戳防止缓存
+    const timestamp = new Date().getTime();
     const src = token
-        ? `/plugin-content/${pluginId}/?token=${encodeURIComponent(token)}`
-        : `/plugin-content/${pluginId}/`;
+        ? `/plugin-content/${pluginId}/?token=${encodeURIComponent(token)}&_t=${timestamp}`
+        : `/plugin-content/${pluginId}/?_t=${timestamp}`;
 
 
 
@@ -81,7 +83,7 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
                 onError={handleError}
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                allow="clipboard-read; clipboard-write"
+                allow="clipboard-read; clipboard-write; autoplay; fullscreen; picture-in-picture; encrypted-media"
             />
         </div>
     );
