@@ -56,9 +56,12 @@ function initSchema(db) {
             remark TEXT,
             response_time INTEGER,
             last_test_at DATETIME,
+            failure_count INTEGER DEFAULT 0,
+            status_message TEXT,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            parser_url TEXT
         );
 
         -- 分类表
@@ -111,6 +114,13 @@ function initSchema(db) {
             value TEXT
         );
 
+        -- 首页缓存表
+        CREATE TABLE IF NOT EXISTS home_cache (
+            key TEXT PRIMARY KEY,
+            data TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_categories_source ON categories(source_id);
         CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
@@ -141,28 +151,49 @@ function initSchema(db) {
  * 数据库迁移：添加缺失的列
  */
 function migrateSchema(db) {
-    const migrations = [
+    // video_sources 表迁移
+    const sourcesMigrations = [
         { column: 'hidden', sql: 'ALTER TABLE video_sources ADD COLUMN hidden INTEGER DEFAULT 0' },
         { column: 'tags', sql: 'ALTER TABLE video_sources ADD COLUMN tags TEXT' },
         { column: 'remark', sql: 'ALTER TABLE video_sources ADD COLUMN remark TEXT' },
         { column: 'response_time', sql: 'ALTER TABLE video_sources ADD COLUMN response_time INTEGER' },
         { column: 'last_test_at', sql: 'ALTER TABLE video_sources ADD COLUMN last_test_at DATETIME' },
-        { column: 'proxy_enabled', sql: 'ALTER TABLE video_sources ADD COLUMN proxy_enabled INTEGER DEFAULT 0' }
+        { column: 'proxy_enabled', sql: 'ALTER TABLE video_sources ADD COLUMN proxy_enabled INTEGER DEFAULT 0' },
+        { column: 'failure_count', sql: 'ALTER TABLE video_sources ADD COLUMN failure_count INTEGER DEFAULT 0' },
+        { column: 'status_message', sql: 'ALTER TABLE video_sources ADD COLUMN status_message TEXT' },
+        { column: 'parser_url', sql: 'ALTER TABLE video_sources ADD COLUMN parser_url TEXT' }
     ];
 
-    for (const migration of migrations) {
+    for (const migration of sourcesMigrations) {
         try {
-            // 检查列是否存在
             const tableInfo = db.all('PRAGMA table_info(video_sources)');
             const columnExists = tableInfo.some(col => col.name === migration.column);
 
             if (!columnExists) {
                 db.run(migration.sql);
-                console.log(`[Database] Migration: Added column ${migration.column}`);
+                console.log(`[Database] Migration: Added column ${migration.column} to video_sources`);
             }
         } catch (err) {
-            // 列可能已存在，忽略错误
-            console.log(`[Database] Migration skipped for ${migration.column}: ${err.message}`);
+            console.log(`[Database] Migration skipped for video_sources.${migration.column}: ${err.message}`);
+        }
+    }
+
+    // categories 表迁移
+    const categoriesMigrations = [
+        { column: 'has_content', sql: 'ALTER TABLE categories ADD COLUMN has_content INTEGER DEFAULT 1' }
+    ];
+
+    for (const migration of categoriesMigrations) {
+        try {
+            const tableInfo = db.all('PRAGMA table_info(categories)');
+            const columnExists = tableInfo.some(col => col.name === migration.column);
+
+            if (!columnExists) {
+                db.run(migration.sql);
+                console.log(`[Database] Migration: Added column ${migration.column} to categories`);
+            }
+        } catch (err) {
+            console.log(`[Database] Migration skipped for categories.${migration.column}: ${err.message}`);
         }
     }
 }

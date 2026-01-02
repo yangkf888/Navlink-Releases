@@ -160,37 +160,37 @@ export const KnowledgeList: React.FC<KnowledgeListProps> = ({ onViewItem, onData
     return (
         <div className="space-y-4">
             {/* 头部 */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                         {selectedCategory ? `分类: ${selectedCategory}` : '知识列表'}
                     </h1>
-                    <p className="text-gray-500 text-sm mt-1">共 {items.length} 条知识</p>
+                    <p className="text-gray-500 text-sm mt-0.5">共 {items.length} 条知识</p>
                 </div>
                 <div className="flex gap-2">
                     <button
                         onClick={handleBatchEmbed}
                         disabled={embedding}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                     >
                         {embedding ? (
                             <>
                                 <i className="fas fa-spinner fa-spin"></i>
-                                处理中...
+                                <span className="hidden sm:inline">处理中...</span>
                             </>
                         ) : (
                             <>
                                 <i className="fas fa-bolt"></i>
-                                批量向量化
+                                <span className="hidden sm:inline">批量向量化</span>
                             </>
                         )}
                     </button>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm"
                     >
                         <i className="fas fa-plus"></i>
-                        添加知识
+                        <span className="hidden sm:inline">添加知识</span>
                     </button>
                 </div>
             </div>

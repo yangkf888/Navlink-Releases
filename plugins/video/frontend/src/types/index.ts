@@ -14,6 +14,8 @@ export interface VideoSource {
     remark?: string;
     response_time?: number;
     last_test_at?: string;
+    failure_count?: number;
+    status_message?: string;
     sort_order: number;
     created_at: string;
     updated_at: string;
@@ -30,6 +32,7 @@ export interface Category {
     parent_id: number;
     show_on_home: number;
     sort_order: number;
+    has_content?: number;  // 1 = 有内容, 0 = 空分类
     source_name?: string;
     children?: Category[];
 }

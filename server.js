@@ -103,6 +103,7 @@ await licenseService.init();
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './server/config/swagger.js';
 
+
 // --- Security Middleware (MUST BE FIRST) ---
 // Helmet - Security headers
 app.use(helmetConfig);
@@ -221,6 +222,7 @@ function handlePluginRequest(req, res, next, plugin, pluginId) {
 // ==========================================================================
 // Global Middleware (POST-Plugin Static)
 // ==========================================================================
+
 app.use(cors({
     origin: config.cors.origin,
     credentials: config.cors.credentials

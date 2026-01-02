@@ -3,6 +3,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import { VideoSource, Category } from '../types';
+import { AppModule } from '../App';
 
 interface NavParams {
     sourceId?: number;
@@ -22,6 +23,8 @@ interface LayoutProps {
         onNavigate: (view: string, params?: Record<string, unknown>) => void;
         activeView: string;
         navParams: NavParams;
+        activeModule: AppModule;
+        onModuleChange: (module: AppModule) => void;
     };
 }
 
@@ -42,20 +45,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
         sidebarProps.onNavigate('search', { keyword, sourceId });
     };
 
-    // 移动端菜单按钮
-    const MobileMenuButton = () => (
-        <button
-            onClick={() => setMobileOpen(true)}
-            className="lg:hidden absolute top-16 left-4 z-10 p-2 text-gray-400 hover:text-white bg-gray-900/50 backdrop-blur rounded-lg"
-        >
-            <i className="fas fa-bars text-lg"></i>
-        </button>
-    );
-
     return (
         <div className="flex h-screen bg-gray-900 overflow-hidden relative">
-            {/* 移动端菜单按钮 (仅当 Sidebar 隐藏时显示) */}
-            {!mobileOpen && <MobileMenuButton />}
 
             {/* 桌面端 Sidebar */}
             <div
@@ -73,7 +64,7 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
 
             {/* 移动端 Sidebar (抽屉) */}
             {mobileOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
+                <div className="fixed inset-0 z-[100] lg:hidden">
                     {/* 遮罩 */}
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -85,6 +76,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                             {...sidebarProps}
                             isMobile={true}
                             onCloseMobile={() => setMobileOpen(false)}
+                            activeModule={sidebarProps.activeModule}
+                            onModuleChange={sidebarProps.onModuleChange}
                         />
                     </div>
                 </div>
@@ -98,6 +91,9 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                     onSearch={handleGlobalSearch}
                     onNavigate={sidebarProps.onNavigate}
                     activeView={sidebarProps.activeView}
+                    activeModule={sidebarProps.activeModule}
+                    onModuleChange={sidebarProps.onModuleChange}
+                    onToggleSidebar={() => setMobileOpen(true)}
                 />
 
                 {/* 内容区域 */}

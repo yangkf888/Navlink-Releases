@@ -23,6 +23,10 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
     // 测速状态
     const [testingIds, setTestingIds] = useState<number[]>([]);
 
+    // 同步分类状态
+    const [syncingIds, setSyncingIds] = useState<number[]>([]);
+    const [syncStatus, setSyncStatus] = useState<Record<number, { message: string; current: number; total: number }>>({});
+
     // 表单状态
     const [showForm, setShowForm] = useState(false);
     const [editingSource, setEditingSource] = useState<VideoSource | null>(null);
@@ -166,6 +170,78 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
             alert('测速失败');
         }
         setTestingIds(prev => prev.filter(id => id !== source.id));
+    };
+
+    // 同步分类
+    const handleSync = async (source: VideoSource) => {
+        setSyncingIds(prev => [...prev, source.id]);
+        setSyncStatus(prev => ({
+            ...prev,
+            [source.id]: { message: '正在初始化...', current: 0, total: 100 }
+        }));
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const adminPassword = localStorage.getItem('video_admin_auth');
+            const url = new URL(`${window.location.origin}/api/plugins/video/api/sources/${source.id}/sync`);
+            url.searchParams.append('stream', 'true');
+
+            const response = await fetch(url.toString(), {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    ...(adminPassword ? { 'X-Admin-Password': adminPassword } : {}),
+                    'X-No-Compression': 'true'
+                }
+            });
+
+            if (!response.body) throw new Error('ReadableStream not supported');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.replace('data: ', '').trim();
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const prog = JSON.parse(dataStr);
+                            if (prog.type === 'progress') {
+                                setSyncStatus(prev => ({
+                                    ...prev,
+                                    [source.id]: { message: prog.message, current: prog.current, total: prog.total }
+                                }));
+                            } else if (prog.type === 'error') {
+                                alert(`同步错误: ${prog.error}`);
+                            }
+                        } catch (e) {
+                            console.error('[Sync] Failed to parse SSE data:', e);
+                        }
+                    }
+                }
+            }
+            // alert(`"${source.name}" 分类同步完成！`);
+        } catch (err: any) {
+            console.error('[Sync] Failed:', err);
+            alert(`同步失败: ${err.message || '网络错误'}`);
+        } finally {
+            setSyncingIds(prev => prev.filter(id => id !== source.id));
+            setSyncStatus(prev => {
+                const next = { ...prev };
+                delete next[source.id];
+                return next;
+            });
+        }
     };
 
     // 批量操作
@@ -381,9 +457,9 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                             <th className="p-3 w-20">隐藏</th>
                             <th className="p-3">接口地址</th>
                             <th className="p-3 w-24">标签</th>
-                            <th className="p-3 w-32">备注</th>
-                            <th className="p-3 w-24">响应时间</th>
-                            <th className="p-3 w-40">操作</th>
+                            <th className="p-3 w-24">备注</th>
+                            <th className="p-3 w-40">健康状态</th>
+                            <th className="p-3 w-48">操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -448,19 +524,45 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     <span className="text-gray-500 text-xs">{source.remark}</span>
                                 </td>
                                 <td className="p-3">
-                                    {testingIds.includes(source.id) ? (
-                                        <span className="text-yellow-400 text-xs">
-                                            <i className="fas fa-spinner fa-spin mr-1"></i>测速中...
-                                        </span>
-                                    ) : source.response_time ? (
-                                        <span className={`text-xs ${source.response_time < 500 ? 'text-green-400' :
-                                            source.response_time < 1000 ? 'text-yellow-400' : 'text-red-400'
-                                            }`}>
-                                            {source.response_time}ms
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-500 text-xs">-</span>
-                                    )}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5">
+                                            {testingIds.includes(source.id) ? (
+                                                <span className="text-yellow-400 text-xs">
+                                                    <i className="fas fa-spinner fa-spin mr-1"></i>
+                                                </span>
+                                            ) : source.response_time ? (
+                                                <span className={`text-xs ${source.response_time < 500 ? 'text-green-400' :
+                                                    source.response_time < 1000 ? 'text-yellow-400' : 'text-red-400'
+                                                    }`}>
+                                                    {source.response_time}ms
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-500 text-xs">-</span>
+                                            )}
+
+                                            {/* 健康状态标识 */}
+                                            {source.failure_count && source.failure_count > 0 ? (
+                                                <span
+                                                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${source.failure_count >= 5 ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                                        source.failure_count >= 3 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                                                        }`}
+                                                    title={source.status_message || '未知错误'}
+                                                >
+                                                    失败 {source.failure_count}
+                                                </span>
+                                            ) : (
+                                                <span className="px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 text-[10px]">
+                                                    健康
+                                                </span>
+                                            )}
+                                        </div>
+                                        {source.status_message && (
+                                            <span className="text-[10px] text-gray-500 truncate max-w-[100px]" title={source.status_message}>
+                                                {source.status_message}
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="p-3">
                                     <div className="flex items-center gap-1">
@@ -471,6 +573,33 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                             title="测速"
                                         >
                                             <i className="fas fa-tachometer-alt"></i>
+                                        </button>
+                                        <button
+                                            onClick={() => handleSync(source)}
+                                            disabled={syncingIds.includes(source.id)}
+                                            className="p-1.5 text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50 relative group/sync"
+                                            title="同步分类"
+                                        >
+                                            <i className={`fas fa-sync ${syncingIds.includes(source.id) ? 'fa-spin text-cyan-400' : ''}`}></i>
+                                            {syncingIds.includes(source.id) && syncStatus[source.id] && (
+                                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] z-[60] 
+                                                              bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-2xl pointer-events-none">
+                                                    <div className="text-xs text-gray-300 mb-2 truncate">
+                                                        {syncStatus[source.id].message}
+                                                    </div>
+                                                    <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                        <div
+                                                            className="bg-cyan-500 h-full transition-all duration-300"
+                                                            style={{
+                                                                width: `${Math.round((syncStatus[source.id].current / syncStatus[source.id].total) * 100)}%`
+                                                            }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 mt-1 text-right">
+                                                        {syncStatus[source.id].current} / {syncStatus[source.id].total}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </button>
                                         <button
                                             onClick={() => handleToggleEnabled(source)}
@@ -552,6 +681,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                              border border-gray-700 focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
+
 
                                 <div>
                                     <label className="block text-gray-300 mb-2">标签</label>

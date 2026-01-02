@@ -39,6 +39,15 @@ module.exports = {
         router.use('/api/favorites', favoritesRoutes);
         router.use('/api/history', historyRoutes);
         router.use('/api/multi-source', multiSourceRoutes);
+        router.use('/api/home', require('./routes/home'));
+
+        // 启动时触发首页数据刷新（异步，延迟5秒执行）
+        setTimeout(() => {
+            console.log('[video] Triggering initial home data refresh...');
+            require('./services/HomeService').refreshAll().catch(e => {
+                console.error('[video] Initial home refresh failed:', e.message);
+            });
+        }, 5000);
 
         // 调试路由
         router.get('/debug', (req, res) => {

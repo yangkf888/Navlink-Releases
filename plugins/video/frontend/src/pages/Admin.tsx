@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { SourceManager } from '../components/SourceManager';
 import { SettingsManager } from '../components/SettingsManager';
+import { HomeManager } from '../components/HomeManager';
 import { useAuth } from '../contexts/AuthContext';
+import { VideoSource } from '../types';
+import { apiGet } from '../utils/api';
 
 interface AdminProps {
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
     onSourcesChange?: () => void;
 }
 
-type TabType = 'sources' | 'settings';
+type TabType = 'home' | 'sources' | 'settings';
 
 export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) {
-    const [activeTab, setActiveTab] = useState<TabType>('sources');
+    const [activeTab, setActiveTab] = useState<TabType>('home');
+    const [sources, setSources] = useState<VideoSource[]>([]);
 
     // 认证上下文
     const { isAuthenticated, login, checkPasswordRequired } = useAuth();
@@ -25,6 +29,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
 
     useEffect(() => {
         initCheck();
+        loadSources();
     }, [isAuthenticated]);
 
     const initCheck = async () => {
@@ -36,6 +41,17 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             setPasswordRequired(required);
         }
         setLoading(false);
+    };
+
+    const loadSources = async () => {
+        try {
+            const res = await apiGet<VideoSource[]>('/sources');
+            if (res.success && res.data) {
+                setSources(res.data);
+            }
+        } catch (error) {
+            console.error('Failed to load sources:', error);
+        }
     };
 
     const handleVerifyPassword = async () => {
@@ -132,6 +148,16 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             {/* 标签页 */}
             <div className="flex gap-2 border-b border-gray-700 pb-2">
                 <button
+                    onClick={() => setActiveTab('home')}
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
+                        ${activeTab === 'home'
+                            ? 'bg-gray-800 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    首页管理
+                </button>
+                <button
                     onClick={() => setActiveTab('sources')}
                     className={`px-4 py-2 rounded-t-lg font-medium transition-colors
                         ${activeTab === 'sources'
@@ -153,9 +179,14 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                 </button>
             </div>
 
+            {/* 首页管理 */}
+            {activeTab === 'home' && (
+                <HomeManager sources={sources} />
+            )}
+
             {/* 视频源管理 - 使用独立组件 */}
             {activeTab === 'sources' && (
-                <SourceManager onSourcesChange={onSourcesChange} />
+                <SourceManager onSourcesChange={() => { onSourcesChange?.(); loadSources(); }} />
             )}
 
             {/* 系统设置 - 使用独立组件 */}

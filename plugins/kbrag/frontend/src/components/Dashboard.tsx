@@ -37,27 +37,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, categories = [], ca
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">知识库概览</h1>
-                <p className="text-gray-500 mt-1">管理和检索本地知识库</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">知识库概览</h1>
+                <p className="text-gray-500 text-sm mt-0.5">管理和检索本地知识库</p>
             </div>
 
             {/* 统计卡片 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {cards.map((card, index) => (
                     <div
                         key={index}
                         onClick={card.onClick}
-                        className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+                        className="bg-white rounded-xl p-3 sm:p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
                     >
-                        <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 ${card.color} rounded-lg flex items-center justify-center`}>
-                                <i className={`${card.icon} text-white text-xl`}></i>
+                        <div className="flex flex-col sm:flex-row items-center sm:gap-4">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 ${card.color} rounded-lg flex items-center justify-center mb-2 sm:mb-0`}>
+                                <i className={`${card.icon} text-white text-lg sm:text-xl`}></i>
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-500">{card.title}</p>
-                                <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                            <div className="text-center sm:text-left">
+                                <p className="text-xs sm:text-sm text-gray-500">{card.title}</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value}</p>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const { getDatabase } = require('../database');
+const https = require('https');
 
 /**
  * 根据系统设置获取代理 Agent
@@ -44,4 +45,15 @@ function getSystemProxyAgent() {
     }
 }
 
-module.exports = { getSystemProxyAgent };
+/**
+ * 获取一个忽略 SSL 错误的 https Agent
+ * 用于处理证书配置有误但内容正常的资源站
+ */
+function getInsecureAgent() {
+    return new https.Agent({
+        rejectUnauthorized: false,
+        keepAlive: true
+    });
+}
+
+module.exports = { getSystemProxyAgent, getInsecureAgent };

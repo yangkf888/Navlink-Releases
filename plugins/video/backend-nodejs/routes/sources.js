@@ -61,15 +61,17 @@ router.get('/export', (req, res) => {
 
 /**
  * 辅助函数：同步视频源分类
+ * @param {object} db - 数据库实例
+ * @param {object} source - 视频源对象
+ * @param {Function} onProgress - 可选的回调函数，用于实时推送进度
  */
-async function syncCategoriesForSource(db, source) {
+async function syncCategoriesForSource(db, source, onProgress = null) {
     // 动态导入 CMS API 解析器
     const { CmsApiParser } = require('../services/CmsApiParser');
-    // 获取代理设置
     const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
     const parser = new CmsApiParser(source.url, agent);
 
-    console.log(`[sources] Syncing categories for source: ${source.name}`);
+    if (onProgress) onProgress('正在获取全部分类...', 0, 100);
     const categories = await parser.getCategories();
 
     if (!categories || categories.length === 0) {
@@ -81,8 +83,8 @@ async function syncCategoriesForSource(db, source) {
 
     // 插入新分类
     const stmt = db.prepare(`
-        INSERT INTO categories (source_id, type_id, name, parent_id, sort_order)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO categories (source_id, type_id, name, parent_id, sort_order, has_content)
+        VALUES (?, ?, ?, ?, ?, 1)
     `);
 
     let sortOrder = 0;
@@ -91,8 +93,60 @@ async function syncCategoriesForSource(db, source) {
     }
 
     const savedCategories = db.all('SELECT * FROM categories WHERE source_id = ? ORDER BY sort_order', [source.id]);
-    console.log(`[sources] Synced ${savedCategories.length} categories for source: ${source.name}`);
-    return savedCategories;
+    const topLevelCats = savedCategories.filter(c => !c.parent_id || c.parent_id === 0);
+    const childCats = savedCategories.filter(c => c.parent_id && c.parent_id !== 0);
+
+    const totalToCheck = childCats.length + topLevelCats.length;
+    let checkedCount = 0;
+
+    const contentStatus = new Map();
+
+    // 先检查所有子分类是否有内容
+    for (const cat of childCats) {
+        checkedCount++;
+        if (onProgress) onProgress(`正在检查子分类内容: ${cat.name}`, checkedCount, totalToCheck);
+        try {
+            const result = await parser.getVideos({ categoryId: cat.type_id, page: 1, limit: 1 });
+            const hasContent = result && result.list && result.list.length > 0 ? 1 : 0;
+            contentStatus.set(cat.type_id, hasContent);
+            db.run('UPDATE categories SET has_content = ? WHERE id = ?', [hasContent, cat.id]);
+        } catch (err) {
+            contentStatus.set(cat.type_id, 1);
+            console.warn(`[sources] Failed to check child category ${cat.name}: ${err.message}`);
+        }
+    }
+
+    // 检查顶级分类是否有内容
+    for (const cat of topLevelCats) {
+        checkedCount++;
+        if (onProgress) onProgress(`正在检查父分类内容: ${cat.name}`, checkedCount, totalToCheck);
+        try {
+            const result = await parser.getVideos({ categoryId: cat.type_id, page: 1, limit: 1 });
+            let hasContent = result && result.list && result.list.length > 0 ? 1 : 0;
+
+            if (!hasContent) {
+                const children = childCats.filter(c =>
+                    String(c.parent_id) === cat.type_id ||
+                    c.parent_id === parseInt(cat.type_id)
+                );
+                for (const child of children) {
+                    if (contentStatus.get(child.type_id) === 1) {
+                        hasContent = 1;
+                        break;
+                    }
+                }
+            }
+
+            contentStatus.set(cat.type_id, hasContent);
+            db.run('UPDATE categories SET has_content = ? WHERE id = ?', [hasContent, cat.id]);
+        } catch (err) {
+            console.warn(`[sources] Failed to check category ${cat.name}: ${err.message}`);
+        }
+    }
+
+    const finalCategories = db.all('SELECT * FROM categories WHERE source_id = ? ORDER BY sort_order', [source.id]);
+    if (onProgress) onProgress('分类同步完成', totalToCheck, totalToCheck);
+    return finalCategories;
 }
 
 /**
@@ -293,6 +347,32 @@ router.post('/import', (req, res) => {
 
         const allSources = db.all('SELECT * FROM video_sources ORDER BY sort_order ASC');
         res.json({ success: true, data: allSources, imported });
+
+        // 异步后台同步分类
+        if (imported > 0) {
+            (async () => {
+                console.log(`[sources] Starting background category sync for ${imported} imported sources...`);
+                // 获取所有刚导入的源（这里简单起见，重新获取所有启用的源进行检查，或者优化为只同步本次导入的）
+                // 由于 SQLite 批量插入无法直接返回所有ID，最简单的方式是同步所有"分类为空"或者"刚刚更新"的源
+                // 但为了准确性，我们可以在上面的循环中记录 url 或 name，然后查库
+
+                // 更好的策略：遍历 sources 输入数组，根据 URL 查库获得 ID
+                for (const src of sources) {
+                    try {
+                        const dbSource = db.get('SELECT * FROM video_sources WHERE url = ?', [src.url]);
+                        if (dbSource) {
+                            await syncCategoriesForSource(db, dbSource);
+                            // 稍微延迟一下，避免并发过高
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    } catch (e) {
+                        console.error(`[sources] Background sync failed for ${src.name}:`, e.message);
+                    }
+                }
+                console.log('[sources] Background category sync completed.');
+            })().catch(err => console.error('[sources] Background sync process error:', err));
+        }
+
     } catch (error) {
         console.error('[sources] Failed to import sources:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -392,42 +472,20 @@ router.delete('/:id', (req, res) => {
 });
 
 /**
- * 同步视频源分类
- * POST /api/sources/:id/sync
- */
-router.post('/:id/sync', async (req, res) => {
-    try {
-        const db = getDatabase();
-        const source = db.get('SELECT * FROM video_sources WHERE id = ?', [req.params.id]);
-
-        if (!source) {
-            return res.status(404).json({ success: false, error: 'Source not found' });
-        }
-
-        const savedCategories = await syncCategoriesForSource(db, source);
-        res.json({ success: true, data: savedCategories });
-    } catch (error) {
-        console.error('[sources] Failed to sync categories:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * 测速单个视频源
+ * 测试单个视频源延迟
  * POST /api/sources/:id/test
  */
 router.post('/:id/test', async (req, res) => {
     try {
         const db = getDatabase();
         const source = db.get('SELECT * FROM video_sources WHERE id = ?', [req.params.id]);
-
         if (!source) {
             return res.status(404).json({ success: false, error: 'Source not found' });
         }
 
         const startTime = Date.now();
         try {
-            // 获取代理设置
+            // 如果启用了代理，获取代理 Agent
             const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
 
             const response = await fetch(source.url + '?ac=list&pg=1', {
@@ -438,20 +496,17 @@ router.post('/:id/test', async (req, res) => {
             const responseTime = Date.now() - startTime;
 
             if (response.ok) {
-                // 更新响应时间
                 db.run(
                     'UPDATE video_sources SET response_time = ?, last_test_at = CURRENT_TIMESTAMP WHERE id = ?',
                     [responseTime, source.id]
                 );
-
-                const updated = db.get('SELECT * FROM video_sources WHERE id = ?', [source.id]);
-                res.json({ success: true, data: updated, responseTime });
+                res.json({ success: true, responseTime });
             } else {
-                res.json({ success: false, error: `HTTP ${response.status}`, responseTime });
+                res.status(500).json({ success: false, error: `HTTP ${response.status}`, responseTime });
             }
         } catch (fetchError) {
             const responseTime = Date.now() - startTime;
-            res.json({ success: false, error: fetchError.message, responseTime });
+            res.status(500).json({ success: false, error: fetchError.message, responseTime });
         }
     } catch (error) {
         console.error('[sources] Failed to test source:', error);
@@ -459,4 +514,93 @@ router.post('/:id/test', async (req, res) => {
     }
 });
 
+/**
+ * 同步视频源分类
+ * POST /api/sources/:id/sync
+ * 支持 stream=true 参数进行 SSE 流式推送进度
+ */
+router.post('/:id/sync', async (req, res) => {
+    const { stream } = req.query;
+
+    try {
+        const db = getDatabase();
+        const source = db.get('SELECT * FROM video_sources WHERE id = ?', [req.params.id]);
+
+        if (!source) {
+            return res.status(404).json({ success: false, error: 'Source not found' });
+        }
+
+        if (stream === 'true' || stream === '1') {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+            await syncCategoriesForSource(db, source, (message, current, total) => {
+                res.write(`data: ${JSON.stringify({ type: 'progress', message, current, total })}\n\n`);
+                if (typeof res.flush === 'function') res.flush();
+            });
+
+            res.write('data: [DONE]\n\n');
+            res.end();
+            return;
+        }
+
+        const savedCategories = await syncCategoriesForSource(db, source);
+        res.json({ success: true, data: savedCategories });
+    } catch (error) {
+        console.error('[sources] Failed to sync categories:', error);
+        if (stream === 'true' || stream === '1') {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`);
+            res.end();
+        } else {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+});
+
+/**
+ * 后台异步同步资源站分类（添加到队列）
+ * POST /api/sources/:id/background-sync
+ */
+router.post('/:id/background-sync', (req, res) => {
+    try {
+        const sourceId = parseInt(req.params.id);
+
+        if (isNaN(sourceId)) {
+            return res.status(400).json({ success: false, error: 'Invalid source ID' });
+        }
+
+        // 延迟导入避免循环依赖
+        const { syncQueueService } = require('../services/SyncQueueService');
+        const result = syncQueueService.addToQueue(sourceId);
+
+        res.status(202).json({
+            success: true,
+            message: 'Sync request accepted',
+            ...result
+        });
+    } catch (error) {
+        console.error('[sources] Failed to queue background sync:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取同步队列状态
+ * GET /api/sources/sync-queue/status
+ */
+router.get('/sync-queue/status', (req, res) => {
+    try {
+        const { syncQueueService } = require('../services/SyncQueueService');
+        const status = syncQueueService.getStatus();
+        res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 导出 router 和 syncCategoriesForSource 函数供其他模块使用
 module.exports = router;
+module.exports.syncCategoriesForSource = syncCategoriesForSource;

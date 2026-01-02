@@ -2,6 +2,7 @@
  * kbrag 知识库应用 - 主入口组件
  */
 import { useState, useEffect } from 'react';
+import { Layout } from './components/Layout';
 import { KnowledgeList } from './components/KnowledgeList';
 import { KnowledgeDetail } from './components/KnowledgeDetail';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -89,54 +90,27 @@ function App() {
         }
     };
 
-    // 侧边栏配置 - 包含分类二级菜单
+    // 发送空侧边栏配置和隐藏导航请求到主应用
     useEffect(() => {
         const isInIframe = window.parent !== window;
         if (!isInIframe) return;
 
-        const categoryItems = categories.map(cat => ({
-            id: `category:${cat.name}`,
-            label: cat.name,
-            icon: 'fas fa-folder',
-            color: cat.color,
-            badge: categoryStats[cat.name] || 0,
-        }));
-
-        const sidebarConfig = {
-            title: '知识库',
-            subtitle: '本地知识存储与检索',
-            items: [
-                { id: 'dashboard', label: '概览', icon: 'fas fa-home' },
-                {
-                    id: 'list',
-                    label: '知识列表',
-                    icon: 'fas fa-book',
-                    children: categoryItems.length > 0 ? [
-                        { id: 'list', label: '全部', icon: 'fas fa-list' },
-                        ...categoryItems
-                    ] : undefined
-                },
-                { id: 'search', label: '知识检索', icon: 'fas fa-search' },
-                { id: 'config', label: '配置', icon: 'fas fa-cog' },
-            ],
-            activeId: selectedCategory ? `category:${selectedCategory}` : activeView,
-        };
-
+        // 发送空侧边栏配置（使用插件内部侧边栏）
         window.parent.postMessage({
             type: 'PLUGIN_SET_SIDEBAR',
-            payload: sidebarConfig,
-        }, '*');
-    }, [activeView, categories, categoryStats, selectedCategory]);
-
-    // 监听侧边栏点击
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data.type === 'SIDEBAR_ITEM_CLICKED') {
-                handleViewChange(event.data.payload.itemId);
+            payload: {
+                title: '知识库',
+                subtitle: '本地知识存储与检索',
+                items: [], // 空项目，使用插件内部侧边栏
+                activeId: ''
             }
-        };
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
+        }, '*');
+
+        // 请求主应用在移动端隐藏顶部导航栏
+        window.parent.postMessage({
+            type: 'PLUGIN_REQUEST_HIDE_HEADER',
+            payload: { hideMobile: true }
+        }, '*');
     }, []);
 
     // 查看详情
@@ -166,9 +140,15 @@ function App() {
     }
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
+        <Layout
+            activeView={activeView}
+            selectedCategory={selectedCategory}
+            categories={categories}
+            categoryStats={categoryStats}
+            onViewChange={handleViewChange}
+        >
             {/* 内容区域 */}
-            <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
+            <div className="p-4 lg:p-6">
                 {activeView === 'dashboard' && (
                     <Dashboard
                         stats={stats}
@@ -208,7 +188,7 @@ function App() {
                     }}
                 />
             )}
-        </div>
+        </Layout>
     );
 }
 

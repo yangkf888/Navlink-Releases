@@ -1,6 +1,8 @@
 
 import { useState } from 'react';
 import { VideoSource, Category } from '../types';
+import { apiPost } from '../utils/api';
+import { AppModule } from '../App';
 
 interface NavParams {
     sourceId?: number;
@@ -22,6 +24,8 @@ interface SidebarProps {
     onToggleCollapse?: () => void;
     isMobile?: boolean; // 是否为移动端模式
     onCloseMobile?: () => void;
+    activeModule?: AppModule; // 当前激活的模块
+    onModuleChange?: (module: AppModule) => void; // 模块切换回调
 }
 
 export function Sidebar({
@@ -35,7 +39,9 @@ export function Sidebar({
     collapsed = false,
     onToggleCollapse,
     isMobile = false,
-    onCloseMobile
+    onCloseMobile,
+    activeModule,
+    onModuleChange
 }: SidebarProps) {
     const [isSourcesOpen, setIsSourcesOpen] = useState(false);
 
@@ -98,20 +104,52 @@ export function Sidebar({
             {renderHeader()}
 
             <div className={`flex-1 w-full min-w-full sidebar-scrollbar scrollbar-overlay space-y-0.5 ${collapsed ? 'py-4' : 'py-2'}`}>
-                {/* 首页 */}
-                <SidebarItem
-                    icon="fas fa-home"
-                    label="首页"
-                    isActive={isActive('home')}
-                    onClick={() => handleNavigate('home')}
-                    collapsed={collapsed}
-                />
+                {/* 移动端导航菜单 */}
+                {isMobile && onModuleChange && (
+                    <div className="px-2 pb-3 mb-2 border-b border-gray-800">
+                        <div className="text-xs text-gray-500 px-2 mb-2">导航</div>
+                        {[
+                            { key: 'home', label: '首页', icon: 'fa-home' },
+                            { key: 'sources', label: '资源站', icon: 'fa-database' },
+                            { key: 'tv', label: '电视', icon: 'fa-tv' },
+                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
+                            { key: 'netdisk', label: '网盘', icon: 'fa-cloud' },
+                        ].map(item => (
+                            <button
+                                key={item.key}
+                                onClick={() => {
+                                    onModuleChange(item.key as AppModule);
+                                    if (onCloseMobile) onCloseMobile();
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                                    ${activeModule === item.key
+                                        ? 'bg-red-500 text-white'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <i className={`fas ${item.icon} w-5 text-center`}></i>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* 首页 (桌面端) */}
+                {!isMobile && (
+                    <SidebarItem
+                        icon="fas fa-home"
+                        label="首页"
+                        isActive={isActive('home')}
+                        onClick={() => handleNavigate('home')}
+                        collapsed={collapsed}
+                    />
+                )}
 
                 {/* 视频源 (折叠组) */}
                 <div className="w-full mt-2">
                     {!collapsed ? (
                         <div
-                            className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-400 cursor-pointer hover:text-white hover:bg-gray-800 transition-colors"
+                            className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-400 cursor-pointer hover:text-white hover:bg-white/5 transition-colors"
                             onClick={() => setIsSourcesOpen(!isSourcesOpen)}
                         >
                             <i className={`fas fa-chevron-right text-xs w-4 transition-transform ${isSourcesOpen ? 'rotate-90' : ''}`}></i>
@@ -134,6 +172,8 @@ export function Sidebar({
                                     isActive={source.id === selectedSourceId && activeView !== 'category'}
                                     onClick={() => {
                                         onSourceChange(source.id);
+                                        // 触发后台异步同步分类（不阻塞UI）
+                                        apiPost(`/sources/${source.id}/background-sync`).catch(() => { });
                                         if (onCloseMobile) onCloseMobile();
                                     }}
                                     activeColor="text-blue-400"
@@ -153,7 +193,7 @@ export function Sidebar({
                     <button
                         onClick={onToggleCollapse}
                         className={`
-                            flex items-center w-full px-3 py-2 text-sm text-gray-500 hover:text-white hover:bg-gray-800 rounded-md transition-colors
+                            flex items-center w-full px-3 py-2 text-sm text-gray-500 hover:text-white hover:bg-white/5 rounded-md transition-colors
                             ${collapsed ? 'justify-center' : 'justify-start'}
                         `}
                         title={collapsed ? "展开" : "收起"}
@@ -178,7 +218,7 @@ function SidebarItem({ icon, label, isActive, onClick, activeColor = 'bg-gray-80
             ${collapsed ? 'justify-center py-3 px-0' : 'px-4 py-3'}
             ${isActive
                     ? `${activeColor} font-medium border-l-[3px] border-blue-500`
-                    : 'hover:bg-gray-900 border-l-[3px] border-transparent text-gray-400 hover:text-gray-200'
+                    : 'hover:bg-white/5 border-l-[3px] border-transparent text-gray-400 hover:text-gray-200'
                 }
         `}
             onClick={onClick}

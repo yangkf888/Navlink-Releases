@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Video, Category as CategoryType, Pagination } from '../types';
 import { apiGet } from '../utils/api';
 import { CategoryNav } from '../components/CategoryNav';
@@ -40,6 +40,9 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
     const [loadingMore, setLoadingMore] = useState(false);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [page, setPage] = useState(1);
+
+    // 无限滚动引用
+    const loaderRef = useRef<HTMLDivElement>(null);
 
     // 判断是否有子分类（显示概览视图）
     const hasSubCategories = subCategories && subCategories.length > 0;
@@ -191,12 +194,38 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
     };
 
     const loadMore = () => {
-        if (sourceId && pagination && page < pagination.pagecount) {
+        if (!loadingMore && sourceId && pagination && page < pagination.pagecount) {
             const nextPage = page + 1;
             setPage(nextPage);
             loadVideos(sourceId, categoryId || null, nextPage, false);
         }
     };
+
+    // 监听滚动到底部自动加载（仅在列表模式下）
+    useEffect(() => {
+        if (hasSubCategories || loading || !pagination || page >= pagination.pagecount) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && !loadingMore) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => {
+            if (loaderRef.current) {
+                observer.unobserve(loaderRef.current);
+            }
+        };
+    }, [hasSubCategories, loading, loadingMore, pagination, page]);
 
     const handleVideoClick = (video: Video) => {
         onNavigate('play', {
@@ -346,26 +375,18 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                                 ))}
                             </div>
 
-                            {/* 加载更多 */}
-                            {pagination && page < pagination.pagecount && (
-                                <div className="text-center pt-4">
-                                    <button
-                                        onClick={loadMore}
-                                        disabled={loadingMore}
-                                        className="px-8 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
-                                                 disabled:opacity-50 transition-colors"
-                                    >
-                                        {loadingMore ? (
-                                            <span className="flex items-center gap-2">
-                                                <i className="fas fa-spinner fa-spin"></i>
-                                                加载中...
-                                            </span>
-                                        ) : (
-                                            `加载更多(${page} / ${pagination.pagecount})`
-                                        )}
-                                    </button>
-                                </div>
-                            )}
+                            {/* 探针：用于触发无限滚动加载 */}
+                            <div ref={loaderRef} className="h-10 flex items-center justify-center mt-4">
+                                {pagination && page < pagination.pagecount && (
+                                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <span>正在加载更多内容... ({page} / {pagination.pagecount})</span>
+                                    </div>
+                                )}
+                                {pagination && page >= pagination.pagecount && videos.length > 0 && (
+                                    <span className="text-gray-500 text-sm italic">已经到底啦 ~</span>
+                                )}
+                            </div>
                         </>
                     ) : (
                         <div className="text-center py-12 text-gray-500">

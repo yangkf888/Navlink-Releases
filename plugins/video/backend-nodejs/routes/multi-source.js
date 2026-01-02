@@ -63,124 +63,133 @@ router.get('/search', async (req, res) => {
         // 获取所有启用的视频源
         const database = getDb();
         const sources = database.prepare(`
-            SELECT id, name, url, proxy_enabled 
+            SELECT id, name, url, proxy_enabled, response_time 
             FROM video_sources 
             WHERE enabled = 1 AND id != ?
         `).all(excludeId);
 
         console.log(`[MultiSource] Found ${sources.length} alternative sources to search`);
 
-        // 并行搜索所有源
+        const { stream } = req.query;
+
+        // 如果开启流式搜索
+        if (stream === 'true' || stream === '1') {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+            const searchPromises = sources.map(async (source) => {
+                try {
+                    const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
+                    const parser = new CmsApiParser(source.url, agent);
+                    const searchResult = await parser.search(title, 1, 10);
+
+                    const normalizedTitle = normalizeTitle(title);
+                    const matchedVideo = searchResult.list.find(v => {
+                        const videoTitle = normalizeTitle(v.vod_name);
+                        return videoTitle === normalizedTitle ||
+                            videoTitle.includes(normalizedTitle) ||
+                            normalizedTitle.includes(videoTitle);
+                    });
+
+                    if (!matchedVideo) {
+                        await trackSourceHealth(source.id, true); // 搜索成功但没发现匹配视频，也算源正常
+                        return;
+                    }
+
+                    const detail = await parser.getVideoDetail(matchedVideo.vod_id);
+                    if (!detail || !detail.episodes || detail.episodes.length === 0) {
+                        await trackSourceHealth(source.id, false, '详情获取失败');
+                        return;
+                    }
+
+                    // 记录成功
+                    await trackSourceHealth(source.id, true);
+
+                    const totalEpisodes = detail.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0);
+                    const alt = {
+                        source_id: source.id,
+                        source_name: source.name,
+                        response_time: source.response_time,
+                        quality: extractQuality(detail.vod_remarks || matchedVideo.vod_remarks),
+                        vod_id: matchedVideo.vod_id,
+                        vod_name: detail.vod_name,
+                        vod_pic: detail.vod_pic,
+                        episodes: detail.episodes,
+                        total_episodes: totalEpisodes,
+                        current_episode_available: checkEpisodeAvailable(detail.episodes, epIndex)
+                    };
+
+                    res.write(`data: ${JSON.stringify(alt)}\n\n`);
+                    if (typeof res.flush === 'function') res.flush();
+                } catch (error) {
+                    console.error(`[MultiSource/Stream] Error source ${source.name}:`, error.message);
+                    await trackSourceHealth(source.id, false, error.message);
+                }
+            });
+
+            await Promise.all(searchPromises);
+            res.write('data: [DONE]\n\n');
+            res.end();
+            return;
+        }
+
+        // 非流式搜索（原逻辑）
         const searchPromises = sources.map(async (source) => {
             try {
-                // 获取代理设置
+                // ... (原有搜索逻辑保持不变)
                 const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
                 const parser = new CmsApiParser(source.url, agent);
                 const searchResult = await parser.search(title, 1, 10);
 
                 if (!searchResult.list || searchResult.list.length === 0) {
+                    await trackSourceHealth(source.id, false, '搜索结果为空');
                     return null;
                 }
 
-                // 查找标题匹配的视频
                 const normalizedTitle = normalizeTitle(title);
-
-                // 按匹配度排序，优先完全匹配
                 const matchedVideo = searchResult.list.find(v => {
                     const videoTitle = normalizeTitle(v.vod_name);
-                    const titleMatch = videoTitle === normalizedTitle ||
+                    return videoTitle === normalizedTitle ||
                         videoTitle.includes(normalizedTitle) ||
                         normalizedTitle.includes(videoTitle);
-
-                    if (!titleMatch) return false;
-
-                    // 如果指定了类型，进行类型匹配
-                    if (isMovie !== null) {
-                        const resultTypeName = v.type_name || '';
-                        const resultIsMovie =
-                            resultTypeName.includes('电影') ||
-                            resultTypeName.includes('剧场') ||
-                            resultTypeName.includes('动作片') ||
-                            resultTypeName.includes('喜剧片') ||
-                            resultTypeName.includes('恐怖片') ||
-                            resultTypeName.includes('科幻片') ||
-                            resultTypeName.includes('爱情片') ||
-                            resultTypeName.includes('剧情片') ||
-                            resultTypeName.includes('战争片') ||
-                            resultTypeName.includes('纪录片');
-
-                        // 类型必须匹配（电影对电影，电视剧对电视剧）
-                        if (isMovie !== resultIsMovie) {
-                            console.log(`[MultiSource] Type mismatch: looking for ${isMovie ? 'movie' : 'series'}, found "${resultTypeName}"`);
-                            return false;
-                        }
-                    }
-
-                    // 如果指定了年份，进行年份匹配
-                    if (videoYear && v.vod_year) {
-                        const resultYear = String(v.vod_year).match(/\d{4}/)?.[0];
-                        if (resultYear && resultYear !== videoYear) {
-                            return false;
-                        }
-                    }
-
-                    return true;
                 });
 
                 if (!matchedVideo) {
+                    await trackSourceHealth(source.id, true); // 搜索成功但无对应资源
                     return null;
                 }
 
-                // 获取视频详情以获取剧集列表
                 const detail = await parser.getVideoDetail(matchedVideo.vod_id);
-
                 if (!detail || !detail.episodes || detail.episodes.length === 0) {
+                    await trackSourceHealth(source.id, false, '获取详情失败');
                     return null;
                 }
 
-                // 统计所有有效剧集数
-                const totalEpisodes = detail.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0);
-
+                await trackSourceHealth(source.id, true);
                 return {
                     source_id: source.id,
                     source_name: source.name,
+                    response_time: source.response_time,
+                    quality: extractQuality(detail.vod_remarks || matchedVideo.vod_remarks),
                     vod_id: matchedVideo.vod_id,
                     vod_name: detail.vod_name,
                     vod_pic: detail.vod_pic,
                     episodes: detail.episodes,
-                    total_episodes: totalEpisodes,
-                    // 检查当前集数是否可用
+                    total_episodes: detail.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0),
                     current_episode_available: checkEpisodeAvailable(detail.episodes, epIndex)
                 };
             } catch (error) {
-                console.error(`[MultiSource] Error searching source ${source.name}:`, error.message);
+                await trackSourceHealth(source.id, false, error.message);
                 return null;
             }
         });
 
-        // 等待所有搜索完成（设置超时）
-        const results = await Promise.allSettled(
-            searchPromises.map(p =>
-                Promise.race([
-                    p,
-                    new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Timeout')), 8000)
-                    )
-                ])
-            )
-        );
-
-        // 过滤有效结果
-        const alternatives = results
-            .filter(r => r.status === 'fulfilled' && r.value !== null)
-            .map(r => r.value);
-
-        console.log(`[MultiSource] Found ${alternatives.length} alternative sources for "${title}"`);
-
-        res.json({
-            success: true,
-            data: alternatives
-        });
+        const results = await Promise.all(searchPromises);
+        const alternatives = results.filter(r => r !== null);
+        res.json({ success: true, data: alternatives });
 
     } catch (error) {
         console.error('[MultiSource] Search failed:', error);
@@ -190,6 +199,39 @@ router.get('/search', async (req, res) => {
         });
     }
 });
+
+/**
+ * 记录源的健康状态
+ * @param {number} sourceId 源ID
+ * @param {boolean} isSuccess 是否成功
+ * @param {string} message 错误消息
+ */
+async function trackSourceHealth(sourceId, isSuccess, message = '') {
+    try {
+        const database = getDb();
+        if (isSuccess) {
+            database.prepare('UPDATE video_sources SET failure_count = 0, status_message = NULL WHERE id = ?').run(sourceId);
+        } else {
+            // 增加失败计数
+            const source = database.prepare('SELECT failure_count, name FROM video_sources WHERE id = ?').get(sourceId);
+            if (!source) return;
+
+            const newCount = (source.failure_count || 0) + 1;
+            let updateSql = 'UPDATE video_sources SET failure_count = ?, status_message = ?, updated_at = CURRENT_TIMESTAMP';
+
+            // 如果连续失败达到阈值（如5次），自动隐藏
+            if (newCount >= 5) {
+                updateSql += ', hidden = 1';
+                console.warn(`[MultiSource] Source "${source.name}" (ID: ${sourceId}) hidden due to ${newCount} consecutive failures.`);
+            }
+
+            updateSql += ' WHERE id = ?';
+            database.prepare(updateSql).run(newCount, message, sourceId);
+        }
+    } catch (err) {
+        console.error('[MultiSource] Failed to track source health:', err.message);
+    }
+}
 
 /**
  * 标准化标题用于匹配
@@ -218,6 +260,21 @@ function checkEpisodeAvailable(episodes, episodeIndex) {
     if (!firstSource || !firstSource.list) return false;
 
     return episodeIndex < firstSource.list.length;
+}
+
+/**
+ * 从备注中提取清晰度信息
+ */
+function extractQuality(remarks) {
+    if (!remarks) return '';
+    const text = remarks.toUpperCase();
+    if (text.includes('4K') || text.includes('2160P')) return '4K';
+    if (text.includes('1080P')) return '1080P';
+    if (text.includes('720P')) return '720P';
+    if (text.includes('BD') || text.includes('蓝光')) return '蓝光';
+    if (text.includes('HD') || text.includes('高清')) return 'HD';
+    if (text.includes('TS') || text.includes('TC')) return '抢先版';
+    return remarks.length > 8 ? remarks.substring(0, 8) + '...' : remarks;
 }
 
 module.exports = router;

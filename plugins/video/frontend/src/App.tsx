@@ -10,9 +10,13 @@ import { Search } from './pages/Search';
 import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
 import { History } from './pages/History';
+import { NavigationProvider } from './contexts/NavigationContext';
 
 // 视图类型
 type ViewType = 'home' | 'source' | 'category' | 'play' | 'search' | 'favorites' | 'history' | 'admin';
+
+// 模块类型（顶部导航）
+export type AppModule = 'home' | 'sources' | 'tv' | 'live' | 'netdisk';
 
 // 导航参数
 interface NavParams {
@@ -32,6 +36,12 @@ function VideoApp() {
     const [activeView, setActiveView] = useState<ViewType>('home');
     const [navParams, setNavParams] = useState<NavParams>({});
 
+    // 导航历史记录栈
+    const [navHistory, setNavHistory] = useState<Array<{ view: ViewType; params: NavParams }>>([]);
+
+    // 当前激活的模块（顶部导航）
+    const [activeModule, setActiveModule] = useState<AppModule>('home');
+
     // 视频源和分类
     const [sources, setSources] = useState<VideoSource[]>([]);
     const [categoriesMap, setCategoriesMap] = useState<Record<number, Category[]>>({});
@@ -42,10 +52,50 @@ function VideoApp() {
         return saved ? parseInt(saved) : null;
     });
 
-    // 导航函数
+    // 导航函数（带历史记录）
     const navigate = (view: string, params: Record<string, unknown> = {}) => {
+        // 将当前视图推入历史栈（不推入 play 页面避免重复）
+        if (activeView !== 'play') {
+            setNavHistory(prev => [...prev, { view: activeView, params: navParams }]);
+        }
         setActiveView(view as ViewType);
         setNavParams(params as NavParams);
+    };
+
+    // 返回上一级
+    const goBack = () => {
+        if (navHistory.length > 0) {
+            const prev = navHistory[navHistory.length - 1];
+            setNavHistory(h => h.slice(0, -1));
+            setActiveView(prev.view);
+            setNavParams(prev.params);
+        } else {
+            // 没有历史记录时回到首页
+            setActiveView('home');
+            setNavParams({});
+        }
+    };
+
+    // 模块切换函数
+    const handleModuleChange = (module: AppModule) => {
+        setActiveModule(module);
+        // 根据模块切换默认视图
+        if (module === 'home') {
+            setActiveView('home');
+            setNavParams({});
+        } else if (module === 'sources') {
+            // 资源站模块：显示第一个源的概览
+            const firstSource = sources.find(s => s.enabled);
+            if (firstSource) {
+                setSelectedSourceId(firstSource.id);
+                setActiveView('source');
+                setNavParams({ sourceId: firstSource.id });
+            }
+        } else {
+            // 预留模块：显示占位页面
+            setActiveView('home'); // 临时使用 home 视图
+            setNavParams({});
+        }
     };
 
     // 加载视频源和分类
@@ -92,6 +142,8 @@ function VideoApp() {
         // 切换源后显示该源的概览（多分类视图）
         setActiveView('source');
         setNavParams({ sourceId });
+        // 同步顶部导航菜单切换到"资源站"
+        setActiveModule('sources');
     };
 
     // 发送最小化侧边栏配置到主应用
@@ -109,6 +161,13 @@ function VideoApp() {
                 activeId: ''
             }
         }, '*');
+
+        // 请求主应用在移动端隐藏顶部导航栏
+        window.parent.postMessage({
+            type: 'PLUGIN_REQUEST_HIDE_HEADER',
+            payload: { hideMobile: true }
+        }, '*');
+
     }, [selectedSourceId, isLoaded, sources]);
 
     if (!isLoaded) {
@@ -122,78 +181,78 @@ function VideoApp() {
         );
     }
 
-    // 获取当前选中源的分类
-    const currentCategories = selectedSourceId ? categoriesMap[selectedSourceId] || [] : [];
+
 
     return (
-        <Layout
-            sidebarProps={{
-                sources,
-                categoriesMap,
-                selectedSourceId,
-                onSourceChange: handleSourceChange,
-                onNavigate: navigate,
-                activeView,
-                navParams
-            }}
-        >
-            {activeView === 'home' && (
-                <Home
-                    sources={sources}
-                    categoriesMap={{ [selectedSourceId || 0]: currentCategories }}
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'category' && (
-                <CategoryPage
-                    sourceId={navParams.sourceId}
-                    categoryId={navParams.categoryId}
-                    categoryName={navParams.categoryName}
-                    subCategories={navParams.subCategories}
-                    onNavigate={navigate}
-                    categories={categoriesMap[selectedSourceId || 0] || []}
-                />
-            )}
-            {activeView === 'source' && selectedSourceId && (
-                <SourceOverview
-                    sourceId={selectedSourceId}
-                    sourceName={sources.find(s => s.id === selectedSourceId)?.name}
-                    categories={categoriesMap[selectedSourceId] || []}
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'play' && navParams.sourceId && navParams.vodId && (
-                <Play
-                    sourceId={navParams.sourceId}
-                    vodId={navParams.vodId}
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'search' && (
-                <Search
-                    initialKeyword={navParams.keyword}
-                    sourceId={navParams.sourceId ?? null}
-                    sources={sources}
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'favorites' && (
-                <Favorites
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'history' && (
-                <History
-                    onNavigate={navigate}
-                />
-            )}
-            {activeView === 'admin' && (
-                <Admin
-                    onNavigate={navigate}
-                    onSourcesChange={loadSourcesAndCategories}
-                />
-            )}
-        </Layout>
+        <NavigationProvider navigate={navigate}>
+            <Layout
+                sidebarProps={{
+                    sources,
+                    categoriesMap,
+                    selectedSourceId,
+                    onSourceChange: handleSourceChange,
+                    onNavigate: navigate,
+                    activeView,
+                    navParams,
+                    activeModule,
+                    onModuleChange: handleModuleChange
+                }}
+            >
+                {activeView === 'home' && (
+                    <Home />
+                )}
+                {activeView === 'category' && (
+                    <CategoryPage
+                        sourceId={navParams.sourceId}
+                        categoryId={navParams.categoryId}
+                        categoryName={navParams.categoryName}
+                        subCategories={navParams.subCategories}
+                        onNavigate={navigate}
+                        categories={categoriesMap[selectedSourceId || 0] || []}
+                    />
+                )}
+                {activeView === 'source' && selectedSourceId && (
+                    <SourceOverview
+                        sourceId={selectedSourceId}
+                        sourceName={sources.find(s => s.id === selectedSourceId)?.name}
+                        categories={categoriesMap[selectedSourceId] || []}
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'play' && navParams.sourceId && navParams.vodId && (
+                    <Play
+                        sourceId={navParams.sourceId}
+                        vodId={navParams.vodId}
+                        onNavigate={navigate}
+                        onGoBack={goBack}
+                    />
+                )}
+                {activeView === 'search' && (
+                    <Search
+                        initialKeyword={navParams.keyword}
+                        sourceId={navParams.sourceId ?? null}
+                        sources={sources}
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'favorites' && (
+                    <Favorites
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'history' && (
+                    <History
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'admin' && (
+                    <Admin
+                        onNavigate={navigate}
+                        onSourcesChange={loadSourcesAndCategories}
+                    />
+                )}
+            </Layout>
+        </NavigationProvider>
     );
 }
 

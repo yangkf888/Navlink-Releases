@@ -89,20 +89,25 @@ router.get('/image', async (req, res) => {
  * 代理 m3u8 和 ts 文件，解决 CORS 问题
  */
 router.get('/hls', async (req, res) => {
-    try {
-        const { url } = req.query;
+    const { url } = req.query;
+    if (!url) {
+        return res.status(400).send('Missing url parameter');
+    }
 
-        if (!url) {
-            return res.status(400).send('Missing url parameter');
+    const useProxy = req.query.proxy === '1';
+    const { getInsecureAgent, getSystemProxyAgent } = require('../utils/fetch-agent');
+
+    // 尝试获取资源的主逻辑
+    const fetchWithRetry = async (targetUrl, forceInsecure = false) => {
+        const parsedUrl = new URL(targetUrl);
+        let agent = useProxy ? getSystemProxyAgent() : null;
+
+        // 如果强制使用不安全模式，或者之前的系统代理无效且是 https 请求
+        if (forceInsecure && targetUrl.startsWith('https')) {
+            agent = getInsecureAgent();
         }
 
-        const parsedUrl = new URL(url);
-
-        // 如果开启了代理参数，获取代理 Agent
-        const useProxy = req.query.proxy === '1';
-        const agent = useProxy ? getSystemProxyAgent() : null;
-
-        const response = await fetch(url, {
+        const fetchOptions = {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': parsedUrl.origin + '/',
@@ -110,11 +115,32 @@ router.get('/hls', async (req, res) => {
                 'Accept': '*/*',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
             },
-            agent
-        });
+            agent,
+            timeout: 10000 // 10秒超时
+        };
+
+        try {
+            return await fetch(targetUrl, fetchOptions);
+        } catch (error) {
+            // 如果是因为证书或连接重置错误，且还没有尝试过不安全模式
+            const isTlsError = error.message.includes('TLS') ||
+                error.code === 'ECONNRESET' ||
+                error.message.includes('certificate') ||
+                error.message.includes('secure');
+
+            if (!forceInsecure && isTlsError && targetUrl.startsWith('https')) {
+                console.warn(`[Proxy] Normal fetch failed (${error.code || error.message}), retrying in insecure mode: ${targetUrl}`);
+                return await fetchWithRetry(targetUrl, true);
+            }
+            throw error;
+        }
+    };
+
+    try {
+        const response = await fetchWithRetry(url);
 
         if (!response.ok) {
-            console.error(`[Proxy] HLS fetch failed: ${response.status} ${response.statusText}`);
+            console.error(`[Proxy] HLS fetch failed: ${response.status} ${response.statusText} for ${url}`);
             return res.status(response.status).send(`Failed to fetch: ${response.statusText}`);
         }
 
@@ -127,46 +153,48 @@ router.get('/hls', async (req, res) => {
         res.setHeader('Access-Control-Allow-Headers', '*');
         res.setHeader('Cache-Control', 'no-cache');
 
-        // 如果是 m3u8 文件，需要修改其中的相对路径
+        // 如果是 m3u8 文件，需要修改其中的路径
         if (url.includes('.m3u8') || contentType.includes('mpegurl')) {
             let m3u8Content = await response.text();
-
-            // 将相对路径转换为代理路径
             const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+            const parsedUrl = new URL(url);
 
-            // 替换相对路径的 ts 文件
-            m3u8Content = m3u8Content.replace(/^(?!#)(?!http)(.+\.ts.*)$/gm, (match) => {
-                const tsUrl = match.startsWith('/')
-                    ? parsedUrl.origin + match
-                    : baseUrl + match;
-                return `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(tsUrl)}${useProxy ? '&proxy=1' : ''}`;
+            const getFullUrl = (relative) => {
+                if (relative.startsWith('http')) return relative;
+                if (relative.startsWith('/')) return parsedUrl.origin + relative;
+                return baseUrl + relative;
+            };
+
+            const proxyUrlPrefix = `/api/plugins/video/api/proxy/hls?proxy=${useProxy ? '1' : '0'}&url=`;
+
+            // 1. 处理 #EXT-X-KEY, #EXT-X-MAP 等标签中的 URI="..."
+            m3u8Content = m3u8Content.replace(/URI="([^"]+)"/g, (match, p1) => {
+                const full = getFullUrl(p1);
+                return `URI="${proxyUrlPrefix}${encodeURIComponent(full)}"`;
             });
 
-            // 替换相对路径的 m3u8 文件（多级播放列表）
-            m3u8Content = m3u8Content.replace(/^(?!#)(?!http)(.+\.m3u8.*)$/gm, (match) => {
-                const subUrl = match.startsWith('/')
-                    ? parsedUrl.origin + match
-                    : baseUrl + match;
-                return `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(subUrl)}${useProxy ? '&proxy=1' : ''}`;
-            });
-
-            // 替换绝对路径
-            m3u8Content = m3u8Content.replace(/^(https?:\/\/.+)$/gm, (match) => {
-                if (match.endsWith('.ts') || match.includes('.ts?') || match.endsWith('.m3u8') || match.includes('.m3u8?')) {
-                    return `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(match)}${useProxy ? '&proxy=1' : ''}`;
+            // 2. 处理不以 # 开头的行（这通常是分片 ts 或子 m3u8 的路径）
+            const lines = m3u8Content.split('\n');
+            const processedLines = lines.map(line => {
+                const trimmed = line.trim();
+                // 如果行不为空且不以 # 开头
+                if (trimmed && !trimmed.startsWith('#')) {
+                    const full = getFullUrl(trimmed);
+                    // 只有是 ts 或 m3u8 才代理（也可以全部代理以防万一）
+                    return `${proxyUrlPrefix}${encodeURIComponent(full)}`;
                 }
-                return match;
+                return line;
             });
 
-            res.send(m3u8Content);
+            res.send(processedLines.join('\n'));
         } else {
             // ts 文件直接转发
             const buffer = await response.arrayBuffer();
             res.send(Buffer.from(buffer));
         }
     } catch (error) {
-        console.error('[Proxy] HLS fetch failed:', error);
-        res.status(500).send('Failed to proxy HLS');
+        console.error('[Proxy] HLS critical failure:', error.message, 'URL:', url);
+        res.status(500).send(`HLS Proxy Error: ${error.message}`);
     }
 });
 

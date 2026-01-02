@@ -438,7 +438,7 @@ router.post('/license/recover', async (req, res) => {
  *                 description: 是否启用定时检测
  *               time:
  *                 type: string
- *                 description: 检测时间 (格式: HH:mm)
+ *                 description: "检测时间 (格式: HH:mm)"
  *     responses:
  *       200:
  *         description: 保存成功

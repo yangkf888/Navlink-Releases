@@ -65,6 +65,8 @@ const PluginLayout: React.FC = () => {
     const [pluginSidebarConfig, setPluginSidebarConfig] = useState<PluginSidebarConfig | null>(null);
     const [collapsed, setCollapsed] = useState(false);
     const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+    // 插件请求隐藏移动端顶部导航
+    const [hideMobileHeader, setHideMobileHeader] = useState(false);
 
     // 设置CSS变量 --theme-primary
     useEffect(() => {
@@ -134,6 +136,10 @@ const PluginLayout: React.FC = () => {
 
                     setOpenGroups(initialOpen);
                 }
+            }
+            // 插件请求隐藏移动端顶部导航
+            if (event.data.type === 'PLUGIN_REQUEST_HIDE_HEADER') {
+                setHideMobileHeader(event.data.payload?.hideMobile ?? false);
             }
         };
 
@@ -264,9 +270,8 @@ const PluginLayout: React.FC = () => {
 
         return (
             <>
-                {/* 桌面端Sidebar - 始终渲染容器，避免布局闪烁 */}
-                {/* 只有当 items 存在且不为空时才显示侧边栏容器 */}
-                {pluginSidebarConfig && (!pluginSidebarConfig.items || pluginSidebarConfig.items.length === 0) ? null : (
+                {/* 桌面端Sidebar - 只有当 items 存在且不为空时才显示 */}
+                {pluginSidebarConfig && pluginSidebarConfig.items && pluginSidebarConfig.items.length > 0 && (
                     <aside className={`
                     hidden lg:flex flex-col flex-shrink-0
                     bg-white border-r border-gray-200 z-20 pt-2
@@ -387,18 +392,20 @@ const PluginLayout: React.FC = () => {
                 />
             )}
 
-            <TopNavbar
-                config={config}
-                toggleSidebar={() => setMobileOpen(!mobileOpen)}
-                mobileOpen={mobileOpen}
-                onUserClick={handleUserIconClick}
-                onLogout={logout}
-                isAuthenticated={isAuthenticated}
-                onSearchClick={() => setShowSearchModal(true)}
-                forceDarkText={useDarkText}
-            />
+            <div className={hideMobileHeader ? 'hidden lg:block' : ''}>
+                <TopNavbar
+                    config={config}
+                    toggleSidebar={() => setMobileOpen(!mobileOpen)}
+                    mobileOpen={mobileOpen}
+                    onUserClick={handleUserIconClick}
+                    onLogout={logout}
+                    isAuthenticated={isAuthenticated}
+                    onSearchClick={() => setShowSearchModal(true)}
+                    forceDarkText={useDarkText}
+                />
+            </div>
 
-            <div className="pt-14 w-full h-[calc(100vh)] box-border flex relative">
+            <div className={`w-full h-[calc(100vh)] box-border flex relative ${hideMobileHeader ? 'pt-0 lg:pt-14' : 'pt-14'}`}>
                 {/* 只渲染插件Sidebar */}
                 {renderPluginSidebar()}
 

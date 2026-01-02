@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/search', async (req, res) => {
     try {
-        const { keyword, source_id, page = 1, limit = 20 } = req.query;
+        const { keyword, source_id, page = 1, limit = 20, stream } = req.query;
 
         if (!keyword) {
             return res.status(400).json({ success: false, error: 'keyword is required' });
@@ -80,25 +80,91 @@ router.get('/search', async (req, res) => {
             return res.json({ success: true, data: [], message: 'No enabled sources' });
         }
 
+        // 如果开启流式搜索
+        if (stream === 'true' || stream === '1') {
+            console.log(`[videos/search] Starting stream search for: "${keyword}"`);
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no'); // 禁用 Nginx 等代理缓存
+
+            // 如果使用了 compression 中间件，立即刷新响应头
+            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+            const { CmsApiParser } = require('../services/CmsApiParser');
+            const concurrencyLimit = 10;
+            const sourceChunks = [];
+            for (let i = 0; i < sources.length; i += concurrencyLimit) {
+                sourceChunks.push(sources.slice(i, i + concurrencyLimit));
+            }
+
+            for (const chunk of sourceChunks) {
+                const chunkPromises = chunk.map(async (source) => {
+                    try {
+                        const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
+                        const parser = new CmsApiParser(source.url, agent);
+                        const result = await parser.search(keyword, parseInt(page), parseInt(limit));
+
+                        const list = (result.list || []).map(item => ({
+                            ...item,
+                            source_id: source.id,
+                            source_name: source.name
+                        }));
+
+                        // 搜到一家，立即发送一家
+                        if (list.length > 0) {
+                            res.write(`data: ${JSON.stringify({ type: 'results', source: source.name, data: list })}\n\n`);
+                            // 强制刷新缓冲区，确保实时推送到前端
+                            if (typeof res.flush === 'function') res.flush();
+                        }
+                        return list;
+                    } catch (err) {
+                        console.warn(`[videos] Search failed for source ${source.name}:`, err.message);
+                        res.write(`data: ${JSON.stringify({ type: 'error', source: source.name, error: err.message })}\n\n`);
+                        if (typeof res.flush === 'function') res.flush();
+                        return [];
+                    }
+                });
+
+                await Promise.all(chunkPromises);
+            }
+
+            console.log(`[videos/search] Stream search finished for: "${keyword}"`);
+            res.write('data: [DONE]\n\n');
+            if (typeof res.flush === 'function') res.flush();
+            res.end();
+            return;
+        }
+
+        // 非流式搜索（原逻辑，保持兼容）
         const { CmsApiParser } = require('../services/CmsApiParser');
         const results = [];
+        const concurrencyLimit = 10;
+        const sourceChunks = [];
+        for (let i = 0; i < sources.length; i += concurrencyLimit) {
+            sourceChunks.push(sources.slice(i, i + concurrencyLimit));
+        }
 
-        // 从所有启用的源搜索
-        for (const source of sources) {
-            try {
-                // 获取代理设置
-                const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
-                const parser = new CmsApiParser(source.url, agent);
-                const result = await parser.search(keyword, parseInt(page), parseInt(limit));
+        for (const chunk of sourceChunks) {
+            const chunkPromises = chunk.map(async (source) => {
+                try {
+                    const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
+                    const parser = new CmsApiParser(source.url, agent);
+                    const result = await parser.search(keyword, parseInt(page), parseInt(limit));
 
-                // 给每个结果添加源信息
-                for (const item of result.list || []) {
-                    item.source_id = source.id;
-                    item.source_name = source.name;
-                    results.push(item);
+                    return (result.list || []).map(item => ({
+                        ...item,
+                        source_id: source.id,
+                        source_name: source.name
+                    }));
+                } catch (err) {
+                    return [];
                 }
-            } catch (err) {
-                console.warn(`[videos] Search failed for source ${source.name}:`, err.message);
+            });
+
+            const chunkResults = await Promise.all(chunkPromises);
+            for (const list of chunkResults) {
+                results.push(...list);
             }
         }
 
@@ -147,25 +213,32 @@ router.get('/banner', async (req, res) => {
         const { CmsApiParser } = require('../services/CmsApiParser');
         const bannerVideos = [];
 
-        // 从每个源获取热门视频
+        // 优化：并行获取所有源的热门视频
         const videosPerSource = Math.ceil(bannerCount / sources.length);
-
-        for (const source of sources) {
+        const sourcePromises = sources.map(async (source) => {
             try {
-                // 获取代理设置
                 const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
                 const parser = new CmsApiParser(source.url, agent);
                 const result = await parser.getVideos({ page: 1, limit: videosPerSource });
 
-                for (const video of (result.list || []).slice(0, videosPerSource)) {
-                    if (bannerVideos.length >= bannerCount) break;
-                    video.source_id = source.id;
-                    video.source_name = source.name;
-                    bannerVideos.push(video);
-                }
+                return (result.list || []).map(video => ({
+                    ...video,
+                    source_id: source.id,
+                    source_name: source.name
+                }));
             } catch (err) {
                 console.warn(`[videos] Banner fetch failed for source ${source.name}:`, err.message);
+                return [];
             }
+        });
+
+        const resultsList = await Promise.all(sourcePromises);
+        for (const list of resultsList) {
+            for (const video of list) {
+                if (bannerVideos.length >= bannerCount) break;
+                bannerVideos.push(video);
+            }
+            if (bannerVideos.length >= bannerCount) break;
         }
 
         res.json({ success: true, data: bannerVideos });

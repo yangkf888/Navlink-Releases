@@ -78,67 +78,65 @@ export const SearchTest: React.FC<SearchTestProps> = ({ onViewItem }) => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">知识检索</h1>
-                <p className="text-gray-500 mt-1">检索知识库内容</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">知识检索</h1>
+                <p className="text-gray-500 text-sm mt-0.5">检索知识库内容</p>
             </div>
 
             {/* 搜索表单 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-                <div className="flex gap-4">
-                    <div className="flex-1">
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg"
-                            placeholder="输入搜索内容或问题..."
-                        />
-                    </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 space-y-3 sm:space-y-4">
+                <div>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        className="w-full px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-lg"
+                        placeholder="输入搜索内容或问题..."
+                    />
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-gray-600">搜索方式:</label>
+                        <label className="text-xs sm:text-sm text-gray-600">搜索方式:</label>
                         <select
                             value={method}
                             onChange={(e) => setMethod(e.target.value as 'keyword' | 'semantic')}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                            className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
                         >
                             <option value="semantic">语义搜索</option>
                             <option value="keyword">关键词搜索</option>
                         </select>
                     </div>
-                    <button
-                        onClick={handleSearch}
-                        disabled={loading}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        {loading ? (
-                            <><i className="fas fa-spinner fa-spin mr-2"></i>搜索中...</>
-                        ) : (
-                            <><i className="fas fa-search mr-2"></i>搜索</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleRAGTest}
-                        disabled={loading}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                    >
-                        <i className="fas fa-robot mr-2"></i>RAG 测试
-                    </button>
+                    <div className="flex gap-2 ml-auto">
+                        <button
+                            onClick={handleSearch}
+                            disabled={loading}
+                            className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex items-center gap-2"
+                        >
+                            <i className={`fas ${loading ? 'fa-spinner fa-spin' : 'fa-search'}`}></i>
+                            <span className="hidden sm:inline">{loading ? '搜索中...' : '搜索'}</span>
+                        </button>
+                        <button
+                            onClick={handleRAGTest}
+                            disabled={loading}
+                            className="px-4 sm:px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm flex items-center gap-2"
+                        >
+                            <i className="fas fa-robot"></i>
+                            <span className="hidden sm:inline">RAG 测试</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* 搜索结果 */}
             {results.length > 0 && (
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-gray-900">
+                <div className="space-y-3 sm:space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                             搜索结果 ({results.length})
                         </h2>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs sm:text-sm text-gray-500">
                             使用方法: {searchMethod === 'semantic' ? '语义搜索' : searchMethod === 'keyword_fallback' ? '关键词降级' : '关键词搜索'}
                         </span>
                     </div>

@@ -1,170 +1,212 @@
-/**
- * 首页 - 优化版
- * 包含：搜索框、Banner 轮播、正在热映、分类板块（带二级分类 tabs）
- */
 
+/**
+ * 首页 - 聚合版 (Cache-First)
+ * 读取 /api/home 缓存数据，实现秒开及多源聚合
+ */
 import { useState, useEffect } from 'react';
-import { Video, VideoSource, Category } from '../types';
+import { Video } from '../types';
 import { apiGet } from '../utils/api';
 import { VideoCard } from '../components/VideoCard';
+import { useAppNavigate } from '../contexts/NavigationContext';
 
-interface HomeProps {
-    sources: VideoSource[];
-    categoriesMap: Record<number, Category[]>;
-    onNavigate: (view: string, params?: Record<string, unknown>) => void;
+// 首页数据结构 (对应后端 /api/home 返回)
+interface HomeData {
+    hot: Video[];
+    movie: Record<string, Video[]>;   // latest, action, comedy...
+    tv: Record<string, Video[]>;      // latest, hk, kr...
+    anime: Record<string, Video[]>;   // latest, cn, jp...
+    variety: Record<string, Video[]>; // latest, cn, western...
 }
 
-// 分类板块数据
-interface CategorySection {
-    id: string;
-    name: string;
+interface SectionConfig {
+    id: Exclude<keyof HomeData, 'hot'>; // Exclude 'hot' as it's handled separately
+    title: string;
     icon: string;
     color: string;
-    typeId: string;
-    subCategories: Category[];
-    videos: Video[];
-    selectedSubCategory: string | null; // null 表示全部
+    tabs: { key: string; label: string }[];
 }
 
-export function Home({ sources, categoriesMap, onNavigate }: HomeProps) {
-    const [hotVideos, setHotVideos] = useState<Video[]>([]);
-    const [categorySections, setCategorySections] = useState<CategorySection[]>([]);
+// 板块配置
+const SECTIONS: SectionConfig[] = [
+    {
+        id: 'movie',
+        title: '电影',
+        icon: 'fas fa-film',
+        color: 'blue',
+        tabs: [
+            { key: 'latest', label: '最新' },
+            { key: 'action', label: '动作' },
+            { key: 'romance', label: '爱情' },
+            { key: 'comedy', label: '喜剧' },
+            { key: 'scifi', label: '科幻' },
+            { key: 'horror', label: '恐怖' },
+            { key: 'drama', label: '剧情' },
+            { key: 'war', label: '战争' },
+            { key: 'documentary', label: '纪录' },
+            { key: 'animation', label: '动画' },
+            { key: 'crime', label: '犯罪' },
+            { key: 'fantasy', label: '奇幻' },
+            { key: 'suspense', label: '悬疑' },
+            { key: 'disaster', label: '灾难' },
+        ]
+    },
+    {
+        id: 'tv',
+        title: '电视剧',
+        icon: 'fas fa-tv',
+        color: 'green',
+        tabs: [
+            { key: 'latest', label: '最新' },
+            { key: 'cn', label: '国产剧' },
+            { key: 'hk', label: '港剧' },
+            { key: 'tw', label: '台剧' },
+            { key: 'kr', label: '韩剧' },
+            { key: 'jp', label: '日剧' },
+            { key: 'western', label: '欧美剧' },
+            { key: 'sea', label: '泰剧' },
+        ]
+    },
+    {
+        id: 'anime',
+        title: '动漫',
+        icon: 'fas fa-dragon',
+        color: 'purple',
+        tabs: [
+            { key: 'latest', label: '最新' },
+            { key: 'cn', label: '国漫' },
+            { key: 'jp', label: '日漫' },
+            { key: 'western', label: '欧美' },
+        ]
+    },
+    {
+        id: 'variety',
+        title: '综艺',
+        icon: 'fas fa-masks-theater',
+        color: 'pink',
+        tabs: [
+            { key: 'latest', label: '最新' },
+            { key: 'cn', label: '大陆综艺' },
+            { key: 'hk_tw', label: '港台综艺' },
+            { key: 'jp_kr', label: '日韩综艺' },
+            { key: 'western', label: '欧美综艺' },
+        ]
+    }
+];
+
+export function Home() {
+    const navigate = useAppNavigate();
+    const [data, setData] = useState<HomeData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [updating, setUpdating] = useState(false);
+    // 记录每个板块当前选中的 Tab (默认为 'latest')
+    const [activeTabs, setActiveTabs] = useState<Record<string, string>>({
+        movie: 'latest',
+        tv: 'latest',
+        anime: 'latest',
+        variety: 'latest'
+    });
 
     useEffect(() => {
-        if (sources.length > 0) {
-            loadHomeData();
-        }
-    }, [sources, categoriesMap]);
+        loadData();
+    }, []);
 
-    const loadHomeData = async () => {
-        setLoading(true);
+    const loadData = async () => {
         try {
-            const defaultSource = sources[0];
-            if (!defaultSource) return;
+            setLoading(true);
+            const token = localStorage.getItem('auth_token');
+            const url = new URL(`${window.location.origin}/api/plugins/video/api/home`);
+            url.searchParams.append('stream', 'true');
 
-            // 正在热映（最新视频）
-            const hotRes = await apiGet<Video[]>('/videos', {
-                source_id: defaultSource.id,
-                page: 1,
-                limit: 12
+            const response = await fetch(url.toString(), {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'X-No-Compression': 'true'
+                }
             });
-            if (hotRes.success && hotRes.data) {
-                setHotVideos(hotRes.data.map(v => ({ ...v, source_id: defaultSource.id })));
+
+            if (!response.body) throw new Error('ReadableStream not supported');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.replace('data: ', '').trim();
+                        if (dataStr === '[DONE]') {
+                            setUpdating(false);
+                            console.log('[Home] SSE Stream finished via [DONE]');
+                            continue;
+                        }
+
+                        try {
+                            const message = JSON.parse(dataStr);
+                            if (message.type === 'cache') {
+                                setData(message.data);
+                                setLoading(false);
+                                setUpdating(true); // 缓存加载后，显示“正在更新”状态
+                            } else if (message.type === 'update') {
+                                const { section, sub, data: newData } = message;
+                                setData(prev => {
+                                    if (!prev) return null;
+                                    if (section === 'hot') {
+                                        return { ...prev, hot: newData };
+                                    }
+                                    return {
+                                        ...prev,
+                                        [section]: {
+                                            ...(prev[section as keyof HomeData] as any),
+                                            [sub]: newData
+                                        }
+                                    };
+                                });
+                            } else if (message.type === 'error') {
+                                console.error('[Home] Server reported error during SSE:', message.message);
+                            }
+                        } catch (e) {
+                            console.error('[Home] Failed to parse SSE data:', e, 'Raw data:', dataStr);
+                        }
+                    }
+                }
             }
-
-            // 构建分类板块
-            const cats = categoriesMap[defaultSource.id] || [];
-            const topLevelCats = cats.filter(c => !c.parent_id || c.parent_id === 0);
-
-            // 定义分类配置
-            const categoryConfigs: { name: string; icon: string; color: string }[] = [
-                { name: '电影', icon: 'fas fa-film', color: 'blue' },
-                { name: '连续剧', icon: 'fas fa-tv', color: 'green' },
-                { name: '电视剧', icon: 'fas fa-tv', color: 'green' },
-                { name: '剧集', icon: 'fas fa-tv', color: 'green' },
-                { name: '综艺', icon: 'fas fa-masks-theater', color: 'pink' },
-                { name: '动漫', icon: 'fas fa-dragon', color: 'purple' },
-                { name: '动画', icon: 'fas fa-dragon', color: 'purple' },
-                { name: '纪录片', icon: 'fas fa-video', color: 'yellow' },
-            ];
-
-            const sections: CategorySection[] = [];
-
-            for (const topCat of topLevelCats) {
-                // 找到配置
-                const config = categoryConfigs.find(c => topCat.name.includes(c.name));
-                if (!config) continue; // 只显示有配置的分类
-
-                // 获取二级分类
-                const subCats = cats.filter(c => c.parent_id === parseInt(topCat.type_id) ||
-                    (c.parent_id && String(c.parent_id) === topCat.type_id));
-
-                // 加载该分类的视频
-                const videoRes = await apiGet<Video[]>('/videos', {
-                    source_id: defaultSource.id,
-                    category_id: topCat.type_id,
-                    page: 1,
-                    limit: 12
-                });
-
-                sections.push({
-                    id: topCat.type_id,
-                    name: topCat.name,
-                    icon: config.icon,
-                    color: config.color,
-                    typeId: topCat.type_id,
-                    subCategories: subCats,
-                    videos: (videoRes.success && videoRes.data)
-                        ? videoRes.data.map(v => ({ ...v, source_id: defaultSource.id }))
-                        : [],
-                    selectedSubCategory: null
-                });
-            }
-
-            setCategorySections(sections);
-
         } catch (error) {
-            console.error('[Home] Failed to load data:', error);
+            console.error('[Home] Failed to load home data via SSE:', error);
+            // 降级处理: 如果流式失败，尝试普通请求
+            try {
+                setLoading(true);
+                const res = await apiGet<HomeData>('/home');
+                if (res.success && res.data) {
+                    setData(res.data);
+                }
+            } catch (e) {
+                console.error('[Home] Fallback fetch failed:', e);
+            }
         } finally {
             setLoading(false);
-        }
-    };
-
-    // 切换二级分类
-    const handleSubCategoryChange = async (sectionId: string, subCatId: string | null) => {
-        const defaultSource = sources[0];
-        if (!defaultSource) return;
-
-        // 更新选中状态
-        setCategorySections(prev => prev.map(section => {
-            if (section.id === sectionId) {
-                return { ...section, selectedSubCategory: subCatId };
-            }
-            return section;
-        }));
-
-        // 加载对应分类的视频
-        const section = categorySections.find(s => s.id === sectionId);
-        if (!section) return;
-
-        const categoryId = subCatId || section.typeId;
-        const videoRes = await apiGet<Video[]>('/videos', {
-            source_id: defaultSource.id,
-            category_id: categoryId,
-            page: 1,
-            limit: 12
-        });
-
-        if (videoRes.success && videoRes.data) {
-            setCategorySections(prev => prev.map(s => {
-                if (s.id === sectionId) {
-                    return {
-                        ...s,
-                        videos: videoRes.data!.map(v => ({ ...v, source_id: defaultSource.id }))
-                    };
-                }
-                return s;
-            }));
+            setUpdating(false);
         }
     };
 
     const handleVideoClick = (video: Video) => {
-        onNavigate('play', {
+        navigate('play', {
             sourceId: video.source_id,
             vodId: video.vod_id
         });
     };
 
-    const handleViewMore = (categoryId: string, categoryName: string) => {
-        const defaultSource = sources[0];
-        if (!defaultSource) return;
-
-        onNavigate('category', {
-            sourceId: defaultSource.id,
-            categoryId,
-            categoryName
-        });
+    const handleTabChange = (sectionId: string, tabKey: string) => {
+        setActiveTabs(prev => ({
+            ...prev,
+            [sectionId]: tabKey
+        }));
     };
 
     // 获取颜色类
@@ -183,127 +225,116 @@ export function Home({ sources, categoriesMap, onNavigate }: HomeProps) {
     if (loading) {
         return (
             <div className="p-6 animate-pulse space-y-8">
-                {/* 内容骨架 */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[...Array(18)].map((_, i) => (
-                        <div key={i} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
-                    ))}
-                </div>
+                {/* 骨架屏 */}
+                {[...Array(3)].map((_, i) => (
+                    <div key={i}>
+                        <div className="h-6 w-32 bg-gray-800 rounded mb-4"></div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {[...Array(6)].map((__, j) => (
+                                <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    if (!data) {
+        return (
+            <div className="text-center py-20 text-gray-500">
+                <p>暂无数据，后台可能正在初始化...</p>
+                <button onClick={loadData} className="mt-4 text-blue-400 hover:underline">刷新重试</button>
             </div>
         );
     }
 
     return (
-        <div className="p-4 lg:p-6 space-y-8">
+        <div className="p-4 lg:p-6 space-y-10 pb-20">
 
-            {/* 正在热映 */}
-            {hotVideos.length > 0 && (
-                <section>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <i className="fas fa-fire text-orange-400"></i>
-                            正在热映
-                        </h2>
-                    </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                        {hotVideos.slice(0, 12).map(video => (
-                            <VideoCard
-                                key={`hot-${video.source_id}-${video.vod_id}`}
-                                video={video}
-                                onClick={() => handleVideoClick(video)}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
+            {/* 1. 正在热映 (Fixed Section) */}
+            <section>
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <i className="fas fa-fire text-orange-500"></i>
+                        正在热映
+                        {updating && (
+                            <span className="ml-2 text-xs font-normal text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full animate-pulse">
+                                <i className="fas fa-sync-alt fa-spin mr-1"></i>
+                                正在更新最新内容...
+                            </span>
+                        )}
+                    </h2>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                    {data.hot?.slice(0, 12).map(video => (
+                        <VideoCard
+                            key={`hot-${video.source_id}-${video.vod_id}`}
+                            video={video}
+                            onClick={() => handleVideoClick(video)}
+                        />
+                    ))}
+                </div>
+            </section>
 
-            {/* 分类板块（一级分类 + 二级分类 tabs） */}
-            {categorySections.map(section => {
+            {/* 2. 各大分类板块 (Movie, TV, Anime, Variety) */}
+            {SECTIONS.map(section => {
                 const colorClasses = getColorClasses(section.color);
+                const currentTab = activeTabs[section.id] || 'latest';
+
+                // 类型安全访问: 排除 'hot' 后，section.id 只能是 movie/tv/anime/variety
+                // 它们的值都是 Record<string, Video[]>
+                const sectionData = data[section.id] as Record<string, Video[]>;
+                const videos = sectionData ? (sectionData[currentTab] || []) : [];
 
                 return (
                     <section key={section.id}>
-                        <div className="flex items-center justify-between mb-4">
-                            {/* 左侧：标题 + 二级分类 tabs */}
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <i className={`${section.icon} ${colorClasses.icon}`}></i>
-                                    {section.name}
-                                </h2>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 px-1">
+                            {/* 标题 */}
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2 shrink-0">
+                                <i className={`${section.icon} ${colorClasses.icon}`}></i>
+                                {section.title}
+                            </h2>
 
-                                {/* 二级分类 tabs */}
-                                {section.subCategories.length > 0 && (
-                                    <div className="flex items-center gap-1 flex-wrap">
-                                        <button
-                                            onClick={() => handleSubCategoryChange(section.id, null)}
-                                            className={`px-3 py-1 text-sm rounded-full transition-colors
-                                                ${section.selectedSubCategory === null
-                                                    ? `${colorClasses.activeTab} text-white`
-                                                    : `text-gray-400 ${colorClasses.tab}`
-                                                }`}
-                                        >
-                                            全部
-                                        </button>
-                                        {section.subCategories.map(subCat => (
-                                            <button
-                                                key={subCat.type_id}
-                                                onClick={() => handleSubCategoryChange(section.id, subCat.type_id)}
-                                                className={`px-3 py-1 text-sm rounded-full transition-colors
-                                                    ${section.selectedSubCategory === subCat.type_id
-                                                        ? `${colorClasses.activeTab} text-white`
-                                                        : `text-gray-400 ${colorClasses.tab}`
-                                                    }`}
-                                            >
-                                                {subCat.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                            {/* Tabs (Scrollable) */}
+                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+                                {section.tabs.map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => handleTabChange(section.id, tab.key)}
+                                        className={`px-3 py-1 text-sm rounded-full transition-all whitespace-nowrap
+                                            ${currentTab === tab.key
+                                                ? `${colorClasses.activeTab} text-white shadow-md`
+                                                : `text-gray-400 hover:text-white hover:bg-white/10`
+                                            }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
-
-                            {/* 右侧：更多按钮 */}
-                            <button
-                                onClick={() => handleViewMore(section.typeId, section.name)}
-                                className="text-gray-400 text-sm hover:text-white flex items-center gap-1"
-                            >
-                                更多 <i className="fas fa-chevron-right text-xs"></i>
-                            </button>
                         </div>
 
                         {/* 视频网格 */}
-                        {section.videos.length > 0 ? (
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                                {section.videos.slice(0, 12).map(video => (
+                        {videos.length > 0 ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 min-h-[200px]">
+                                {videos.slice(0, 12).map((video: Video) => (
                                     <VideoCard
-                                        key={`${section.id}-${video.source_id}-${video.vod_id}`}
+                                        key={`${section.id}-${currentTab}-${video.source_id}-${video.vod_id}`}
                                         video={video}
                                         onClick={() => handleVideoClick(video)}
                                     />
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <p>暂无视频</p>
+                            <div className="text-center py-10 text-gray-600 bg-gray-900/30 rounded-lg">
+                                <i className="fas fa-inbox text-3xl mb-2 opacity-50"></i>
+                                <p className="text-sm">暂无该分类数据</p>
                             </div>
                         )}
                     </section>
                 );
             })}
 
-            {/* 无数据提示 */}
-            {sources.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                    <i className="fas fa-database text-4xl mb-4 opacity-50"></i>
-                    <p>暂无视频数据</p>
-                    <p className="text-sm mt-2">请先在管理页面添加视频源并同步分类</p>
-                    <button
-                        onClick={() => onNavigate('admin')}
-                        className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                    >
-                        前往管理
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

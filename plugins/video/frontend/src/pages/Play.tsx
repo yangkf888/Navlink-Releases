@@ -6,6 +6,8 @@ import { apiGet, apiPost, apiDelete } from '../utils/api';
 interface AlternativeSource {
     source_id: number;
     source_name: string;
+    response_time?: number;
+    quality?: string;
     vod_id: string;
     vod_name: string;
     vod_pic: string;
@@ -21,9 +23,10 @@ interface PlayProps {
     sourceId: number;
     vodId: string;
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
+    onGoBack?: () => void;
 }
 
-export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
+export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
     const [video, setVideo] = useState<VideoDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -37,6 +40,7 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
     const [alternativeSources, setAlternativeSources] = useState<AlternativeSource[]>([]);
     const [searchingAlternatives, setSearchingAlternatives] = useState(false);
     const [showAlternatives, setShowAlternatives] = useState(true);
+
 
     const playerRef = useRef<HTMLDivElement>(null);
     const artPlayerRef = useRef<any>(null);
@@ -111,6 +115,7 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
         const episode = currentSource.list[selectedEpisodeIndex];
         const videoUrl = episode.url;
 
+
         // 清除旧播放器和 HLS 实例
         if (artPlayerRef.current) {
             // 清理 HLS
@@ -137,9 +142,11 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
             console.log('[Play] Video URL:', videoUrl);
 
             // 构建代理 URL
-            const getProxyUrl = (url: string) => {
+            const getProxyUrl = (url: string, absolute = false) => {
                 const proxyParam = video.source_proxy_enabled ? '&proxy=1' : '';
-                return `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(url)}${proxyParam}`;
+                const path = `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(url)}${proxyParam}`;
+                // 如果是 iframe 使用，需要绝对路径
+                return absolute ? `${window.location.origin}${path}` : path;
             };
 
             // 检查是否需要使用代理
@@ -147,13 +154,20 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
                 // 1. 如果源配置了强制代理
                 if (video.source_proxy_enabled) return true;
 
-                // 2. 原有的 CORS 域名检测逻辑
-                const corsBlockedDomains = [
+                // 2. 常见的不稳定或有跨域/DNS问题的域名
+                const proxyRequiredDomains = [
                     'dytt-cine.com',
                     'dytt-live.com',
-                    'dyttzyapi.com'
+                    'dyttzyapi.com',
+                    'huyall.com',       // 用户反馈
+                    'baisiweiting.com',  // 用户反馈
+                    'm3u8.com',
+                    'cdn',              // 许多 CDN 域名在某些地区解析不稳定
+                    'xb66.com',
+                    'v.api',
+                    'play'
                 ];
-                return corsBlockedDomains.some(domain => url.includes(domain));
+                return proxyRequiredDomains.some(domain => url.toLowerCase().includes(domain.toLowerCase()));
             };
 
             // 决定初始使用的 URL
@@ -207,16 +221,32 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
                         // 记录是否已经尝试过代理
                         let triedProxy = url.includes('/api/proxy/hls');
 
-                        // 错误处理 - 如果 HLS 失败，尝试代理或直接播放
-                        hls.on(Hls.Events.ERROR, function (event: any, data: any) {
-                            console.error('[HLS] Error:', event, data);
-                            if (data.fatal) {
-                                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                                    // 网络错误（包括 CORS 403）
-                                    if (!triedProxy && !url.includes('/api/proxy/hls')) {
-                                        // 尝试使用代理
-                                        console.log('[HLS] Network error, trying proxy...');
+                        // 记录连续非致命错误次数（如片段加载失败）
+                        let fragErrorCount = 0;
+                        const MAX_FRAG_ERRORS = 3;
+
+                        // 错误处理
+                        hls.on(Hls.Events.ERROR, function (_event: any, data: any) {
+                            console.error('[HLS] Error:', data.type, data.details, data);
+
+                            // 针对特定的网络解析问题（如终端日志中的 ERR_NAME_NOT_RESOLVED）
+                            // 即使 fatal 为 false，如果发生了 fragLoadError，由于 Hls.js 会自动重试，
+                            // 我们在这里计数，如果连续多次失败，则判断该域名连通性差，强制切换代理。
+                            if (data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR ||
+                                data.details === Hls.ErrorDetails.FRAG_LOAD_TIMEOUT) {
+                                fragErrorCount++;
+                                console.warn(`[HLS] Fragment load error count: ${fragErrorCount}/${MAX_FRAG_ERRORS}`);
+                            }
+
+                            const shouldSwitchToProxy = data.fatal || fragErrorCount >= MAX_FRAG_ERRORS;
+
+                            if (shouldSwitchToProxy) {
+                                if (data.type === Hls.ErrorTypes.NETWORK_ERROR || fragErrorCount >= MAX_FRAG_ERRORS) {
+                                    // 只有还没试过代理的情况下才尝试代理
+                                    if (!triedProxy) {
+                                        console.log('[HLS] Significant network issue detected, switching to proxy fallback...');
                                         triedProxy = true;
+                                        fragErrorCount = 0; // 重置计数
                                         hls.destroy();
 
                                         const proxyUrl = getProxyUrl(videoUrl);
@@ -227,23 +257,30 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
                                         newHls.loadSource(proxyUrl);
                                         newHls.attachMedia(videoElement);
                                         (videoElement as any).hls = newHls;
+
+                                        // 对新的 HLS 实例也绑定错误处理（递归或简化处理）
+                                        newHls.on(Hls.Events.ERROR, (_e2, d2) => {
+                                            if (d2.fatal) {
+                                                console.error('[HLS Proxy] Fatal proxy error, falling back to direct video element src');
+                                                newHls.destroy();
+                                                videoElement.src = videoUrl;
+                                                videoElement.load();
+                                            }
+                                        });
                                     } else {
-                                        // 代理也失败了，尝试直接播放
-                                        console.log('[HLS] Proxy failed, trying direct playback...');
+                                        // 代理也失败了，尝试直接使用 video 标签播放（绕过 Hls.js 的某些复杂逻辑）
+                                        console.log('[HLS] Proxy failed or already tried, final fallback to direct video src');
                                         hls.destroy();
                                         videoElement.src = url;
                                         videoElement.load();
-                                        videoElement.play().catch(e => console.error('[Play] Direct playback failed:', e));
                                     }
                                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                                     console.log('[HLS] Media error, trying to recover...');
                                     hls.recoverMediaError();
                                 } else {
-                                    console.log('[HLS] Fatal error, trying direct playback...');
+                                    console.log('[HLS] Unhandled fatal error, trying direct video src');
                                     hls.destroy();
                                     videoElement.src = url;
-                                    videoElement.load();
-                                    videoElement.play().catch(e => console.error('[Play] Direct playback failed:', e));
                                 }
                             }
                         });
@@ -337,19 +374,61 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
         if (!video?.vod_name) return;
 
         setSearchingAlternatives(true);
+        setAlternativeSources([]); // 清空旧的替代源
+
         try {
-            const res = await apiGet<AlternativeSource[]>('/multi-source/search', {
-                title: video.vod_name,
-                exclude_source_id: sourceId,
-                episode_index: selectedEpisodeIndex,
-                // 传递类型和年份用于精确匹配
-                type_name: video.type_name || '',
-                year: video.vod_year || ''
+            const token = localStorage.getItem('auth_token');
+            const url = new URL(`${window.location.origin}/api/plugins/video/api/multi-source/search`);
+            url.searchParams.append('title', video.vod_name);
+            url.searchParams.append('exclude_source_id', String(sourceId));
+            url.searchParams.append('episode_index', String(selectedEpisodeIndex));
+            url.searchParams.append('type_name', video.type_name || '');
+            url.searchParams.append('year', video.vod_year || '');
+            url.searchParams.append('stream', 'true');
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'X-No-Compression': 'true'
+                }
             });
 
-            if (res.success && res.data) {
-                setAlternativeSources(res.data);
-                console.log('[Play] Found', res.data.length, 'alternative sources');
+            if (!response.body) throw new Error('ReadableStream not supported');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.replace('data: ', '').trim();
+                        if (dataStr === '[DONE]') {
+                            setSearchingAlternatives(false);
+                            continue;
+                        }
+
+                        try {
+                            const altSource = JSON.parse(dataStr);
+                            if (altSource && altSource.source_id) {
+                                setAlternativeSources(prev => {
+                                    // 防止重复（虽然由于 excludeId 理论上不会重复，但保险起见）
+                                    if (prev.some(s => s.source_id === altSource.source_id)) return prev;
+                                    return [...prev, altSource];
+                                });
+                            }
+                        } catch (e) {
+                            console.error('[Play] Failed to parse SSE data:', e);
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error('[Play] Failed to search alternatives:', err);
@@ -403,29 +482,51 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
             <div className="flex flex-col lg:flex-row gap-4">
                 {/* 左侧：播放器 */}
                 <div className="flex-1 min-w-0">
-                    <div className="player-container" ref={playerRef}></div>
+                    <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                        <div className="w-full h-full" ref={playerRef}></div>
+                    </div>
 
                     {/* 当前播放信息 */}
-                    <div className="mt-3 flex items-center justify-between">
-                        <div className="text-gray-400 text-sm">
-                            正在播放：
-                            <span className="text-white ml-1">{video.vod_name}</span>
-                            {currentSource && currentSource.list[selectedEpisodeIndex] && (
-                                <span className="text-red-400 ml-2">
-                                    {currentSource.list[selectedEpisodeIndex].name}
-                                </span>
-                            )}
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* 左侧：返回按钮 + 播放信息 */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <button
+                                onClick={() => onGoBack ? onGoBack() : onNavigate('home')}
+                                className="px-3 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                            >
+                                <i className="fas fa-arrow-left"></i>
+                                <span className="hidden sm:inline">返回</span>
+                            </button>
+                            <div className="text-gray-400 text-sm flex-1 min-w-0">
+                                <span className="hidden sm:inline">正在播放：</span>
+                                <span className="text-white">{video.vod_name}</span>
+                                {currentSource && currentSource.list[selectedEpisodeIndex] && (
+                                    <span className="text-red-400 ml-2">
+                                        {currentSource.list[selectedEpisodeIndex].name}
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <button
-                            onClick={toggleFavorite}
-                            className={`px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${isFavorite
-                                ? 'bg-red-500 text-white'
-                                : 'bg-gray-800 text-gray-400 hover:text-red-400'
-                                }`}
-                        >
-                            <i className="fas fa-heart"></i>
-                            {isFavorite ? '已收藏' : '收藏'}
-                        </button>
+                        {/* 右侧：收藏 + 刷新按钮 */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={toggleFavorite}
+                                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-gray-800 text-gray-400 hover:text-red-400'
+                                    }`}
+                            >
+                                <i className="fas fa-heart"></i>
+                                {isFavorite ? '已收藏' : '收藏'}
+                            </button>
+                            <button
+                                onClick={loadVideoDetail}
+                                className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                <i className="fas fa-sync-alt"></i>
+                                刷新
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -523,15 +624,24 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
                             <div
                                 className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400"
                             >
-                                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full z-10">
                                     当前
                                 </div>
-                                <div className="text-white font-medium text-sm truncate">
-                                    {video.source_name || `源 ${sourceId}`}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <div className="text-white font-medium text-sm truncate flex-1">
+                                        {video.source_name || `源 ${sourceId}`}
+                                    </div>
+                                    <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
                                 </div>
-                                <div className="text-green-200 text-xs mt-1">
-                                    {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
-                                    <span className="ml-1">▶ 播放中</span>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-green-200 text-xs">
+                                        {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
+                                    </span>
+                                    {video.vod_remarks && (
+                                        <span className="px-1.5 py-0.5 bg-white/20 text-white text-[10px] rounded font-medium">
+                                            {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
@@ -540,15 +650,32 @@ export function Play({ sourceId, vodId, onNavigate }: PlayProps) {
                                 <button
                                     key={`${alt.source_id}-${alt.vod_id}`}
                                     onClick={() => handleSwitchSource(alt)}
-                                    className="bg-gray-700 hover:bg-gray-600 rounded-lg p-3 text-left transition-all hover:scale-[1.02] group"
+                                    className="bg-gray-700 hover:bg-gray-600 rounded-lg p-3 text-left transition-all hover:scale-[1.02] group relative overflow-hidden"
                                 >
-                                    <div className="text-white font-medium text-sm truncate group-hover:text-green-400">
-                                        {alt.source_name}
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                        <div className="text-white font-medium text-sm truncate flex-1 group-hover:text-green-400">
+                                            {alt.source_name}
+                                        </div>
+                                        {alt.response_time !== undefined && (
+                                            <span
+                                                className={`flex-shrink-0 w-2 h-2 rounded-full ${alt.response_time < 500 ? 'bg-green-500' :
+                                                    alt.response_time < 1200 ? 'bg-yellow-500' : 'bg-red-500'
+                                                    }`}
+                                                title={`延迟: ${alt.response_time}ms`}
+                                            ></span>
+                                        )}
                                     </div>
-                                    <div className="text-gray-400 text-xs mt-1">
-                                        {alt.total_episodes}集
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-gray-400 text-xs">
+                                            {alt.total_episodes}集
+                                        </span>
+                                        {alt.quality && (
+                                            <span className="px-1.5 py-0.5 bg-blue-500/80 text-white text-[10px] rounded font-medium">
+                                                {alt.quality}
+                                            </span>
+                                        )}
                                         {alt.current_episode_available && (
-                                            <span className="text-green-400 ml-1">✓ 有当前集</span>
+                                            <span className="text-green-400 text-[10px] font-bold">✓</span>
                                         )}
                                     </div>
                                 </button>
