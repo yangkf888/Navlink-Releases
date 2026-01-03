@@ -84,10 +84,10 @@ export default function ServerFormModal({ isOpen, onClose, onSave, initialData, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-lg font-bold text-gray-800">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto" onClick={onClose}>
+            <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in text-[var(--theme-text)]" onClick={e => e.stopPropagation()}>
+                <div className="px-6 py-4 border-b border-[var(--border-color)] flex justify-between items-center bg-gray-500/5">
+                    <h3 className="text-xl font-bold">
                         {initialData ? '编辑服务器' : '添加服务器'}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -243,7 +243,7 @@ export default function ServerFormModal({ isOpen, onClose, onSave, initialData, 
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                            className="px-4 py-2 text-gray-400 bg-gray-500/10 hover:bg-gray-500/20 hover:text-[var(--theme-text)] rounded-lg transition-colors"
                         >
                             取消
                         </button>

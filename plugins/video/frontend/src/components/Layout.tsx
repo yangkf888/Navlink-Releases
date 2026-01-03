@@ -2,7 +2,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { GlobalSearchBar } from './GlobalSearchBar';
-import { VideoSource, Category } from '../types';
+import { VideoSource, TvSource, TvChannel, Category } from '../types';
 import { AppModule } from '../App';
 
 interface NavParams {
@@ -20,11 +20,22 @@ interface LayoutProps {
         categoriesMap: Record<number, Category[]>;
         selectedSourceId: number | null;
         onSourceChange: (id: number) => void;
+
+        // TV Props
+        tvSources?: TvSource[];
+        selectedTvSourceId?: number | null;
+        onTvSourceChange?: (id: number) => void;
+        onPlayChannel?: (channel: TvChannel) => void;
+        currentChannelUrl?: string;
+        tvRefreshKey?: number;
+
         onNavigate: (view: string, params?: Record<string, unknown>) => void;
         activeView: string;
         navParams: NavParams;
         activeModule: AppModule;
         onModuleChange: (module: AppModule) => void;
+        theme: 'light' | 'dark';
+        onToggleTheme: () => void;
     };
 }
 
@@ -78,6 +89,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                             onCloseMobile={() => setMobileOpen(false)}
                             activeModule={sidebarProps.activeModule}
                             onModuleChange={sidebarProps.onModuleChange}
+                            theme={sidebarProps.theme}
+                            onToggleTheme={sidebarProps.onToggleTheme}
                         />
                     </div>
                 </div>

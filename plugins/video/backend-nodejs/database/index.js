@@ -127,8 +127,50 @@ function initSchema(db) {
         CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
         CREATE INDEX IF NOT EXISTS idx_favorites_source ON favorites(source_id);
         CREATE INDEX IF NOT EXISTS idx_history_user ON play_history(user_id);
+        CREATE INDEX IF NOT EXISTS idx_history_user ON play_history(user_id);
         CREATE INDEX IF NOT EXISTS idx_history_source ON play_history(source_id);
         CREATE INDEX IF NOT EXISTS idx_history_updated ON play_history(updated_at);
+
+        -- 电视源表
+        CREATE TABLE IF NOT EXISTS tv_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'm3u',
+            enabled INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            parser TEXT -- 自定义解析逻辑标识，预留
+        );
+
+        -- 直播源表
+        CREATE TABLE IF NOT EXISTS live_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            platform TEXT NOT NULL,
+            channel_id TEXT NOT NULL,
+            streamer_name TEXT,
+            category TEXT,
+            cover_url TEXT,
+            enabled INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            tags TEXT,
+            remark TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 直播状态缓存表
+        CREATE TABLE IF NOT EXISTS live_status_cache (
+            source_id INTEGER PRIMARY KEY,
+            is_live INTEGER DEFAULT 0,
+            title TEXT,
+            viewer_count INTEGER,
+            stream_url TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_id) REFERENCES live_sources(id) ON DELETE CASCADE
+        );
     `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
@@ -143,8 +185,37 @@ function initSchema(db) {
 
             // 插入预置资源站
             insertDefaultSources(db);
+
+            // 插入预置电视源
+            insertDefaultTvSources(db);
         }
     });
+}
+
+/**
+ * 插入预置电视源
+ */
+function insertDefaultTvSources(db) {
+    const existing = db.get('SELECT COUNT(*) as count FROM tv_sources');
+    if (existing && existing.count > 0) return;
+
+    const sources = [
+        { name: '默认直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u', type: 'm3u', order: 1 },
+        { name: 'IPv6 直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u', type: 'm3u', order: 2 },
+        { name: 'IPv4 直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u', type: 'm3u', order: 3 },
+        { name: '点播源 (JSON)', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/source.json', type: 'json', order: 4 }
+    ];
+
+    const stmt = db.prepare('INSERT INTO tv_sources (name, url, type, sort_order, enabled) VALUES (?, ?, ?, ?, 1)');
+
+    for (const s of sources) {
+        try {
+            stmt.run([s.name, s.url, s.type, s.order]);
+            console.log(`[Database] Preset TV source added: ${s.name}`);
+        } catch (e) {
+            console.error(`[Database] Failed to add TV source ${s.name}`, e);
+        }
+    }
 }
 
 /**

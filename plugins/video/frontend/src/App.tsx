@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { VideoSource, Category } from './types';
+import { VideoSource, TvSource, Category } from './types';
 import { apiGet } from './utils/api';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Category as CategoryPage } from './pages/Category';
 import { SourceOverview } from './pages/SourceOverview';
 import { Play } from './pages/Play';
+import { TvPlayer } from './pages/TvPlayer';
+import { Live } from './pages/Live'; // New component
+import { LivePlayer } from './pages/LivePlayer'; // New component
 import { Search } from './pages/Search';
 import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
@@ -13,7 +16,7 @@ import { History } from './pages/History';
 import { NavigationProvider } from './contexts/NavigationContext';
 
 // 视图类型
-type ViewType = 'home' | 'source' | 'category' | 'play' | 'search' | 'favorites' | 'history' | 'admin';
+type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'search' | 'favorites' | 'history' | 'admin';
 
 // 模块类型（顶部导航）
 export type AppModule = 'home' | 'sources' | 'tv' | 'live' | 'netdisk';
@@ -26,10 +29,15 @@ interface NavParams {
     subCategories?: Category[];  // 子分类列表
     vodId?: string;
     keyword?: string;
+    platform?: string;
+    liveSourceId?: number; // For Live
+    tvSourceId?: number; // For TV
+    channelUrl?: string; // For TV
 }
 
 // localStorage key
 const SELECTED_SOURCE_KEY = 'video_selected_source';
+const SELECTED_TV_SOURCE_KEY = 'video_selected_tv_source';
 
 function VideoApp() {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -46,16 +54,25 @@ function VideoApp() {
     const [sources, setSources] = useState<VideoSource[]>([]);
     const [categoriesMap, setCategoriesMap] = useState<Record<number, Category[]>>({});
 
+    // 电视源
+    const [tvSources, setTvSources] = useState<TvSource[]>([]);
+
     // 当前选中的视频源
     const [selectedSourceId, setSelectedSourceId] = useState<number | null>(() => {
         const saved = localStorage.getItem(SELECTED_SOURCE_KEY);
         return saved ? parseInt(saved) : null;
     });
 
+    // 当前选中的电视源
+    const [selectedTvSourceId, setSelectedTvSourceId] = useState<number | null>(() => {
+        const saved = localStorage.getItem(SELECTED_TV_SOURCE_KEY);
+        return saved ? parseInt(saved) : null;
+    });
+
     // 导航函数（带历史记录）
     const navigate = (view: string, params: Record<string, unknown> = {}) => {
         // 将当前视图推入历史栈（不推入 play 页面避免重复）
-        if (activeView !== 'play') {
+        if (activeView !== 'play' && activeView !== 'tv_play') {
             setNavHistory(prev => [...prev, { view: activeView, params: navParams }]);
         }
         setActiveView(view as ViewType);
@@ -91,12 +108,25 @@ function VideoApp() {
                 setActiveView('source');
                 setNavParams({ sourceId: firstSource.id });
             }
+        } else if (module === 'tv') {
+            // 电视模块：显示电视播放页
+            setActiveView('tv_play');
+            if (selectedTvSourceId) {
+                setNavParams({ tvSourceId: selectedTvSourceId });
+            }
+        } else if (module === 'live') {
+            // 直播模块
+            setActiveView('live');
+            setNavParams({});
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
             setNavParams({});
         }
     };
+
+    // TV 刷新 Key
+    const [tvRefreshKey, setTvRefreshKey] = useState(0);
 
     // 加载视频源和分类
     useEffect(() => {
@@ -128,6 +158,22 @@ function VideoApp() {
                 }
                 setCategoriesMap(catMap);
             }
+
+            // 加载电视源
+            const tvRes = await apiGet<TvSource[]>('/tv/sources');
+            if (tvRes.success && tvRes.data) {
+                const enabledTv = tvRes.data.filter(s => s.enabled);
+                setTvSources(enabledTv);
+
+                // 刷新 Sidebar 频道列表
+                setTvRefreshKey(prev => prev + 1);
+
+                if (!selectedTvSourceId && enabledTv.length > 0) {
+                    setSelectedTvSourceId(enabledTv[0].id);
+                    localStorage.setItem(SELECTED_TV_SOURCE_KEY, String(enabledTv[0].id));
+                }
+            }
+
         } catch (error) {
             console.error('[App] Failed to load sources:', error);
         } finally {
@@ -146,10 +192,47 @@ function VideoApp() {
         setActiveModule('sources');
     };
 
+    // 切换电视源
+    const handleTvSourceChange = (id: number) => {
+        setSelectedTvSourceId(id);
+        localStorage.setItem(SELECTED_TV_SOURCE_KEY, String(id));
+        setActiveView('tv_play');
+        setNavParams({ tvSourceId: id });
+        setActiveModule('tv');
+    };
+
+    // 主题管理
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('video_theme') as 'light' | 'dark') || 'dark';
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('video_theme', theme);
+
+        // 同步主题到主应用
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
+            }, '*');
+        }
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
     // 发送最小化侧边栏配置到主应用
     useEffect(() => {
         const isInIframe = window.parent !== window;
         if (!isInIframe || !isLoaded) return;
+
+        // 同步主题为 dark (此插件原生风格为深色)
+        window.parent.postMessage({
+            type: 'PLUGIN_THEME_CHANGED',
+            payload: { theme: 'dark' }
+        }, '*');
 
         let count = 0;
         const maxAttempts = 5;
@@ -164,6 +247,12 @@ function VideoApp() {
                     items: [],
                     activeId: ''
                 }
+            }, '*');
+
+            // 再次确保主题同步
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
             }, '*');
 
             // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
@@ -194,6 +283,14 @@ function VideoApp() {
 
 
 
+    // 播放电视频道
+    const handlePlayChannel = (channel: any) => {
+        setActiveView('tv_play');
+        setNavParams(prev => ({ ...prev, channelUrl: channel.url }));
+        // Ensure module is tv
+        if (activeModule !== 'tv') setActiveModule('tv');
+    };
+
     return (
         <NavigationProvider navigate={navigate}>
             <Layout
@@ -202,11 +299,21 @@ function VideoApp() {
                     categoriesMap,
                     selectedSourceId,
                     onSourceChange: handleSourceChange,
+
+                    tvSources,
+                    selectedTvSourceId,
+                    onTvSourceChange: handleTvSourceChange,
+                    onPlayChannel: handlePlayChannel,
+                    currentChannelUrl: navParams.channelUrl,
+                    tvRefreshKey,
+
                     onNavigate: navigate,
                     activeView,
                     navParams,
                     activeModule,
-                    onModuleChange: handleModuleChange
+                    onModuleChange: handleModuleChange,
+                    theme,
+                    onToggleTheme: toggleTheme
                 }}
             >
                 {activeView === 'home' && (
@@ -236,6 +343,22 @@ function VideoApp() {
                         vodId={navParams.vodId}
                         onNavigate={navigate}
                         onGoBack={goBack}
+                    />
+                )}
+                {activeView === 'tv_play' && (
+                    <TvPlayer
+                        tvSourceId={navParams.tvSourceId || selectedTvSourceId || undefined}
+                        channelUrl={navParams.channelUrl}
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'live' && (
+                    <Live platform={navParams.platform} onPlay={(sourceId: number) => navigate('live_play', { liveSourceId: sourceId })} />
+                )}
+                {activeView === 'live_play' && (
+                    <LivePlayer
+                        sourceId={navParams.liveSourceId}
+                        onNavigate={navigate}
                     />
                 )}
                 {activeView === 'search' && (

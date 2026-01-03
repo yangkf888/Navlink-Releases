@@ -46,23 +46,23 @@
 
 /* 文字颜色 */
 [data-theme="dark"] .text-gray-900 {
-  color: #f0f6fc !important;
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .text-gray-800 {
-  color: #e6edf3 !important;
+  color: #f0f6fc !important;
 }
 
 [data-theme="dark"] .text-gray-700 {
-  color: #c9d1d9 !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme="dark"] .text-gray-600 {
-  color: #8b949e !important;
+  color: #c9d1d9 !important;
 }
 
 [data-theme="dark"] .text-gray-500 {
-  color: #7d8590 !important;
+  color: #8b949e !important;
 }
 
 /* 边框 */

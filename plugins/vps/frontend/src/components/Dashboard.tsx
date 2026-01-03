@@ -27,7 +27,7 @@ export default function Dashboard({ stats }: DashboardProps) {
 
     if (!stats) {
         return (
-            <div className="bg-white p-4 border-b border-gray-200 flex items-center justify-center h-[80px]">
+            <div className="bg-[var(--card-bg)] p-4 border-b border-[var(--border-color)] flex items-center justify-center h-[80px]">
                 <span className="text-gray-400 text-sm flex items-center gap-2">
                     <Icon icon="fa-solid fa-spinner" className="animate-spin" />
                     Waiting for data...
@@ -39,18 +39,18 @@ export default function Dashboard({ stats }: DashboardProps) {
     const memPercent = stats.mem.total > 0 ? Math.round((stats.mem.used / stats.mem.total) * 100) : 0;
 
     return (
-        <div className="bg-white p-4 border-b border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4 min-h-[100px]">
+        <div className="bg-[var(--card-bg)] p-4 border-b border-[var(--border-color)] grid grid-cols-2 md:grid-cols-4 gap-4 min-h-[100px] text-[var(--theme-text)]">
             {/* CPU */}
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0">
                     <Icon icon="fa-solid fa-microchip" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-xs text-gray-500 font-medium">CPU</span>
-                        <span className="text-sm font-bold text-gray-800">{Math.round(stats.cpu)}%</span>
+                        <span className="text-sm font-bold">{Math.round(stats.cpu)}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-gray-500/10 rounded-full h-1.5 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-500 ${stats.cpu > 80 ? 'bg-red-500' : 'bg-orange-500'}`}
                             style={{ width: `${stats.cpu}%` }}
@@ -61,15 +61,15 @@ export default function Dashboard({ stats }: DashboardProps) {
 
             {/* Memory */}
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 flex-shrink-0">
                     <Icon icon="fa-solid fa-memory" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-xs text-gray-500 font-medium">Memory</span>
-                        <span className="text-sm font-bold text-gray-800">{memPercent}%</span>
+                        <span className="text-sm font-bold">{memPercent}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-gray-500/10 rounded-full h-1.5 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-500 ${memPercent > 80 ? 'bg-red-500' : 'bg-purple-500'}`}
                             style={{ width: `${memPercent}%` }}
@@ -83,15 +83,15 @@ export default function Dashboard({ stats }: DashboardProps) {
 
             {/* Disk */}
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600 flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0">
                     <Icon icon="fa-solid fa-hard-drive" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-xs text-gray-500 font-medium">Disk</span>
-                        <span className="text-sm font-bold text-gray-800">{stats.disk}%</span>
+                        <span className="text-sm font-bold">{stats.disk}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-gray-500/10 rounded-full h-1.5 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-500 ${stats.disk > 90 ? 'bg-red-500' : 'bg-green-500'}`}
                             style={{ width: `${stats.disk}%` }}
@@ -102,7 +102,7 @@ export default function Dashboard({ stats }: DashboardProps) {
 
             {/* Network */}
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 flex-shrink-0">
                     <Icon icon="fa-solid fa-network-wired" />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col gap-1">

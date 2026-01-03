@@ -13,16 +13,16 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message }: Con
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60]" onClick={onClose}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center gap-3 mb-4 text-yellow-600">
+            <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-sm p-6 animate-fade-in text-[var(--theme-text)]" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 mb-4 text-yellow-500">
                     <Icon icon="fa-solid fa-triangle-exclamation" className="text-2xl" />
-                    <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+                    <h3 className="text-lg font-bold">{title}</h3>
                 </div>
-                <p className="text-gray-600 mb-6">{message}</p>
+                <p className="text-gray-400 mb-6">{message}</p>
                 <div className="flex justify-end gap-3">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="px-4 py-2 text-gray-400 hover:bg-gray-500/10 hover:text-[var(--theme-text)] rounded-lg transition-colors"
                     >
                         取消
                     </button>

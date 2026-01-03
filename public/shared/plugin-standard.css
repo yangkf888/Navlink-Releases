@@ -1,0 +1,178 @@
+/**
+ * Navlink Plugin Standard Kit (Open Source Edition)
+ * 一套用于插件主题适配的共享样式包
+ */
+
+/* 1. 核心变量定义 */
+:root,
+[data-theme="light"] {
+    --theme-primary: #f1404b;
+    --theme-bg: #f8f9fa;
+    --theme-text: #2d3748;
+    --sidebar-bg: #ffffff;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --scroll-thumb: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    --theme-primary: #f1404b;
+    --theme-bg: #0d1117;
+    --theme-text: #e6edf3;
+    --sidebar-bg: #161b22;
+    --card-bg: #21262d;
+    --border-color: #30363d;
+    --scroll-thumb: rgba(255, 255, 255, 0.1);
+}
+
+/* 2. 基础布局适配 */
+body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 3. Tailwind 类深度适配 (Dark Mode) */
+
+/* 背景 */
+[data-theme="dark"] .bg-white {
+    background-color: var(--sidebar-bg) !important;
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+    background-color: var(--theme-bg) !important;
+}
+
+[data-theme="dark"] .bg-gray-200 {
+    background-color: #30363d !important;
+}
+
+[data-theme="dark"] .bg-gray-300 {
+    background-color: #484f58 !important;
+}
+
+/* 文字 (提升对比度) */
+[data-theme="dark"] .text-gray-900 {
+    color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .text-gray-800 {
+    color: #e6edf3 !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+    color: #d0d7de !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+    color: #afb8c1 !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+    color: #9198a1 !important;
+}
+
+[data-theme="dark"] .text-gray-400 {
+    color: #818b98 !important;
+}
+
+/* 边框与分隔线 */
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-300,
+[data-theme="dark"] .divide-gray-100> :not([hidden])~ :not([hidden]),
+[data-theme="dark"] .divide-gray-200> :not([hidden])~ :not([hidden]) {
+    border-color: var(--border-color) !important;
+}
+
+/* 交互 */
+[data-theme="dark"] .hover\:bg-gray-50:hover,
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. 表单与交互组件 (Dark Mode) */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border-color: var(--border-color) !important;
+    color: var(--theme-text) !important;
+}
+
+[data-theme="dark"] input::placeholder {
+    color: #484f58 !important;
+}
+
+/* 5. 阴影与深度 */
+[data-theme="dark"] .shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .shadow,
+[data-theme="dark"] .shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 6. 特定状态背景 (半透明化适配) */
+[data-theme="dark"] .bg-blue-50 {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-green-50 {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-yellow-50 {
+    background-color: rgba(234, 179, 8, 0.1) !important;
+}
+
+/* 按钮与强色微调 (避免过度刺眼) */
+[data-theme="dark"] .bg-red-600 {
+    background-color: #d73a49 !important;
+}
+
+[data-theme="dark"] .bg-blue-600 {
+    background-color: #1f6feb !important;
+}
+
+/* 7. 通用滚动条渲染 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-primary);
+}
+
+/* 5. 动画增强 */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-standard {
+    animation: fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

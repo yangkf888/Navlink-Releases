@@ -16,9 +16,11 @@ router.get('/', async (req, res) => {
 
     try {
         const db = getDatabase();
-        const rows = db.prepare('SELECT key, data FROM home_cache').all();
+        const rows = db.prepare('SELECT key, data, updated_at FROM home_cache').all();
 
         const result = {};
+        let lastUpdated = null;
+
         rows.forEach(row => {
             const key = row.key;
             let data = [];
@@ -32,6 +34,11 @@ router.get('/', async (req, res) => {
                 const sub = parts[2];
                 if (!result[section]) result[section] = {};
                 result[section][sub] = data;
+            }
+
+            // Track the earliest updated_at as lastUpdated
+            if (row.updated_at && (!lastUpdated || row.updated_at < lastUpdated)) {
+                lastUpdated = row.updated_at;
             }
         });
 
@@ -63,7 +70,7 @@ router.get('/', async (req, res) => {
             return;
         }
 
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: result, lastUpdated });
     } catch (error) {
         console.error('[Home] Failed to get home data:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -80,6 +87,35 @@ router.post('/refresh', async (req, res) => {
         homeService.refreshAll().catch(e => console.error(e));
         res.json({ success: true, message: 'Refresh started in background' });
     } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/home/refresh-section
+ * 刷新指定板块
+ * Body: { section: 'hot' | 'movie' | 'tv' | 'anime' | 'variety' }
+ */
+router.post('/refresh-section', async (req, res) => {
+    try {
+        const { section } = req.body;
+
+        if (!section) {
+            return res.status(400).json({ success: false, error: 'Section is required' });
+        }
+
+        const validSections = ['hot', 'movie', 'tv', 'anime', 'variety'];
+        if (!validSections.includes(section)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid section. Must be one of: ${validSections.join(', ')}`
+            });
+        }
+
+        const data = await homeService.refreshSingleSection(section);
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error(`[Home] Failed to refresh section ${req.body.section}:`, error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

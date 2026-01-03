@@ -21,7 +21,7 @@ const { execSync } = require('child_process');
 const PLUGINS_DIR = path.join(__dirname, '../plugins');
 const OUTPUT_DIR = path.join(__dirname, '../dist-plugins');
 const ZIP_OUTPUT_DIR = path.join(__dirname, '../Navlink-plugins');
-const TARGET_VERSION = '2.0.0';
+const TARGET_VERSION = '2.0.1';
 
 // 排除文件/目录的规则
 const EXCLUDE_PATTERNS = [

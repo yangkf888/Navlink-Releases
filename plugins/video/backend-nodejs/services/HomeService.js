@@ -422,6 +422,87 @@ class HomeService {
                 updated_at = CURRENT_TIMESTAMP
         `).run(key, json);
     }
+
+    /**
+     * 刷新单个板块
+     * @param {string} section - 'hot' | 'movie' | 'tv' | 'anime' | 'variety'
+     * @returns {Promise<any>} - 刷新后的板块数据
+     */
+    async refreshSingleSection(section) {
+        const db = getDatabase();
+
+        // 获取所有启用且未隐藏的资源站
+        let sources = db.all('SELECT * FROM video_sources WHERE enabled = 1 AND hidden = 0');
+
+        // 检查是否有白名单设置
+        const homeSourcesSetting = db.get("SELECT value FROM settings WHERE key = 'home_source_ids'");
+        if (homeSourcesSetting && homeSourcesSetting.value) {
+            try {
+                const whitelistIds = JSON.parse(homeSourcesSetting.value);
+                if (Array.isArray(whitelistIds) && whitelistIds.length > 0) {
+                    sources = sources.filter(s => whitelistIds.includes(s.id));
+                }
+            } catch (e) {
+                console.warn('[HomeService] Failed to parse home_source_ids:', e.message);
+            }
+        }
+
+        if (sources.length === 0) {
+            throw new Error('No enabled sources');
+        }
+
+        // 预加载分类
+        const allCategories = db.all('SELECT * FROM categories WHERE source_id IN (' + sources.map(() => '?').join(',') + ')', sources.map(s => s.id));
+        const categoryMap = new Map();
+        allCategories.forEach(cat => {
+            if (!categoryMap.has(cat.source_id)) {
+                categoryMap.set(cat.source_id, []);
+            }
+            categoryMap.get(cat.source_id).push(cat);
+        });
+        this.ctx = { categoryMap };
+
+        let result;
+
+        try {
+            if (section === 'hot') {
+                result = await this.refreshHot(sources, db);
+            } else {
+                await this.refreshSection(section, sources, db);
+
+                // 返回该板块的所有数据
+                const config = this.sections[section];
+                if (!config) {
+                    throw new Error(`Invalid section: ${section}`);
+                }
+
+                result = {};
+                // 读取最新数据
+                const latestKey = `home_${section}_latest`;
+                const latestRow = db.get('SELECT data FROM home_cache WHERE key = ?', [latestKey]);
+                if (latestRow) {
+                    try {
+                        result.latest = JSON.parse(latestRow.data);
+                    } catch (e) { }
+                }
+
+                // 读取所有子分类数据
+                for (const subKey of Object.keys(config.subs)) {
+                    const key = `home_${section}_${subKey}`;
+                    const row = db.get('SELECT data FROM home_cache WHERE key = ?', [key]);
+                    if (row) {
+                        try {
+                            result[subKey] = JSON.parse(row.data);
+                        } catch (e) { }
+                    }
+                }
+            }
+        } finally {
+            this.ctx = null;
+        }
+
+        return result;
+    }
 }
 
 module.exports = new HomeService();

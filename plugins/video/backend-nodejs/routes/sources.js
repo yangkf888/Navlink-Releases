@@ -207,10 +207,13 @@ router.post('/batch-test', async (req, res) => {
 
             const startTime = Date.now();
             try {
-                // 如果启用了代理，获取代理 Agent
                 const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
 
-                const response = await fetch(source.url + '?ac=list&pg=1', {
+                const targetUrl = new URL(source.url);
+                targetUrl.searchParams.set('ac', 'list');
+                targetUrl.searchParams.set('pg', '1');
+
+                const response = await fetch(targetUrl.toString(), {
                     method: 'GET',
                     timeout: 10000,
                     agent
@@ -488,7 +491,11 @@ router.post('/:id/test', async (req, res) => {
             // 如果启用了代理，获取代理 Agent
             const agent = source.proxy_enabled ? getSystemProxyAgent() : null;
 
-            const response = await fetch(source.url + '?ac=list&pg=1', {
+            const targetUrl = new URL(source.url);
+            targetUrl.searchParams.set('ac', 'list');
+            targetUrl.searchParams.set('pg', '1');
+
+            const response = await fetch(targetUrl.toString(), {
                 method: 'GET',
                 timeout: 10000,
                 agent

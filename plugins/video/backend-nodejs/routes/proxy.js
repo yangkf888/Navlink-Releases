@@ -90,6 +90,9 @@ router.get('/image', async (req, res) => {
  */
 router.get('/hls', async (req, res) => {
     const { url } = req.query;
+    console.log(`[Proxy] HLS request: ${req.originalUrl}`);
+    console.log(`[Proxy] Target URL: ${url}`);
+
     if (!url) {
         return res.status(400).send('Missing url parameter');
     }
@@ -120,6 +123,7 @@ router.get('/hls', async (req, res) => {
         };
 
         try {
+            console.log(`[Proxy] Fetching: ${targetUrl} (Proxy: ${useProxy})`);
             return await fetch(targetUrl, fetchOptions);
         } catch (error) {
             // 如果是因为证书或连接重置错误，且还没有尝试过不安全模式
@@ -138,6 +142,7 @@ router.get('/hls', async (req, res) => {
 
     try {
         const response = await fetchWithRetry(url);
+        console.log(`[Proxy] Response status: ${response.status} for ${url}`);
 
         if (!response.ok) {
             console.error(`[Proxy] HLS fetch failed: ${response.status} ${response.statusText} for ${url}`);
@@ -158,11 +163,25 @@ router.get('/hls', async (req, res) => {
             let m3u8Content = await response.text();
             const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
             const parsedUrl = new URL(url);
+            const queryParams = parsedUrl.search; // 获取请求参数 (?auth=...)
 
+            // 辅助函数：获取完整 URL 并附加原有的查询参数（如果是相对路径）
             const getFullUrl = (relative) => {
-                if (relative.startsWith('http')) return relative;
-                if (relative.startsWith('/')) return parsedUrl.origin + relative;
-                return baseUrl + relative;
+                let full;
+                if (relative.startsWith('http')) {
+                    full = relative;
+                } else if (relative.startsWith('/')) {
+                    full = parsedUrl.origin + relative;
+                } else {
+                    full = baseUrl + relative;
+                }
+
+                // 如果原 URL 有查询参数，且生成的 URL 没有查询参数，且属于同源或相对路径，则附加参数
+                // 简单策略：只要没有 ? 就补上原参数 (适配大多数 IPTV token 场景)
+                if (queryParams && !full.includes('?')) {
+                    full += queryParams;
+                }
+                return full;
             };
 
             const proxyUrlPrefix = `/api/plugins/video/api/proxy/hls?proxy=${useProxy ? '1' : '0'}&url=`;
@@ -195,6 +214,43 @@ router.get('/hls', async (req, res) => {
     } catch (error) {
         console.error('[Proxy] HLS critical failure:', error.message, 'URL:', url);
         res.status(500).send(`HLS Proxy Error: ${error.message}`);
+    }
+});
+
+/**
+ * 直播流式代理接口 (支持 FLV/MP4 等长连接流)
+ * GET /api/proxy/stream?url=xxx
+ */
+router.get('/stream', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('Missing url');
+
+    const parsedUrl = new URL(url);
+    const isBilibili = url.includes('bilivideo.com') || url.includes('bilibili.com');
+    const fetchOptions = {
+        headers: {
+            'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': isBilibili ? 'https://live.bilibili.com/' : (parsedUrl.origin + '/'),
+            'Origin': parsedUrl.origin
+        }
+    };
+
+    try {
+        const response = await fetch(url, fetchOptions);
+
+        // 转发响应头
+        res.setHeader('Content-Type', response.headers.get('content-type') || 'video/x-flv');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        // 使用 pipe 转发流，避免内存占用
+        response.body.pipe(res);
+
+        req.on('close', () => {
+            if (response.body.destroy) response.body.destroy();
+        });
+    } catch (error) {
+        console.error('[Proxy] Stream failure:', error.message);
+        res.status(500).send(error.message);
     }
 });
 

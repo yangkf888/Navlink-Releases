@@ -37,8 +37,31 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
         setHasError(false);
     }, [pluginId]);
 
+    const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
     const handleLoad = () => {
         setIsLoading(false);
+
+        // 🚀 核心逻辑：自动注入主应用共享主题标准包
+        // 这样插件即使不自己维护 CSS，也能获得与主应用一致的 Tailwind 暗黑/明亮适配补丁
+        try {
+            const iframe = iframeRef.current;
+            if (!iframe || !iframe.contentDocument) return;
+
+            const doc = iframe.contentDocument;
+            const linkId = 'navlink-plugin-standard-kit';
+
+            if (!doc.getElementById(linkId)) {
+                const link = doc.createElement('link');
+                link.id = linkId;
+                link.rel = 'stylesheet';
+                link.href = '/shared/plugin-standard.css';
+                doc.head.appendChild(link);
+                console.log(`[PluginIframe] Automatically injected standard kit into ${pluginId}`);
+            }
+        } catch (e) {
+            console.warn('[PluginIframe] Failed to inject shared styles (possibly cross-origin):', e);
+        }
     };
 
     const handleError = () => {
@@ -77,6 +100,7 @@ export function PluginIframe({ pluginId, title, className = '' }: PluginIframePr
 
             {/* iframe容器 */}
             <iframe
+                ref={iframeRef}
                 src={src}
                 title={title || pluginId}
                 onLoad={handleLoad}

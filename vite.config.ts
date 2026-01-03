@@ -40,9 +40,9 @@ export default defineConfig({
         },
     },
     // 生产环境移除 console 和 debugger
-    esbuild: {
-        drop: ['console', 'debugger'],
-    },
+    // esbuild: {
+    //     drop: ['console', 'debugger'],
+    // },
     build: {
         rollupOptions: {
             input: {

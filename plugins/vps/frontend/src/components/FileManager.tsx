@@ -389,22 +389,22 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
     };
 
     return (
-        <div className="h-full flex flex-col bg-white">
+        <div className="h-full flex flex-col bg-[var(--card-bg)]">
             {/* Toolbar */}
-            <div className="p-2 border-b border-gray-200 flex items-center gap-2 bg-gray-50">
-                <button onClick={handleUp} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" disabled={currentPath === '/'}>
+            <div className="p-2 border-b border-[var(--border-color)] flex items-center gap-2 bg-gray-500/5">
+                <button onClick={handleUp} className="p-1.5 hover:bg-gray-500/10 rounded text-gray-400 hover:text-[var(--theme-text)]" disabled={currentPath === '/'}>
                     <Icon icon="fa-solid fa-arrow-up" />
                 </button>
-                <div className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-mono text-gray-700 truncate">
+                <div className="flex-1 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border-color)] rounded text-sm font-mono text-[var(--theme-text)] truncate">
                     {currentPath}
                 </div>
-                <button onClick={() => refresh()} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="刷新">
+                <button onClick={() => refresh()} className="p-1.5 hover:bg-gray-500/10 rounded text-gray-400 hover:text-[var(--theme-text)]" title="刷新">
                     <Icon icon="fa-solid fa-sync" className={loading ? 'animate-spin' : ''} />
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="上传文件" disabled={!isConnected}>
+                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-gray-500/10 rounded text-gray-400 hover:text-[var(--theme-text)]" title="上传文件" disabled={!isConnected}>
                     <Icon icon="fa-solid fa-upload" />
                 </button>
-                <button onClick={handleNewFolder} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="新建文件夹" disabled={!isConnected}>
+                <button onClick={handleNewFolder} className="p-1.5 hover:bg-gray-500/10 rounded text-gray-400 hover:text-[var(--theme-text)]" title="新建文件夹" disabled={!isConnected}>
                     <Icon icon="fa-solid fa-folder-plus" />
                 </button>
                 <input
@@ -414,7 +414,6 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                     style={{ display: 'none' }}
                 />
             </div>
-
             {/* Upload Progress */}
             {uploadProgress !== null && (
                 <div className="bg-blue-50 px-4 py-2 border-b border-blue-100">
@@ -447,7 +446,7 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                 )}
 
                 <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0">
+                    <thead className="text-xs text-gray-400 uppercase bg-gray-500/5 sticky top-0">
                         <tr>
                             <th className="px-4 py-2">文件名</th>
                             <th className="px-4 py-2 w-24 hidden md:table-cell">大小</th>
@@ -465,7 +464,7 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                         {files.map(item => (
                             <tr
                                 key={item.name}
-                                className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer group"
+                                className="border-b border-[var(--border-color)] hover:bg-gray-500/10 cursor-pointer group transition-colors"
                                 onClick={() => handleItemClick(item)}
                                 onContextMenu={(e) => handleContextMenu(e, item)}
                             >
@@ -474,7 +473,7 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                                         icon={item.isDir ? "fa-solid fa-folder" : "fa-solid fa-file"}
                                         className={item.isDir ? "text-yellow-500" : "text-gray-400"}
                                     />
-                                    <span className="text-gray-700 font-medium truncate max-w-[150px] md:max-w-none">{item.name}</span>
+                                    <span className="text-[var(--theme-text)] font-medium truncate max-w-[150px] md:max-w-none">{item.name}</span>
                                 </td>
                                 <td className="px-4 py-2 text-gray-500 font-mono text-xs hidden md:table-cell">
                                     {item.size > 0 ? (item.size / 1024).toFixed(1) + ' KB' : '-'}
@@ -504,10 +503,10 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
             {/* Editor Modal */}
             {editingFile && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-20">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
-                        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
-                            <h3 className="font-bold text-gray-800 truncate">{editingFile.path}</h3>
-                            <button onClick={() => setEditingFile(null)} className="text-gray-400 hover:text-gray-600">
+                    <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-[var(--border-color)]">
+                        <div className="px-4 py-3 border-b border-[var(--border-color)] flex justify-between items-center bg-gray-500/5 rounded-t-xl">
+                            <h3 className="font-bold text-[var(--theme-text)] truncate">{editingFile.path}</h3>
+                            <button onClick={() => setEditingFile(null)} className="text-gray-400 hover:text-[var(--theme-text)]">
                                 <Icon icon="fa-solid fa-times" />
                             </button>
                         </div>
@@ -515,14 +514,14 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                             <textarea
                                 value={editorContent}
                                 onChange={e => setEditorContent(e.target.value)}
-                                className="w-full h-full p-4 font-mono text-sm outline-none resize-none bg-gray-50"
+                                className="w-full h-full p-4 font-mono text-sm outline-none resize-none bg-[var(--card-bg)] text-[var(--theme-text)]"
                                 spellCheck={false}
                             />
                         </div>
-                        <div className="px-4 py-3 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
+                        <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-3 bg-gray-500/5 rounded-b-xl">
                             <button
                                 onClick={() => setEditingFile(null)}
-                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                                className="px-4 py-2 text-[var(--theme-text)] bg-[var(--card-bg)] border border-[var(--border-color)] hover:bg-gray-500/10 rounded-lg transition-colors"
                             >
                                 取消
                             </button>
@@ -542,98 +541,95 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
             {/* Rename Modal */}
             {renameModal.isOpen && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-30" onClick={() => setRenameModal({ ...renameModal, isOpen: false })}>
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">重命名 {renameModal.item?.name}</h3>
+                    <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-md p-6 border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-[var(--theme-text)] mb-4">重命名 {renameModal.item?.name}</h3>
                         <input
                             type="text"
                             value={renameModal.newName}
                             onChange={e => setRenameModal({ ...renameModal, newName: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4"
+                            className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4 bg-[var(--card-bg)] text-[var(--theme-text)]"
                             autoFocus
                             onKeyDown={e => e.key === 'Enter' && handleRenameSubmit()}
                         />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setRenameModal({ ...renameModal, isOpen: false })} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+                            <button onClick={() => setRenameModal({ ...renameModal, isOpen: false })} className="px-4 py-2 text-gray-400 hover:text-[var(--theme-text)] hover:bg-gray-500/10 rounded-lg">取消</button>
                             <button onClick={handleRenameSubmit} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">重命名</button>
                         </div>
                     </div>
                 </div>
             )}
-
             {/* New Folder Modal */}
             {newFolderModal.isOpen && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-30" onClick={() => setNewFolderModal({ isOpen: false, folderName: '' })}>
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">新建文件夹</h3>
+                    <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-md p-6 border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-[var(--theme-text)] mb-4">新建文件夹</h3>
                         <input
                             type="text"
                             value={newFolderModal.folderName}
                             onChange={e => setNewFolderModal({ ...newFolderModal, folderName: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4"
+                            className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4 bg-[var(--card-bg)] text-[var(--theme-text)]"
                             placeholder="文件夹名称"
                             autoFocus
                             onKeyDown={e => e.key === 'Enter' && handleNewFolderSubmit()}
                         />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setNewFolderModal({ isOpen: false, folderName: '' })} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+                            <button onClick={() => setNewFolderModal({ isOpen: false, folderName: '' })} className="px-4 py-2 text-gray-400 hover:text-[var(--theme-text)] hover:bg-gray-500/10 rounded-lg">取消</button>
                             <button onClick={handleNewFolderSubmit} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">创建</button>
                         </div>
                     </div>
                 </div>
             )}
-
             {/* Context Menu */}
             {contextMenu && (
                 <div
-                    className="fixed bg-white shadow-xl rounded-lg border border-gray-200 py-1 z-50 min-w-[160px]"
+                    className="fixed bg-[var(--card-bg)] shadow-xl rounded-lg border border-[var(--border-color)] py-1 z-50 min-w-[160px]"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <button onClick={() => { handleItemClick(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2">
+                    <button onClick={() => { handleItemClick(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-500/10 text-sm text-[var(--theme-text)] flex items-center gap-2">
                         <Icon icon={contextMenu.item.isDir ? "fa-solid fa-folder-open" : "fa-solid fa-file-pen"} className="w-4" />
                         {contextMenu.item.isDir ? '打开' : '编辑'}
                     </button>
                     {!contextMenu.item.isDir && (
-                        <button onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2">
+                        <button onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-500/10 text-sm text-[var(--theme-text)] flex items-center gap-2">
                             <Icon icon="fa-solid fa-download" className="w-4" />
                             下载
                         </button>
                     )}
-                    <button onClick={() => { handleRename(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2">
+                    <button onClick={() => { handleRename(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-500/10 text-sm text-[var(--theme-text)] flex items-center gap-2">
                         <Icon icon="fa-solid fa-i-cursor" className="w-4" />
                         重命名
                     </button>
-                    <button onClick={() => { handleMove(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2">
+                    <button onClick={() => { handleMove(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-500/10 text-sm text-[var(--theme-text)] flex items-center gap-2">
                         <Icon icon="fa-solid fa-arrows-up-down-left-right" className="w-4" />
                         移动
                     </button>
-                    <div className="h-px bg-gray-200 my-1"></div>
-                    <button onClick={() => { handleDelete(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm text-red-600 flex items-center gap-2">
+                    <div className="h-px bg-[var(--border-color)] my-1"></div>
+                    <button onClick={() => { handleDelete(contextMenu.item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-500/10 text-sm text-red-500 flex items-center gap-2">
                         <Icon icon="fa-solid fa-trash" className="w-4" />
                         删除
                     </button>
                 </div>
             )}
-
             {/* Move Modal */}
             {moveModal.isOpen && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-30" onClick={() => setMoveModal({ ...moveModal, isOpen: false })}>
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col h-[500px]" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-gray-100">
-                            <h3 className="text-lg font-bold text-gray-800">移动 {moveModal.item?.name}</h3>
-                            <p className="text-xs text-gray-500 mt-1">选择目标文件夹</p>
+                    <div className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-md flex flex-col h-[500px] border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-[var(--border-color)]">
+                            <h3 className="text-lg font-bold text-[var(--theme-text)]">移动 {moveModal.item?.name}</h3>
+                            <p className="text-xs text-gray-400 mt-1">选择目标文件夹</p>
                         </div>
 
                         {/* Browser Toolbar */}
-                        <div className="p-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                        <div className="p-2 bg-gray-500/5 border-b border-[var(--border-color)] flex items-center gap-2">
                             <button
                                 onClick={handleMoveUp}
-                                className="p-1.5 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-50"
+                                className="p-1.5 hover:bg-gray-500/10 rounded text-gray-400 disabled:opacity-50"
                                 disabled={moveModal.targetPath === '/'}
                             >
                                 <Icon icon="fa-solid fa-arrow-up" />
                             </button>
-                            <div className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono text-gray-700 truncate">
+                            <div className="flex-1 px-2 py-1 bg-[var(--card-bg)] border border-[var(--border-color)] rounded text-xs font-mono text-[var(--theme-text)] truncate">
                                 {moveModal.targetPath}
                             </div>
                         </div>
@@ -641,7 +637,7 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                         {/* Directory List */}
                         <div className="flex-1 overflow-y-auto p-2 relative">
                             {moveModal.loading && (
-                                <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-[var(--card-bg)]/80 z-10 flex items-center justify-center">
                                     <Icon icon="fa-solid fa-spinner" className="animate-spin text-blue-500" />
                                 </div>
                             )}
@@ -653,7 +649,7 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                                         <div
                                             key={file.name}
                                             onClick={() => handleMoveNavigate(moveModal.targetPath === '/' ? `/${file.name}` : `${moveModal.targetPath}/${file.name}`)}
-                                            className="flex items-center gap-2 p-2 hover:bg-blue-50 rounded cursor-pointer text-sm text-gray-700"
+                                            className="flex items-center gap-2 p-2 hover:bg-gray-500/10 rounded cursor-pointer text-sm text-[var(--theme-text)]"
                                         >
                                             <Icon icon="fa-solid fa-folder" className="text-yellow-500" />
                                             <span className="truncate">{file.name}</span>
@@ -663,14 +659,13 @@ export default function FileManager({ ws, isConnected }: FileManagerProps) {
                             )}
                         </div>
 
-                        <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
-                            <button onClick={() => setMoveModal({ ...moveModal, isOpen: false })} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">取消</button>
+                        <div className="p-4 border-t border-[var(--border-color)] flex justify-end gap-3 bg-gray-500/5 rounded-b-xl">
+                            <button onClick={() => setMoveModal({ ...moveModal, isOpen: false })} className="px-4 py-2 text-gray-400 hover:text-[var(--theme-text)] hover:bg-gray-500/10 rounded-lg text-sm">取消</button>
                             <button onClick={handleMoveSubmit} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm">移动到此处</button>
                         </div>
                     </div>
                 </div>
             )}
-
             <ConfirmModal
                 isOpen={deleteModal.isOpen}
                 onClose={() => setDeleteModal({ isOpen: false, item: null })}

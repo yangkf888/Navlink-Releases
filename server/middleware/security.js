@@ -68,7 +68,9 @@ export const helmetConfig = helmet({
                 "https://api.unisvg.com",
                 "https://api.simplesvg.com",
                 // 允许其他外部 API（如热搜等）
-                "https:"
+                "https:",
+                // 允许 HTTP 连接以支持电视直播源
+                "http:"
             ],
             fontSrc: ["'self'", "data:", "https://cdnjs.cloudflare.com"],
             objectSrc: ["'none'"],

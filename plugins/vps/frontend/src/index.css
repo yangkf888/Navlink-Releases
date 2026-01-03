@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base styles are now inherited from /public/shared/plugin-standard.css */
+
+@layer base {
+    :root {
+        --theme-primary: #e74c3c;
+    }
+}
+
 @layer utilities {
     .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -29,10 +37,9 @@
     }
 }
 
-@layer base {
-    :root {
-        --theme-primary: #e74c3c;
-    }
+/* Plugin specific animations or custom utility overrides */
+.vps-terminal-font {
+    font-family: 'Fira Code', monospace;
 }
 
 /* Custom Scrollbar */

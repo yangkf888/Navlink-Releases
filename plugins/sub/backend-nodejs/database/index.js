@@ -44,21 +44,30 @@ function initDatabase() {
 function initSchema(db) {
     // 订阅表
     db.exec(`
-        CREATE TABLE IF NOT EXISTS subscriptions(
+        CREATE TABLE IF NOT EXISTS subscriptions (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL DEFAULT 'default',
     user_id TEXT NOT NULL DEFAULT 'default',
     name TEXT NOT NULL,
+    customType TEXT DEFAULT '',
     description TEXT DEFAULT '',
     category TEXT DEFAULT '',
-    price REAL DEFAULT 0,
-    currency TEXT DEFAULT 'CNY',
-    billingCycle TEXT DEFAULT 'monthly',
-    expiryDate TEXT NOT NULL,
-    reminderDays TEXT DEFAULT '7,3,1',
-    isActive INTEGER DEFAULT 1,
     notes TEXT DEFAULT '',
     tags TEXT DEFAULT '',
+    isActive INTEGER DEFAULT 1,
+    autoRenew INTEGER DEFAULT 0,
+    startDate TEXT DEFAULT '',
+    expiryDate TEXT NOT NULL,
+    periodValue INTEGER DEFAULT 1,
+    periodUnit TEXT DEFAULT 'month',
+    reminderValue INTEGER DEFAULT 7,
+    reminderUnit TEXT DEFAULT 'day',
+    useLunar INTEGER DEFAULT 0,
+    price REAL DEFAULT 0,
+    currency TEXT DEFAULT 'CNY',
+    currencySymbol TEXT DEFAULT '¥',
+    billingCycle TEXT DEFAULT 'monthly',
+    reminderDays TEXT DEFAULT '7,3,1',
     createdAt TEXT,
     updatedAt TEXT
 );
@@ -96,27 +105,63 @@ function initSchema(db) {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
         } else {
-            // 添加reminderTime字段（如果不存在）
-            db.exec(`
-                -- 添加reminderTime字段到custom_reminders表
-                ALTER TABLE custom_reminders ADD COLUMN reminderTime TEXT DEFAULT '09:00';
-            `, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('[Database] Failed to add reminderTime column:', err);
-                } else {
-                    console.log('[Database] reminderTime column migration completed');
+            console.log('[Database] Schema initialized, starting migrations...');
+            // 执行迁移
+            runMigrations(db);
+        }
+    });
+}
 
-                    // 添加notified字段（如果不存在）
-                    db.exec(`
-                        -- 添加notified字段到custom_reminders表
-                        ALTER TABLE custom_reminders ADD COLUMN notified INTEGER DEFAULT 0;
-                    `, (err) => {
-                        if (err && !err.message.includes('duplicate column')) {
-                            console.error('[Database] Failed to add notified column:', err);
-                        } else {
-                            console.log('[Database] Schema migration completed');
-                        }
-                    });
+/**
+ * 运行数据库迁移
+ */
+function runMigrations(db) {
+    // 迁移1：为 subscriptions 表添加缺失的列
+    const subscriptionMigrations = [
+        { sql: `ALTER TABLE subscriptions ADD COLUMN customType TEXT DEFAULT ''`, name: 'customType' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN autoRenew INTEGER DEFAULT 0`, name: 'autoRenew' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN startDate TEXT DEFAULT ''`, name: 'startDate' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN periodValue INTEGER DEFAULT 1`, name: 'periodValue' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN periodUnit TEXT DEFAULT 'month'`, name: 'periodUnit' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN reminderValue INTEGER DEFAULT 7`, name: 'reminderValue' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN reminderUnit TEXT DEFAULT 'day'`, name: 'reminderUnit' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN useLunar INTEGER DEFAULT 0`, name: 'useLunar' },
+        { sql: `ALTER TABLE subscriptions ADD COLUMN currencySymbol TEXT DEFAULT '¥'`, name: 'currencySymbol' }
+    ];
+
+    let subscriptionCompleted = 0;
+    subscriptionMigrations.forEach(migration => {
+        db.exec(migration.sql, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error(`[Database] Failed to add ${migration.name}:`, err.message);
+            }
+            subscriptionCompleted++;
+            if (subscriptionCompleted === subscriptionMigrations.length) {
+                console.log('[Database] Subscriptions table migration completed');
+                // 继续 custom_reminders 迁移
+                migrateCustomReminders(db);
+            }
+        });
+    });
+}
+
+/**
+ * 迁移 custom_reminders 表
+ */
+function migrateCustomReminders(db) {
+    // 添加reminderTime字段（如果不存在）
+    db.exec(`ALTER TABLE custom_reminders ADD COLUMN reminderTime TEXT DEFAULT '09:00'`, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.error('[Database] Failed to add reminderTime column:', err);
+        } else {
+            console.log('[Database] reminderTime column migration completed');
+
+            // 添加notified字段（如果不存在）
+            db.exec(`ALTER TABLE custom_reminders ADD COLUMN notified INTEGER DEFAULT 0`, (err) => {
+                if (err && !err.message.includes('duplicate column')) {
+                    console.error('[Database] Failed to add notified column:', err);
+                } else {
+                    console.log('[Database] All schema migrations completed successfully');
                 }
             });
         }

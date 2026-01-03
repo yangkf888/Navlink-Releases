@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { Video } from '../types';
-import { apiGet } from '../utils/api';
+import { apiGet, apiPost } from '../utils/api';
 import { VideoCard } from '../components/VideoCard';
 import { useAppNavigate } from '../contexts/NavigationContext';
 
@@ -98,6 +98,7 @@ export function Home() {
     const [data, setData] = useState<HomeData | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
+    const [refreshingSection, setRefreshingSection] = useState<string | null>(null);
     // 记录每个板块当前选中的 Tab (默认为 'latest')
     const [activeTabs, setActiveTabs] = useState<Record<string, string>>({
         movie: 'latest',
@@ -113,6 +114,51 @@ export function Home() {
     const loadData = async () => {
         try {
             setLoading(true);
+            // 1. 先获取缓存数据和最后更新时间
+            const res = await apiGet<{ data: HomeData; lastUpdated: string | null }>('/home');
+
+            if (!res.success || !res.data) {
+                throw new Error('Failed to load cache');
+            }
+
+            setData(res.data.data);
+            setLoading(false);
+
+            // 2. 判断是否需要自动刷新
+            if (res.data.lastUpdated) {
+                const lastUpdated = new Date(res.data.lastUpdated);
+                const now = new Date();
+                const hoursDiff = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
+
+                if (hoursDiff < 24) {
+                    console.log(`[Home] Cache is fresh (${hoursDiff.toFixed(1)}h old), skipping auto-refresh`);
+                    return;
+                }
+
+                console.log(`[Home] Cache is stale (${hoursDiff.toFixed(1)}h old), triggering refresh`);
+            } else {
+                console.log('[Home] No lastUpdated timestamp, triggering initial refresh');
+            }
+
+            // 3. 超过24小时或首次加载，触发流式刷新
+            setUpdating(true);
+            await loadDataStream();
+        } catch (error) {
+            console.error('[Home] Failed to load:', error);
+            // 降级：尝试流式加载
+            try {
+                await loadDataStream();
+            } catch (e) {
+                console.error('[Home] Stream fallback failed:', e);
+            }
+        } finally {
+            setLoading(false);
+            setUpdating(false);
+        }
+    };
+
+    const loadDataStream = async () => {
+        try {
             const token = localStorage.getItem('auth_token');
             const url = new URL(`${window.location.origin}/api/plugins/video/api/home`);
             url.searchParams.append('stream', 'true');
@@ -179,19 +225,30 @@ export function Home() {
             }
         } catch (error) {
             console.error('[Home] Failed to load home data via SSE:', error);
-            // 降级处理: 如果流式失败，尝试普通请求
-            try {
-                setLoading(true);
-                const res = await apiGet<HomeData>('/home');
-                if (res.success && res.data) {
-                    setData(res.data);
+            throw error;
+        }
+    };
+
+    const refreshSingleSection = async (section: string) => {
+        try {
+            setRefreshingSection(section);
+            const res = await apiPost<any>('/home/refresh-section', { section });
+
+            if (res.success && res.data) {
+                // 更新对应板块数据
+                if (section === 'hot') {
+                    setData(prev => ({ ...prev!, hot: res.data }));
+                } else {
+                    setData(prev => ({
+                        ...prev!,
+                        [section]: res.data
+                    }));
                 }
-            } catch (e) {
-                console.error('[Home] Fallback fetch failed:', e);
             }
+        } catch (error) {
+            console.error(`[Home] Failed to refresh ${section}:`, error);
         } finally {
-            setLoading(false);
-            setUpdating(false);
+            setRefreshingSection(null);
         }
     };
 
@@ -265,6 +322,14 @@ export function Home() {
                             </span>
                         )}
                     </h2>
+                    <button
+                        onClick={() => refreshSingleSection('hot')}
+                        disabled={refreshingSection === 'hot'}
+                        className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                        title="刷新正在热映"
+                    >
+                        <i className={`fas fa-sync-alt ${refreshingSection === 'hot' ? 'fa-spin' : ''}`}></i>
+                    </button>
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                     {data.hot?.slice(0, 12).map(video => (
@@ -291,10 +356,20 @@ export function Home() {
                     <section key={section.id}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 px-1">
                             {/* 标题 */}
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2 shrink-0">
-                                <i className={`${section.icon} ${colorClasses.icon}`}></i>
-                                {section.title}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2 shrink-0">
+                                    <i className={`${section.icon} ${colorClasses.icon}`}></i>
+                                    {section.title}
+                                </h2>
+                                <button
+                                    onClick={() => refreshSingleSection(section.id)}
+                                    disabled={refreshingSection === section.id}
+                                    className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                                    title={`刷新${section.title}`}
+                                >
+                                    <i className={`fas fa-sync-alt ${refreshingSection === section.id ? 'fa-spin' : ''}`}></i>
+                                </button>
+                            </div>
 
                             {/* Tabs (Scrollable) */}
                             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">

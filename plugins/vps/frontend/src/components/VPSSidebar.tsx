@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Icon } from './common/Icon';
 import { VpsServer, VpsGroup } from '../types';
 
-export type VPSView = 'overview' | 'servers' | 'dashboard' | 'terminal' | 'files' | 'snippets';
+export type VPSView = 'servers' | 'dashboard' | 'terminal' | 'files' | 'snippets';
 
 interface VPSSidebarProps {
     activeView: VPSView;
@@ -15,6 +15,8 @@ interface VPSSidebarProps {
     groups: VpsGroup[];
     onConnect: (serverId: string) => void;
     activeServerId?: string | null;
+    theme?: 'light' | 'dark';
+    onToggleTheme?: () => void;
 }
 
 const VPSSidebar: React.FC<VPSSidebarProps> = ({
@@ -27,7 +29,9 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
     servers,
     groups,
     onConnect,
-    activeServerId
+    activeServerId,
+    theme = 'light',
+    onToggleTheme
 }) => {
     // State for collapsed groups (by ID)
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -60,33 +64,33 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
 
     const desktopClass = `
     hidden lg:flex flex-col flex-shrink-0
-    h-screen bg-white border-r border-gray-200
+    h-screen bg-[var(--sidebar-bg)] border-r border-[var(--border-color)]
     transition-all duration-300 ease-in-out
     ${widthClass}
 `;
 
     const mobileClass = `
-    fixed inset-y-0 left-0 w-[240px] bg-white z-[70] shadow-2xl transform transition-transform duration-300 ease-in-out
+    fixed inset-y-0 left-0 w-[240px] bg-[var(--sidebar-bg)] z-[70] shadow-2xl transform transition-transform duration-300 ease-in-out
     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     lg:hidden flex flex-col
   `;
 
     const mainItems = [
-        { id: 'overview', label: '总览', icon: 'fa-solid fa-gauge-high' },
+        { id: 'dashboard', label: '总览', icon: 'fa-solid fa-gauge-high' },
         { id: 'snippets', label: '脚本库', icon: 'fa-solid fa-code' },
     ];
 
     const Content = ({ isDesktop = false }: { isDesktop?: boolean }) => (
         <>
             {/* Mobile Header */}
-            <div className="lg:hidden h-[60px] flex items-center px-6 border-b border-gray-100">
-                <span className="text-lg font-bold text-gray-800">VPS管理</span>
+            <div className="lg:hidden h-[60px] flex items-center px-6 border-b border-[var(--border-color)]">
+                <span className="text-lg font-bold text-[var(--theme-text)]">VPS管理</span>
                 <button onClick={() => setMobileOpen(false)} className="ml-auto text-gray-400"><Icon icon="fa-solid fa-times" /></button>
             </div>
 
             {/* Desktop Header */}
             {isDesktop && !collapsed && (
-                <div className="p-4 border-b border-gray-100 mb-2">
+                <div className="p-4 border-b border-[var(--border-color)] mb-2">
                     <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600">
                         VPS管理
                     </h2>
@@ -109,7 +113,7 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
                   w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
                   ${activeView === item.id
                                     ? 'text-white bg-[var(--theme-primary)] shadow-md shadow-red-200'
-                                    : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm'
+                                    : 'text-gray-500 hover:bg-white/10 hover:text-[var(--theme-primary)]'
                                 }
                   ${collapsed && isDesktop ? 'justify-center px-0' : ''}
 `}
@@ -126,7 +130,7 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
                     <div className={`mt-6 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider ${collapsed && isDesktop ? 'hidden' : ''}`}>
                         服务器列表
                     </div>
-                    {collapsed && isDesktop && <div className="h-px bg-gray-200 my-2 mx-4"></div>}
+                    {collapsed && isDesktop && <div className="h-px border-t border-[var(--border-color)] my-2 mx-4"></div>}
 
                     {/* Grouped Servers */}
                     {groups.map(group => {
@@ -165,7 +169,7 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
                                                         w-full flex items-center px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-200 group
                                                         ${isActive
                                                             ? 'bg-[var(--theme-primary)] text-white shadow-md shadow-red-200'
-                                                            : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm border border-transparent hover:border-gray-100'
+                                                            : 'text-gray-500 hover:bg-white/10 hover:text-[var(--theme-primary)] hover:shadow-sm border border-transparent hover:border-[var(--border-color)]'
                                                         }
                                                         ${collapsed && isDesktop ? 'justify-center px-0' : ''}
                                                     `}
@@ -221,7 +225,7 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
                                                     w-full flex items-center px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-200 group
                                                     ${isActive
                                                         ? 'bg-[var(--theme-primary)] text-white shadow-md shadow-red-200'
-                                                        : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm border border-transparent hover:border-gray-100'
+                                                        : 'text-gray-500 hover:bg-white/10 hover:text-[var(--theme-primary)] hover:shadow-sm border border-transparent hover:border-[var(--border-color)]'
                                                     }
                                                     ${collapsed && isDesktop ? 'justify-center px-0' : ''}
                                                 `}
@@ -253,9 +257,20 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
                 </nav>
             </div>
 
-            {/* Footer / Collapse Button */}
-            <div className="p-4 mt-auto lg:mt-0">
-                <div className="flex items-center justify-between text-gray-500 bg-white lg:bg-transparent rounded-lg p-2 lg:p-0">
+            {/* Footer / Theme & Collapse Button */}
+            <div className="p-4 mt-auto lg:mt-0 space-y-2">
+                {onToggleTheme && (
+                    <button
+                        onClick={onToggleTheme}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/10 transition-all ${collapsed && isDesktop ? 'justify-center' : ''}`}
+                        title={theme === 'light' ? '黑暗模式' : '明亮模式'}
+                    >
+                        <i className={`fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5 text-center`}></i>
+                        {(!collapsed || !isDesktop) && <span>{theme === 'light' ? '黑暗模式' : '明亮模式'}</span>}
+                    </button>
+                )}
+
+                <div className="flex items-center justify-between text-gray-500 bg-[var(--sidebar-bg)] lg:bg-transparent rounded-lg p-2 lg:p-0">
                     <button
                         onClick={toggleCollapsed}
                         className={`hover:text-[var(--theme-primary)] text-sm font-medium flex items-center ${collapsed && isDesktop ? 'mx-auto' : ''} `}

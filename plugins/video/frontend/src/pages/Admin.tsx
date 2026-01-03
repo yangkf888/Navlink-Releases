@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { SourceManager } from '../components/SourceManager';
 import { SettingsManager } from '../components/SettingsManager';
 import { HomeManager } from '../components/HomeManager';
+import { TvSourceManager } from '../components/TvSourceManager';
+import { LiveSourceManager } from '../components/LiveSourceManager';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoSource } from '../types';
 import { apiGet } from '../utils/api';
@@ -11,7 +13,7 @@ interface AdminProps {
     onSourcesChange?: () => void;
 }
 
-type TabType = 'home' | 'sources' | 'settings';
+type TabType = 'home' | 'sources' | 'tv_sources' | 'live_sources' | 'settings';
 
 export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) {
     const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -168,6 +170,26 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                     视频源管理
                 </button>
                 <button
+                    onClick={() => setActiveTab('tv_sources')}
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
+                        ${activeTab === 'tv_sources'
+                            ? 'bg-gray-800 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    电视源管理
+                </button>
+                <button
+                    onClick={() => setActiveTab('live_sources')}
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
+                        ${activeTab === 'live_sources'
+                            ? 'bg-gray-800 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    直播源管理
+                </button>
+                <button
                     onClick={() => setActiveTab('settings')}
                     className={`px-4 py-2 rounded-t-lg font-medium transition-colors
                         ${activeTab === 'settings'
@@ -187,6 +209,16 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             {/* 视频源管理 - 使用独立组件 */}
             {activeTab === 'sources' && (
                 <SourceManager onSourcesChange={() => { onSourcesChange?.(); loadSources(); }} />
+            )}
+
+            {/* 电视源管理 */}
+            {activeTab === 'tv_sources' && (
+                <TvSourceManager onSourcesChange={() => { onSourcesChange?.(); }} />
+            )}
+
+            {/* 直播源管理 */}
+            {activeTab === 'live_sources' && (
+                <LiveSourceManager onSourcesChange={() => { onSourcesChange?.(); }} />
             )}
 
             {/* 系统设置 - 使用独立组件 */}

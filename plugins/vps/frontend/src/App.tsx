@@ -52,6 +52,28 @@ function VPSAppContent() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
 
+    // 主题管理
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('vps_theme') as 'light' | 'dark') || 'light';
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('vps_theme', theme);
+
+        // 同步主题到主应用
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
+            }, '*');
+        }
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
     // 发送空 Sidebar 配置到主应用（使用插件内部侧边栏）
     useEffect(() => {
         const isInIframe = window.parent !== window;
@@ -211,13 +233,11 @@ function VPSAppContent() {
     const themeStyles = `
     :root {
         --theme-primary: ${config.theme?.primaryColor || '#f1404b'};
-        --theme-bg: ${config.theme?.backgroundColor || '#f1f2f3'};
-        --theme-text: ${config.theme?.textColor || '#444444'};
     }
     `;
 
     return (
-        <div className={`h-screen bg-gray-50 flex overflow-hidden`}>
+        <div className={`h-screen bg-[var(--theme-bg)] flex overflow-hidden text-[var(--theme-text)] transition-colors duration-300`}>
             <style>{themeStyles}</style>
 
             {/* VPS 内部侧边栏 */}
@@ -232,6 +252,8 @@ function VPSAppContent() {
                 groups={groups}
                 onConnect={handleConnect}
                 activeServerId={activeSessionId}
+                theme={theme}
+                onToggleTheme={toggleTheme}
             />
 
             {/* Login Dialog */}
@@ -245,19 +267,19 @@ function VPSAppContent() {
             {/* 主内容区域 */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* 移动端顶部栏 */}
-                <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
+                <div className="lg:hidden sticky top-0 z-20 bg-[var(--sidebar-bg)] border-b border-[var(--border-color)] px-4 py-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setMobileOpen(true)}
-                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="p-2 text-gray-400 hover:text-[var(--theme-text)] hover:bg-gray-500/10 rounded-lg transition-colors"
                             >
                                 <Icon icon="fa-solid fa-bars" className="text-lg" />
                             </button>
-                            <h1 className="text-lg font-bold text-gray-800">VPS管理</h1>
+                            <h1 className="text-lg font-bold text-[var(--theme-text)]">VPS管理</h1>
                         </div>
                         {activeSessionId && (
-                            <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                            <span className="flex items-center gap-1.5 text-sm text-gray-400">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                                 <span className="max-w-[100px] truncate">
                                     {sessions.find(s => s.id === activeSessionId)?.serverName}
@@ -268,10 +290,10 @@ function VPSAppContent() {
                 </div>
 
                 {/* 内容区域 */}
-                <div className={`flex-1 flex flex-col ${isFixedLayout ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                <div className={`flex-1 flex flex-col ${isFixedLayout ? 'overflow-hidden' : 'overflow-y-auto'} bg-[var(--theme-bg)]`}>
                     {/* Tab Bar (Visible only when sessions exist) */}
                     {sessions.length > 0 && (
-                        <div className="bg-white border-b border-gray-200 flex items-center px-2 pt-2 gap-2 overflow-x-auto flex-shrink-0">
+                        <div className="bg-[var(--sidebar-bg)] border-b border-[var(--border-color)] flex items-center px-2 pt-2 gap-2 overflow-x-auto flex-shrink-0">
                             {sessions.map(session => (
                                 <div
                                     key={session.id}
@@ -283,7 +305,7 @@ function VPSAppContent() {
                                         group flex items-center gap-2 px-6 py-2 rounded-t-lg text-xs font-medium cursor-pointer transition-colors border-t border-l border-r min-w-[120px] justify-center
                                         ${activeSessionId === session.id
                                             ? 'bg-[var(--theme-primary)] border-[var(--theme-primary)] text-white relative -mb-px pb-2.5 z-10 shadow-sm'
-                                            : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                                            : 'bg-[var(--sidebar-bg)] border-[var(--border-color)] text-gray-400 hover:bg-gray-500/5 hover:text-[var(--theme-text)]'
                                         }
                                     `}
                                 >
@@ -293,7 +315,7 @@ function VPSAppContent() {
                                         onClick={(e) => handleCloseSession(session.id, e)}
                                         className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors opacity-0 group-hover:opacity-100 ${activeSessionId === session.id
                                             ? 'hover:bg-white/20 text-white/70 hover:text-white'
-                                            : 'hover:bg-gray-200 text-gray-400 hover:text-red-500'
+                                            : 'hover:bg-gray-500/10 text-gray-400 hover:text-red-500'
                                             }`}
                                     >
                                         <Icon icon="fa-solid fa-times" className="text-xs" />
@@ -331,7 +353,7 @@ function VPSAppContent() {
                             <div className="p-6 lg:p-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <div>
-                                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Servers</h1>
+                                        <h1 className="text-2xl sm:text-3xl font-bold">Servers</h1>
                                         <p className="text-gray-500 text-sm mt-1">Manage your VPS instances</p>
                                     </div>
                                     <button
@@ -366,7 +388,7 @@ function VPSAppContent() {
                         {activeView === 'snippets' && (
                             <div className="h-full flex flex-col p-6 lg:p-8">
                                 <div className="mb-6 max-w-[1600px] mx-auto w-full">
-                                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">指令库</h1>
+                                    <h1 className="text-2xl sm:text-3xl font-bold">指令库</h1>
                                     <p className="text-gray-500 text-sm mt-1">管理和运行常用脚本</p>
                                 </div>
                                 <div className="flex-1 max-w-[1600px] mx-auto w-full">
@@ -396,7 +418,7 @@ function VPSAppContent() {
                             return (
                                 <div
                                     key={session.id}
-                                    className={`h-full w-full flex-1 bg-white ${isActive ? 'block' : 'hidden'}`}
+                                    className={`h-full w-full flex-1 ${isActive ? 'block' : 'hidden'}`}
                                 >
                                     <ServerTerminalView
                                         serverId={session.serverId}

@@ -41,12 +41,15 @@ export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
         }
     }, [sources, loading, hasLoadedSettings]);
 
+
     // 当 sources 加载完成且设置也加载完成后，自动进行一次测速
-    useEffect(() => {
-        if (!loading && sources.length > 0) {
-            testAllLatency();
-        }
-    }, [sources, loading]);
+    // 已禁用：用户手动点击"测速"按钮时才测速
+    // useEffect(() => {
+    //     if (!loading && sources.length > 0) {
+    //         testAllLatency();
+    //     }
+    // }, [sources, loading]);
+
 
     const loadSettings = async () => {
         try {

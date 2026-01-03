@@ -22,6 +22,61 @@ export interface VideoSource {
 }
 
 /**
+ * 电视源
+ */
+export interface TvSource {
+    id: number;
+    name: string;
+    type: 'm3u' | 'json';
+    url: string;
+    enabled: number;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * 电视频道
+ */
+export interface TvChannel {
+    name: string;
+    url: string;
+    group: string;
+    logo?: string;
+}
+
+/**
+ * 直播源
+ */
+export interface LiveSource {
+    id: number;
+    name: string;
+    platform: string;
+    channel_id: string;
+    streamer_name?: string;
+    category?: string;
+    cover_url?: string;
+    enabled: number;
+    sort_order: number;
+    tags?: string;
+    remark?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * 直播状态
+ */
+export interface LiveStatus {
+    source_id: number;
+    is_live: number;
+    title?: string;
+    viewer_count?: number;
+    stream_url?: string;
+    updated_at: string;
+}
+
+/**
  * 分类
  */
 export interface Category {
@@ -166,4 +221,3 @@ export interface Settings {
     default_source_id: string;
     theme: 'dark' | 'light';
 }
-
