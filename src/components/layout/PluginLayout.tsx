@@ -68,10 +68,21 @@ const PluginLayout: React.FC = () => {
                 console.log(`[PluginLayout] Received hideHeader: ${hide} from plugin`);
                 setHideHeader(hide);
             }
+
+            // 插件请求同步主题
+            if (event.data.type === 'PLUGIN_THEME_CHANGED') {
+                const newTheme = event.data.payload?.theme || 'light';
+                console.log(`[PluginLayout] Syncing theme to: ${newTheme}`);
+                document.documentElement.setAttribute('data-theme', newTheme);
+            }
         };
 
         window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            // 走出插件布局时还原主题为明亮（或默认）
+            document.documentElement.removeAttribute('data-theme');
+        };
     }, []);
 
     // Determine if we should use dark text based on background color

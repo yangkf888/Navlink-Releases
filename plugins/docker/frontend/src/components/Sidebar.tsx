@@ -67,10 +67,18 @@ export function Sidebar({
         return (saved as Theme) || 'light';
     });
 
-    // 应用主题到 document
+    // 应用主题到 document 并同步到父窗口
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem(THEME_KEY, theme);
+
+        // 同步到主应用
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
+            }, '*');
+        }
     }, [theme]);
 
     const toggleTheme = () => {

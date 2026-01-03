@@ -54,6 +54,14 @@ function SubApp() {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('sub_theme', theme);
+
+        // 同步主题到主应用
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
+            }, '*');
+        }
     }, [theme]);
 
     const toggleTheme = () => {

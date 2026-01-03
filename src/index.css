@@ -2,6 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ======================= */
+/* 全局主题变量 */
+/* ======================= */
+
+:root,
+[data-theme="light"] {
+  --theme-bg: #f8f9fa;
+  --theme-bg-secondary: #ffffff;
+  --theme-bg-tertiary: #f3f4f6;
+  --theme-text: #1f2937;
+  --theme-text-secondary: #4b5563;
+  --theme-text-muted: #9ca3af;
+  --theme-border: #e5e7eb;
+}
+
+[data-theme="dark"] {
+  --theme-bg: #0b0f17;
+  --theme-bg-secondary: #161b22;
+  --theme-bg-tertiary: #21262d;
+  --theme-text: #f0f6fc;
+  --theme-text-secondary: #8b949e;
+  --theme-text-muted: #484f58;
+  --theme-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ======================= */
+/* 暗黑模式通用覆盖 */
+/* ======================= */
+
+/* 背景色 */
+[data-theme="dark"] .bg-white {
+  background-color: #161b22 !important;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+  background-color: #0b0f17 !important;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+  background-color: #21262d !important;
+}
+
+/* 文字颜色 */
+[data-theme="dark"] .text-gray-900 {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .text-gray-800 {
+  color: #e6edf3 !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  color: #8b949e !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+  color: #7d8590 !important;
+}
+
+/* 边框 */
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* 交互 */
+[data-theme="dark"] .hover\:bg-gray-50:hover,
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+  background-color: #21262d !important;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
