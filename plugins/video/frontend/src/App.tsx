@@ -151,23 +151,34 @@ function VideoApp() {
         const isInIframe = window.parent !== window;
         if (!isInIframe || !isLoaded) return;
 
-        // 仅发送标题，不发送任何items，使用插件内部侧边栏
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: {
-                title: '视频中心',
-                subtitle: sources.find(s => s.id === selectedSourceId)?.name || '多源视频聚合',
-                items: [], // 空项目列表，主应用侧边栏将只显示标题
-                activeId: ''
+        let count = 0;
+        const maxAttempts = 5;
+
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: '视频中心',
+                    subtitle: sources.find(s => s.id === selectedSourceId)?.name || '多源视频聚合',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
+
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
             }
-        }, '*');
+        };
 
-        // 请求主应用在移动端隐藏顶部导航栏
-        window.parent.postMessage({
-            type: 'PLUGIN_REQUEST_HIDE_HEADER',
-            payload: { hideMobile: true }
-        }, '*');
-
+        sendMessage();
     }, [selectedSourceId, isLoaded, sources]);
 
     if (!isLoaded) {

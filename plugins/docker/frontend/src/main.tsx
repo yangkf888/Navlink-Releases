@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from '@/shared/components/common/ErrorBoundary';
 import { ConfigProvider } from '@/shared/context/ConfigContext';
-import './shared/index.css';
+import './index.css';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

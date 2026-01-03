@@ -95,22 +95,34 @@ function App() {
         const isInIframe = window.parent !== window;
         if (!isInIframe) return;
 
-        // 发送空侧边栏配置（使用插件内部侧边栏）
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: {
-                title: '知识库',
-                subtitle: '本地知识存储与检索',
-                items: [], // 空项目，使用插件内部侧边栏
-                activeId: ''
-            }
-        }, '*');
+        let count = 0;
+        const maxAttempts = 5;
 
-        // 请求主应用在移动端隐藏顶部导航栏
-        window.parent.postMessage({
-            type: 'PLUGIN_REQUEST_HIDE_HEADER',
-            payload: { hideMobile: true }
-        }, '*');
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: '知识库',
+                    subtitle: '本地知识存储与检索',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
+
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
+            }
+        };
+
+        sendMessage();
     }, []);
 
     // 查看详情

@@ -60,8 +60,8 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
 
     const desktopClass = `
     hidden lg:flex flex-col flex-shrink-0
-    sticky top-[80px] h-[calc(100vh-100px)]
-    bg-transparent transition-all duration-300 ease-in-out
+    h-screen bg-white border-r border-gray-200
+    transition-all duration-300 ease-in-out
     ${widthClass}
 `;
 
@@ -80,9 +80,19 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
         <>
             {/* Mobile Header */}
             <div className="lg:hidden h-[60px] flex items-center px-6 border-b border-gray-100">
-                <span className="text-lg font-bold text-gray-800">VPS 管理</span>
+                <span className="text-lg font-bold text-gray-800">VPS管理</span>
                 <button onClick={() => setMobileOpen(false)} className="ml-auto text-gray-400"><Icon icon="fa-solid fa-times" /></button>
             </div>
+
+            {/* Desktop Header */}
+            {isDesktop && !collapsed && (
+                <div className="p-4 border-b border-gray-100 mb-2">
+                    <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600">
+                        VPS管理
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">服务器管理与终端</p>
+                </div>
+            )}
 
             {/* Menu Items */}
             <div className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2">

@@ -4,6 +4,7 @@ import ServerList from './components/ServerList';
 import SnippetLibrary from './components/SnippetLibrary';
 import ServerTerminalView from './components/ServerTerminalView';
 import ServerFormModal from './components/ServerFormModal';
+import VPSSidebar, { VPSView } from './components/VPSSidebar';
 import { useConfig } from '@/shared/context/ConfigContext';
 import { VpsServer, VpsGroup } from './types';
 import { createServer, updateServer, getServers, getGroups, deleteServer } from './api';
@@ -20,9 +21,6 @@ if (urlToken) {
     localStorage.setItem('auth_token', urlToken);
     console.log('[VPS] Token received from iframe parent');
 }
-
-// View type definition
-type VPSView = 'dashboard' | 'servers' | 'snippets' | 'terminal' | 'files';
 
 interface Session {
     id: string;
@@ -50,74 +48,44 @@ function VPSAppContent() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-    // 发送 Sidebar 配置到主应用
+    // 侧边栏状态
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
+
+    // 发送空 Sidebar 配置到主应用（使用插件内部侧边栏）
     useEffect(() => {
         const isInIframe = window.parent !== window;
         if (!isInIframe) return;
 
-        // 构建动态侧边栏结构
-        // 构建动态侧边栏结构
-        // 构建动态侧边栏结构
-        // 构建动态侧边栏结构
-        const sidebarItems = [
-            { id: 'dashboard', label: '总览', icon: 'fas fa-chart-line' },
-            { id: 'snippets', label: '脚本库', icon: 'fas fa-code' },
-            // Section Header (Standalone)
-            {
-                id: 'server-list-header',
-                label: '服务器列表',
-                isLabel: true,
-                icon: 'fas fa-server' // Add icon back
-            },
-            // Dynamic Groups (Top Level Siblings)
-            ...groups.map(group => ({
-                id: `group:${group.id}`,
-                label: group.name,
-                icon: '', // No icon for groups
-                isOpen: true, // Auto expand groups
-                isCategory: true, // Mark as category (smaller font)
-                children: servers
-                    .filter(s => s.group_id === group.id)
-                    .map(s => ({
-                        id: `server:${s.id}`,
-                        label: s.name,
-                        statusColor: '#10b981', // Green for valid
-                    }))
-            })),
-            // Uncategorized (Top Level Sibling)
-            ...(servers.filter(s => !s.group_id).length > 0 ? [{
-                id: 'group:uncategorized',
-                label: '未分组',
-                icon: '', // Remove icon as requested
-                isOpen: true,
-                isCategory: true, // Mark as category
-                children: servers.filter(s => !s.group_id).map(s => ({
-                    id: `server:${s.id}`,
-                    label: s.name,
-                    statusColor: '#10b981'
-                }))
-            }] : [])
-        ];
+        let count = 0;
+        const maxAttempts = 5; // 尝试 5 次
 
-        // determine active ID
-        let currentActiveId: string = activeView;
-        if (activeView === 'terminal' && activeSessionId) {
-            currentActiveId = `server:${activeSessionId}`; // 只是为了高亮当前会话对应的服务器（如果需要）
-            // 或者保持 terminal 高亮？侧边栏里没有专门的 terminal 入口了，而是点击服务器直接进终端
-        }
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: 'VPS管理',
+                    subtitle: '服务器管理与终端',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
 
-        const sidebarConfig = {
-            title: 'VPS管理',
-            items: sidebarItems,
-            activeId: currentActiveId
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
+            }
         };
 
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: sidebarConfig
-        }, '*');
-
-    }, [activeView, servers, groups, activeSessionId]);
+        sendMessage();
+    }, []);
 
     // 初始化配置 (Removed simplified initial setup to avoid flash of wrong content, 
     // relying on the main effect which runs on mount too bc activeView is set)
@@ -249,9 +217,22 @@ function VPSAppContent() {
     `;
 
     return (
-        <div className={`min-h-screen bg-gray-50 flex flex-col ${isFixedLayout ? 'h-screen overflow-hidden' : ''}`}>
+        <div className={`h-screen bg-gray-50 flex overflow-hidden`}>
             <style>{themeStyles}</style>
 
+            {/* VPS 内部侧边栏 */}
+            <VPSSidebar
+                activeView={activeView}
+                onViewChange={setActiveView}
+                mobileOpen={mobileOpen}
+                setMobileOpen={setMobileOpen}
+                collapsed={collapsed}
+                toggleCollapsed={() => setCollapsed(!collapsed)}
+                servers={servers}
+                groups={groups}
+                onConnect={handleConnect}
+                activeServerId={activeSessionId}
+            />
 
             {/* Login Dialog */}
             {showLogin && (
@@ -261,9 +242,33 @@ function VPSAppContent() {
                 />
             )}
 
-            <div className={`flex-1 flex relative ${isFixedLayout ? 'overflow-hidden' : ''}`}>
-                {/* Main Content */}
-                <div className={`flex-1 flex flex-col ${isFixedLayout ? 'overflow-x-hidden' : 'min-w-0'}`}>
+            {/* 主内容区域 */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* 移动端顶部栏 */}
+                <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setMobileOpen(true)}
+                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <Icon icon="fa-solid fa-bars" className="text-lg" />
+                            </button>
+                            <h1 className="text-lg font-bold text-gray-800">VPS管理</h1>
+                        </div>
+                        {activeSessionId && (
+                            <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                <span className="max-w-[100px] truncate">
+                                    {sessions.find(s => s.id === activeSessionId)?.serverName}
+                                </span>
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* 内容区域 */}
+                <div className={`flex-1 flex flex-col ${isFixedLayout ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                     {/* Tab Bar (Visible only when sessions exist) */}
                     {sessions.length > 0 && (
                         <div className="bg-white border-b border-gray-200 flex items-center px-2 pt-2 gap-2 overflow-x-auto flex-shrink-0">

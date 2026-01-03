@@ -34,26 +34,6 @@ const isLightColor = (color?: string) => {
     return true;
 };
 
-import Sidebar from '@/shared/components/layout/Sidebar';
-
-interface SidebarItem {
-    id: string;
-    label: string;
-    icon?: string; // Icon is optional now
-    children?: SidebarItem[];
-    isOpen?: boolean; // Initial state
-    isLabel?: boolean; // If true, renders as a section header
-    statusColor?: string; // If set, shows a status dot
-    isCategory?: boolean; // If true, renders with smaller font size
-}
-
-interface PluginSidebarConfig {
-    title?: string;
-    subtitle?: string;
-    items: SidebarItem[];
-    activeId: string;
-}
-
 const PluginLayout: React.FC = () => {
     const { config, isAuthenticated, logout } = useConfig();
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,31 +41,14 @@ const PluginLayout: React.FC = () => {
     const [showAIChatModal, setShowAIChatModal] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    // 插件Sidebar配置（通过postMessage接收）
-    const [pluginSidebarConfig, setPluginSidebarConfig] = useState<PluginSidebarConfig | null>(null);
-    const [collapsed, setCollapsed] = useState(false);
-    const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
     // 插件请求隐藏移动端顶部导航
-    const [hideMobileHeader, setHideMobileHeader] = useState(false);
+    const [hideHeader, setHideHeader] = useState(false);
 
     // 设置CSS变量 --theme-primary
     useEffect(() => {
         const primaryColor = config.theme?.primaryColor || '#f1404b';
         document.documentElement.style.setProperty('--theme-primary', primaryColor);
     }, [config.theme?.primaryColor]);
-
-    // Handle group toggle
-    const toggleGroup = (groupId: string) => {
-        setOpenGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(groupId)) {
-                next.delete(groupId);
-            } else {
-                next.add(groupId);
-            }
-            return next;
-        });
-    };
 
     const handleUserIconClick = () => {
         if (isAuthenticated) {
@@ -96,50 +59,14 @@ const PluginLayout: React.FC = () => {
         }
     };
 
-    const handleLogout = () => {
-        logout();
-    };
-
     // 监听来自插件iframe的消息
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            // 安全检查：只接受预期的消息
-            if (event.data.type === 'PLUGIN_SET_SIDEBAR') {
-                setPluginSidebarConfig(event.data.payload);
-
-                // Initialize open groups based on activeId or default isOpen
-                const config = event.data.payload as PluginSidebarConfig;
-                if (config.items) {
-                    const initialOpen = new Set<string>();
-                    const findPathToActive = (items: SidebarItem[]): boolean => {
-                        for (const item of items) {
-                            if (item.id === config.activeId) return true;
-                            if (item.children) {
-                                if (findPathToActive(item.children)) {
-                                    initialOpen.add(item.id);
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    };
-                    findPathToActive(config.items);
-
-                    // Also honor isOpen prop
-                    const scanOpen = (items: SidebarItem[]) => {
-                        items.forEach(item => {
-                            if (item.isOpen) initialOpen.add(item.id);
-                            if (item.children) scanOpen(item.children);
-                        });
-                    };
-                    scanOpen(config.items);
-
-                    setOpenGroups(initialOpen);
-                }
-            }
             // 插件请求隐藏移动端顶部导航
             if (event.data.type === 'PLUGIN_REQUEST_HIDE_HEADER') {
-                setHideMobileHeader(event.data.payload?.hideMobile ?? false);
+                const hide = event.data.payload?.hideHeader ?? event.data.payload?.hideMobile ?? false;
+                console.log(`[PluginLayout] Received hideHeader: ${hide} from plugin`);
+                setHideHeader(hide);
             }
         };
 
@@ -147,241 +74,12 @@ const PluginLayout: React.FC = () => {
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
-    // 处理Sidebar项点击
-    const handleSidebarItemClick = (itemId: string, isGroup: boolean = false) => {
-        // 如果是纯组（如 sources-group, categories-group），只展开/折叠
-        if (isGroup && (itemId.endsWith('-group') || itemId === 'sources-group' || itemId === 'categories-group')) {
-            toggleGroup(itemId);
-            return;
-        }
-
-        // 如果是分类项（带 children 的），先展开再发送消息
-        if (isGroup) {
-            toggleGroup(itemId);
-        }
-
-        // 动态查找iframe（每次点击时都查找，确保能找到）
-        const iframe = document.querySelector('iframe');
-
-        if (iframe && iframe.contentWindow) {
-            // 发送消息给插件
-            iframe.contentWindow.postMessage({
-                type: 'SIDEBAR_ITEM_CLICKED',
-                payload: { itemId }
-            }, '*');
-        } else {
-            console.error('iframe not found or contentWindow is null');
-        }
-    };
-
     // Determine if we should use dark text based on background color
     const bgColor = config.theme?.backgroundColor || '#f1f2f3';
     const useDarkText = isLightColor(bgColor);
 
-    // Render Item Helper
-    const renderSidebarItem = (item: SidebarItem, depth = 0) => {
-        // Label Handling (Section Header) - Now styled like a non-interactive item
-        if (item.isLabel) {
-            if (collapsed) return null; // Hide labels when collapsed
-            return (
-                <div key={item.id} className="w-full flex items-center px-4 py-2 mt-2 text-[14px] font-medium text-gray-600">
-                    {/* Icon */}
-                    {item.icon && (
-                        <div className="w-5 text-center mr-3 flex-shrink-0">
-                            <i className={item.icon}></i>
-                        </div>
-                    )}
-                    {item.label}
-                </div>
-            );
-        }
-
-        const hasChildren = item.children && item.children.length > 0;
-        const isActive = pluginSidebarConfig?.activeId === item.id;
-        const isOpen = openGroups.has(item.id);
-        const paddingLeft = collapsed ? '0' : '16px';
-
-        // Calculate icon wrapper styles
-        const iconWrapperClass = collapsed
-            ? 'text-lg w-auto mr-0'
-            : 'w-5 text-center mr-3'; // Refined spacing: w-5 (20px) + mr-3 (12px) = 32px space.
-        // Item text start = 16 + 32 = 48px.
-        // Label pl-12 (48px) matches.
-
-        // Font size class based on isCategory
-        const labelClass = item.isCategory ? 'text-xs text-gray-500 font-medium' : 'text-[14px] font-medium';
-
-        return (
-            <div key={item.id} className="w-full">
-                <button
-                    onClick={() => handleSidebarItemClick(item.id, hasChildren)}
-                    className={`
-                        w-full flex items-center py-2 transition-all duration-200 group relative
-                        ${labelClass}
-                        ${isActive
-                            ? 'text-[var(--theme-primary)] bg-blue-50/50'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-[var(--theme-primary)]'
-                        }
-                        ${collapsed ? 'justify-center px-0' : ''}
-                    `}
-                    style={{ paddingLeft: collapsed ? 0 : paddingLeft }}
-                    title={collapsed ? item.label : ''}
-                >
-                    {/* Active Indicator Bar */}
-                    {isActive && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--theme-primary)] rounded-r"></div>
-                    )}
-
-                    {(item.statusColor || item.icon !== '') && (
-                        <div className={`${iconWrapperClass} ${isActive ? 'text-[var(--theme-primary)]' : 'text-gray-400 group-hover:text-[var(--theme-primary)]'} flex items-center justify-center flex-shrink-0`}>
-                            {item.statusColor ? (
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.statusColor }}></div>
-                            ) : (
-                                <i className={item.icon || 'fas fa-circle'}></i>
-                            )}
-                        </div>
-                    )}
-
-                    {!collapsed && (
-                        <>
-                            <span className="flex-1 text-left truncate">{item.label}</span>
-                            {hasChildren && (
-                                <div className={`mr-3 transition-transform duration-200 text-xs text-gray-400 ${isOpen ? 'rotate-90' : ''}`}>
-                                    <i className="fa-solid fa-angle-right"></i>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </button>
-
-                {/* Children */}
-                {hasChildren && isOpen && !collapsed && (
-                    <div className="overflow-hidden transition-all duration-300">
-                        {item.children!.map(child => renderSidebarItem(child, depth + 1))}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // 渲染动态Sidebar
-    const renderPluginSidebar = () => {
-        const widthClass = collapsed ? 'w-[68px]' : 'w-[220px]';
-
-        return (
-            <>
-                {/* 桌面端Sidebar - 只有当 items 存在且不为空时才显示 */}
-                {pluginSidebarConfig && pluginSidebarConfig.items && pluginSidebarConfig.items.length > 0 && (
-                    <aside className={`
-                    hidden lg:flex flex-col flex-shrink-0
-                    bg-white border-r border-gray-200 z-20 pt-2
-                    transition-all duration-300 ease-in-out
-                    ${widthClass}
-                `}>
-                        {pluginSidebarConfig ? (
-                            <>
-                                {!collapsed && (
-                                    <div className="p-6 pt-4 mb-2">
-                                        <h2 className="text-xl font-bold text-gray-800">
-                                            {pluginSidebarConfig.title || '插件'}
-                                        </h2>
-                                        {pluginSidebarConfig.subtitle && (
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {pluginSidebarConfig.subtitle}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
-                                <nav className="flex-1 overflow-y-auto custom-scrollbar">
-                                    <div className="space-y-0.5">
-                                        {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
-                                    </div>
-                                </nav>
-
-                                <div className="p-4 border-t border-gray-100">
-                                    <button
-                                        onClick={() => setCollapsed(!collapsed)}
-                                        className={`
-                                        w-full flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-[var(--theme-primary)] 
-                                        hover:bg-gray-50 rounded-lg transition-colors
-                                        ${collapsed ? '' : 'gap-2'}
-                                    `}
-                                        title={collapsed ? '展开' : '收起'}
-                                    >
-                                        {collapsed ? (
-                                            <i className="fa-solid fa-angles-right"></i>
-                                        ) : (
-                                            <>
-                                                <i className="fa-solid fa-angles-left"></i>
-                                                <span>收起</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            /* 加载占位符 - 保持布局稳定 */
-                            <div className="flex-1 flex items-center justify-center">
-                                {/* 骨架屏加载效果 */}
-                                {!collapsed && (
-                                    <div className="w-full p-6 space-y-4 animate-pulse">
-                                        <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-                                        <div className="space-y-3 pt-4">
-                                            <div className="h-10 bg-gray-100 rounded"></div>
-                                            <div className="h-10 bg-gray-100 rounded"></div>
-                                            <div className="h-10 bg-gray-100 rounded"></div>
-                                            <div className="h-10 bg-gray-100 rounded"></div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </aside>
-                )}
-
-                {/* 移动端Sidebar - 始终渲染 */}
-                {mobileOpen && (
-                    <div
-                        className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-                        onClick={() => setMobileOpen(false)}
-                    >
-                        <aside
-                            className="absolute left-0 top-0 bottom-0 w-[240px] bg-white shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-6 pt-24">
-                                <h2 className="text-xl font-bold text-gray-800">
-                                    {pluginSidebarConfig?.title || '插件菜单'}
-                                </h2>
-                                {pluginSidebarConfig?.subtitle && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {pluginSidebarConfig.subtitle}
-                                    </p>
-                                )}
-                            </div>
-
-                            {pluginSidebarConfig ? (
-                                <nav className="flex-1 overflow-y-auto custom-scrollbar py-2">
-                                    <div className="space-y-1">
-                                        {pluginSidebarConfig.items.map((item) => renderSidebarItem(item))}
-                                    </div>
-                                </nav>
-                            ) : (
-                                <div className="px-4 py-8 text-center text-gray-500">
-                                    <div className="w-8 h-8 border-3 border-[var(--theme-primary)] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                                    <p className="text-sm">加载中...</p>
-                                </div>
-                            )}
-                        </aside>
-                    </div>
-                )}
-            </>
-        );
-    };
-
     return (
-        <div className="min-h-screen bg-[var(--theme-bg)] font-sans text-[var(--theme-text)]">
+        <div className="h-screen flex flex-col bg-[var(--theme-bg)] font-sans text-[var(--theme-text)] overflow-hidden">
             {/* Search Modal */}
             {showSearchModal && (
                 <SearchModal
@@ -392,7 +90,8 @@ const PluginLayout: React.FC = () => {
                 />
             )}
 
-            <div className={hideMobileHeader ? 'hidden lg:block' : ''}>
+            {/* 桌面端默认显示 Header，移动端默认隐藏插件模式下的 Header */}
+            <div className={`flex-shrink-0 ${hideHeader ? 'hidden' : 'hidden lg:block'}`}>
                 <TopNavbar
                     config={config}
                     toggleSidebar={() => setMobileOpen(!mobileOpen)}
@@ -405,10 +104,8 @@ const PluginLayout: React.FC = () => {
                 />
             </div>
 
-            <div className={`w-full h-[calc(100vh)] box-border flex relative ${hideMobileHeader ? 'pt-0 lg:pt-14' : 'pt-14'}`}>
-                {/* 只渲染插件Sidebar */}
-                {renderPluginSidebar()}
-
+            {/* 增加 pt-14 补偿，仅在桌面端 Header 显示时生效 */}
+            <div className={`flex-1 flex overflow-hidden relative ${!hideHeader ? 'lg:pt-14' : ''}`}>
                 {/* Main Content Area */}
                 <div className="flex-1 h-full overflow-hidden relative">
                     <Outlet />

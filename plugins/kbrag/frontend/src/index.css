@@ -2,11 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ======================= */
+/* 主题变量定义 */
+/* ======================= */
+
+/* 明亮主题（默认） */
+:root,
+[data-theme="light"] {
     --theme-primary: #3B82F6;
     --theme-bg: #f8f9fa;
+    --theme-bg-secondary: #ffffff;
+    --theme-bg-tertiary: #f3f4f6;
     --theme-text: #1f2937;
+    --theme-text-secondary: #4b5563;
+    --theme-text-muted: #9ca3af;
+    --theme-border: #e5e7eb;
 }
+
+/* 暗黑主题 */
+[data-theme="dark"] {
+    --theme-primary: #3B82F6;
+    --theme-bg: #111827;
+    --theme-bg-secondary: #1f2937;
+    --theme-bg-tertiary: #374151;
+    --theme-text: #ffffff;
+    --theme-text-secondary: #9ca3af;
+    --theme-text-muted: #6b7280;
+    --theme-border: #374151;
+}
+
+/* ======================= */
+/* 全局样式 */
+/* ======================= */
 
 html,
 body,
@@ -24,29 +51,151 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--theme-bg);
     color: var(--theme-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
-
 
 * {
     box-sizing: border-box;
 }
 
+/* ======================= */
+/* 暗黑主题样式覆盖 */
+/* ======================= */
+
+/* 背景色覆盖 */
+[data-theme="dark"] .bg-white {
+    background-color: #1f2937 !important;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+    background-color: #111827 !important;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+    background-color: #1f2937 !important;
+}
+
+/* 文字颜色覆盖 */
+[data-theme="dark"] .text-gray-900 {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .text-gray-800 {
+    color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+    color: #d1d5db !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+    color: #6b7280 !important;
+}
+
+/* 边框颜色覆盖 */
+[data-theme="dark"] .border-gray-200 {
+    border-color: #374151 !important;
+}
+
+[data-theme="dark"] .border-gray-100 {
+    border-color: #374151 !important;
+}
+
+/* 输入框样式 */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: #9ca3af !important;
+}
+
+/* 按钮悬停效果 */
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] .hover\:bg-gray-50:hover {
+    background-color: #374151 !important;
+}
+
+/* 卡片阴影 */
+[data-theme="dark"] .shadow-sm {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3) !important;
+}
+
+/* 渐变背景覆盖 */
+[data-theme="dark"] .bg-gradient-to-r.from-blue-50.to-indigo-50 {
+    background: linear-gradient(to right, #1e3a5f, #312e81) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-blue-50.to-indigo-50 .text-blue-900,
+[data-theme="dark"] .bg-gradient-to-r.from-blue-50.to-indigo-50 .text-blue-800 {
+    color: #93c5fd !important;
+}
+
+[data-theme="dark"] .border-blue-100 {
+    border-color: #1e40af !important;
+}
+
+/* ======================= */
 /* 滚动条样式 */
+/* ======================= */
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--theme-bg-tertiary);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--theme-text-muted);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
+    background: var(--theme-text-secondary);
+}
+
+/* 暗黑主题滚动条 */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.6);
+}
+
+/* ======================= */
+/* 过渡动画 */
+/* ======================= */
+
+.bg-white,
+.bg-gray-50,
+.bg-gray-100,
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500,
+.border-gray-200,
+.border-gray-100 {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

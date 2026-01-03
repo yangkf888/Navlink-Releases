@@ -46,6 +46,20 @@ function SubApp() {
         return (localStorage.getItem('sub_active_view') as any) || 'dashboard';
     });
 
+    // 主题管理
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('sub_theme') as 'light' | 'dark') || 'light';
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('sub_theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
     // Settings State
     const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -199,77 +213,40 @@ function SubApp() {
         });
     };
 
-    // Theme Styles
-    const themeStyles = `
-        :root {
-            --theme-primary: #f1404b;
-            --theme-bg: #f8f9fa;
-            --theme-text: #444444;
-        }
-    `;
 
-    // 使用 postMessage 发送侧边栏配置到主应用
-    useEffect(() => {
-        // 检查是否在iframe中
-        const isInIframe = window.parent !== window;
-        console.log('[Sub Plugin] isInIframe:', isInIframe, 'activeView:', activeView);
-
-        if (!isInIframe) return;
-
-        const sidebarConfig = {
-            title: '通知中心',
-            subtitle: '订阅与事项的到期提醒',
-            items: [
-                { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
-                { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
-                { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
-                { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
-                { id: 'settings', label: '设置', icon: 'fas fa-cog' }
-            ],
-            activeId: activeView
-        };
-
-        console.log('[Sub Plugin] Sending sidebar config:', sidebarConfig);
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: sidebarConfig
-        }, '*');
-    }, [activeView]);
-
-    // 🔑 组件挂载时立即发送一次配置（不等待数据加载）
+    // 发送空 Sidebar 配置到主应用（使用插件内部侧边栏）
     useEffect(() => {
         const isInIframe = window.parent !== window;
         if (!isInIframe) return;
 
-        console.log('[Sub Plugin] Component mounted, sending initial config');
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: {
-                title: '通知中心',
-                subtitle: '订阅与事项的到期提醒',
-                items: [
-                    { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
-                    { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
-                    { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
-                    { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
-                    { id: 'settings', label: '设置', icon: 'fas fa-cog' }
-                ],
-                activeId: 'dashboard'
-            }
-        }, '*');
-    }, []);
+        let count = 0;
+        const maxAttempts = 5;
 
-    // 监听来自主应用的侧边栏点击事件
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data.type === 'SIDEBAR_ITEM_CLICKED') {
-                const itemId = event.data.payload.itemId;
-                setActiveView(itemId as any);
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: '通知中心',
+                    subtitle: '订阅与事项的到期提醒',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
+
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
             }
         };
 
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
+        sendMessage();
     }, []);
 
     if (!isLoaded || loading || remindersLoading) {
@@ -283,56 +260,179 @@ function SubApp() {
 
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans">
-            <style>{themeStyles}</style>
-
+        <>
             <ReminderToast reminders={reminders} />
 
+            <div className="flex h-screen bg-transparent overflow-hidden">
+                {/* 桌面端侧边栏 */}
+                <div className="hidden lg:flex w-56 flex-shrink-0 border-r border-gray-200 bg-white">
+                    <div className="flex flex-col w-full">
+                        {/* 侧边栏标题 */}
+                        <div className="p-4 border-b border-gray-100">
+                            <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600">
+                                通知管理
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-1">订阅与事项提醒</p>
+                        </div>
+                        {/* 菜单项 */}
+                        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                            {[
+                                { id: 'dashboard', label: '仪表盘', icon: 'fa-solid fa-chart-pie' },
+                                { id: 'list', label: '订阅列表', icon: 'fa-solid fa-list' },
+                                { id: 'calendar', label: '日历视图', icon: 'fa-solid fa-calendar-alt' },
+                                { id: 'reminders', label: '提醒列表', icon: 'fa-solid fa-bell' },
+                                { id: 'settings', label: '设置', icon: 'fa-solid fa-cog' },
+                            ].map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveView(item.id as typeof activeView)}
+                                    className={`
+                                        w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                                        ${activeView === item.id
+                                            ? 'bg-[var(--theme-primary)] text-white shadow-md'
+                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                        }
+                                    `}
+                                >
+                                    <i className={`${item.icon} w-5 mr-3 ${activeView === item.id ? 'text-white' : 'text-gray-400'}`}></i>
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
 
+                        {/* 主题切换按钮 - 桌面端 */}
+                        <div className="p-3 border-t border-gray-100">
+                            <button
+                                onClick={toggleTheme}
+                                className="w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all"
+                            >
+                                <i className={`fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5`}></i>
+                                <span>{theme === 'light' ? '黑暗模式' : '明亮模式'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Main Layout - Content Only */}
-            <div className="flex-1 min-h-0 relative p-4 lg:p-6 overflow-y-auto">
-                {activeView === 'dashboard' && (
-                    <Dashboard
-                        subscriptions={subscriptions}
-                        reminders={customReminders}
-                        onNavigate={(view) => setActiveView(view as any)}
-                        onAdd={handleAdd}
-                        onEditReminder={handleEditReminder}
-                        onDeleteReminder={handleDeleteReminder}
-                        settings={settings}
-                    />
-                )}
-                {activeView === 'list' && (
-                    <SubscriptionList
-                        subscriptions={subscriptions}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onAdd={handleAdd}
-                        settings={settings}
-                    />
-                )}
-                {activeView === 'calendar' && (
-                    <CalendarView subscriptions={subscriptions} settings={settings} />
-                )}
-                {activeView === 'reminders' && (
-                    <ReminderList
-                        reminders={customReminders}
-                        onEdit={handleEditReminder}
-                        onDelete={handleDeleteReminder}
-                        onAdd={handleAddReminder}
-                    />
-                )}
-                {activeView === 'settings' && (
-                    <SettingsPanel
-                        onClose={() => setActiveView('dashboard')}
-                        subscriptions={subscriptions}
-                        settings={settings}
-                        onUpdateSettings={handleUpdateSettings}
-                        isAuthenticated={isAuthenticated}
-                    />
+                {/* 移动端侧边栏抽屉 */}
+                {mobileOpen && (
+                    <div className="fixed inset-0 z-[100] lg:hidden">
+                        <div
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                            onClick={() => setMobileOpen(false)}
+                        />
+                        <div className="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-2xl flex flex-col">
+                            {/* 移动端侧边栏标题 */}
+                            <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100">
+                                <span className="text-lg font-bold text-gray-800">通知管理</span>
+                                <button
+                                    onClick={() => setMobileOpen(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <i className="fa-solid fa-times"></i>
+                                </button>
+                            </div>
+                            {/* 移动端菜单项 */}
+                            <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                                {[
+                                    { id: 'dashboard', label: '仪表盘', icon: 'fa-solid fa-chart-pie' },
+                                    { id: 'list', label: '订阅列表', icon: 'fa-solid fa-list' },
+                                    { id: 'calendar', label: '日历视图', icon: 'fa-solid fa-calendar-alt' },
+                                    { id: 'reminders', label: '提醒列表', icon: 'fa-solid fa-bell' },
+                                    { id: 'settings', label: '设置', icon: 'fa-solid fa-cog' },
+                                ].map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            setActiveView(item.id as typeof activeView);
+                                            setMobileOpen(false);
+                                        }}
+                                        className={`
+                                            w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                                            ${activeView === item.id
+                                                ? 'bg-[var(--theme-primary)] text-white shadow-md'
+                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                            }
+                                        `}
+                                    >
+                                        <i className={`${item.icon} w-5 mr-3 ${activeView === item.id ? 'text-white' : 'text-gray-400'}`}></i>
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </nav>
+
+                            {/* 主题切换按钮 - 移动端 */}
+                            <div className="p-3 border-t border-gray-100">
+                                <button
+                                    onClick={toggleTheme}
+                                    className="w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 transition-all"
+                                >
+                                    <i className={`fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5`}></i>
+                                    <span>{theme === 'light' ? '黑暗模式' : '明亮模式'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
+                {/* 主内容区域 */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    {/* 移动端顶部栏 */}
+                    <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setMobileOpen(true)}
+                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <i className="fa-solid fa-bars text-lg"></i>
+                            </button>
+                            <h1 className="text-lg font-bold text-gray-800">通知管理</h1>
+                        </div>
+                    </div>
+
+                    {/* 内容区域 */}
+                    <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+                        {activeView === 'dashboard' && (
+                            <Dashboard
+                                subscriptions={subscriptions}
+                                reminders={customReminders}
+                                onNavigate={(view) => setActiveView(view as any)}
+                                onAdd={handleAdd}
+                                onEditReminder={handleEditReminder}
+                                onDeleteReminder={handleDeleteReminder}
+                                settings={settings}
+                            />
+                        )}
+                        {activeView === 'list' && (
+                            <SubscriptionList
+                                subscriptions={subscriptions}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                                onAdd={handleAdd}
+                                settings={settings}
+                            />
+                        )}
+                        {activeView === 'calendar' && (
+                            <CalendarView subscriptions={subscriptions} settings={settings} />
+                        )}
+                        {activeView === 'reminders' && (
+                            <ReminderList
+                                reminders={customReminders}
+                                onEdit={handleEditReminder}
+                                onDelete={handleDeleteReminder}
+                                onAdd={handleAddReminder}
+                            />
+                        )}
+                        {activeView === 'settings' && (
+                            <SettingsPanel
+                                onClose={() => setActiveView('dashboard')}
+                                subscriptions={subscriptions}
+                                settings={settings}
+                                onUpdateSettings={handleUpdateSettings}
+                                isAuthenticated={isAuthenticated}
+                            />
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Modals */}
@@ -366,7 +466,7 @@ function SubApp() {
                     />
                 )
             }
-        </div >
+        </>
     );
 }
 

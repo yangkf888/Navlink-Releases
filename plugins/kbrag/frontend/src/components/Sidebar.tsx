@@ -1,10 +1,13 @@
 /**
  * Kbrag 插件内部侧边栏组件
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Category } from '../types';
 
 type View = 'dashboard' | 'list' | 'search' | 'config';
+type Theme = 'light' | 'dark';
+
+const THEME_KEY = 'kbrag_theme';
 
 interface SidebarProps {
     activeView: View;
@@ -64,6 +67,22 @@ export function Sidebar({
     onCloseMobile
 }: SidebarProps) {
     const [isListOpen, setIsListOpen] = useState(activeView === 'list' || !!selectedCategory);
+
+    // 主题状态
+    const [theme, setTheme] = useState<Theme>(() => {
+        const saved = localStorage.getItem(THEME_KEY);
+        return (saved as Theme) || 'light';
+    });
+
+    // 应用主题到 document
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
 
     const handleClick = (view: View | string) => {
         onViewChange(view);
@@ -157,6 +176,17 @@ export function Sidebar({
                     onClick={() => handleClick('config')}
                 />
             </nav>
+
+            {/* 底部：主题切换 */}
+            <div className="p-3 border-t border-gray-200">
+                <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                    <i className={`fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5 text-center`}></i>
+                    <span>{theme === 'light' ? '切换暗黑模式' : '切换明亮模式'}</span>
+                </button>
+            </div>
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 /**
  * Sub 应用 - 订阅管理系统（插件版本）
  * 功能：跟踪各类订阅服务的到期时间，提供智能提醒
@@ -33,6 +33,17 @@ function SubApp() {
     const [activeView, setActiveView] = useState(() => {
         return localStorage.getItem('sub_active_view') || 'dashboard';
     });
+    // 主题管理
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('sub_theme') || 'light';
+    });
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('sub_theme', theme);
+    }, [theme]);
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
     // Settings State
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -182,75 +193,64 @@ function SubApp() {
             }
         });
     };
-    // Theme Styles
-    const themeStyles = `
-        :root {
-            --theme-primary: #f1404b;
-            --theme-bg: #f8f9fa;
-            --theme-text: #444444;
-        }
-    `;
-    // 使用 postMessage 发送侧边栏配置到主应用
-    useEffect(() => {
-        // 检查是否在iframe中
-        const isInIframe = window.parent !== window;
-        console.log('[Sub Plugin] isInIframe:', isInIframe, 'activeView:', activeView);
-        if (!isInIframe)
-            return;
-        const sidebarConfig = {
-            title: '通知中心',
-            subtitle: '订阅与事项的到期提醒',
-            items: [
-                { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
-                { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
-                { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
-                { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
-                { id: 'settings', label: '设置', icon: 'fas fa-cog' }
-            ],
-            activeId: activeView
-        };
-        console.log('[Sub Plugin] Sending sidebar config:', sidebarConfig);
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: sidebarConfig
-        }, '*');
-    }, [activeView]);
-    // 🔑 组件挂载时立即发送一次配置（不等待数据加载）
+    // 发送空 Sidebar 配置到主应用（使用插件内部侧边栏）
     useEffect(() => {
         const isInIframe = window.parent !== window;
         if (!isInIframe)
             return;
-        console.log('[Sub Plugin] Component mounted, sending initial config');
-        window.parent.postMessage({
-            type: 'PLUGIN_SET_SIDEBAR',
-            payload: {
-                title: '通知中心',
-                subtitle: '订阅与事项的到期提醒',
-                items: [
-                    { id: 'dashboard', label: '仪表盘', icon: 'fas fa-home' },
-                    { id: 'list', label: '订阅列表', icon: 'fas fa-list' },
-                    { id: 'calendar', label: '日历视图', icon: 'fas fa-calendar' },
-                    { id: 'reminders', label: '提醒事项', icon: 'fas fa-bell' },
-                    { id: 'settings', label: '设置', icon: 'fas fa-cog' }
-                ],
-                activeId: 'dashboard'
-            }
-        }, '*');
-    }, []);
-    // 监听来自主应用的侧边栏点击事件
-    useEffect(() => {
-        const handleMessage = (event) => {
-            if (event.data.type === 'SIDEBAR_ITEM_CLICKED') {
-                const itemId = event.data.payload.itemId;
-                setActiveView(itemId);
+        let count = 0;
+        const maxAttempts = 5;
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: '通知中心',
+                    subtitle: '订阅与事项的到期提醒',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
             }
         };
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
+        sendMessage();
     }, []);
     if (!isLoaded || loading || remindersLoading) {
         return (_jsx("div", { className: "min-h-screen flex items-center justify-center bg-gray-50", children: _jsx("div", { className: "w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" }) }));
     }
-    return (_jsxs("div", { className: "h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans", children: [_jsx("style", { children: themeStyles }), _jsx(ReminderToast, { reminders: reminders }), _jsxs("div", { className: "flex-1 min-h-0 relative p-4 lg:p-6 overflow-y-auto", children: [activeView === 'dashboard' && (_jsx(Dashboard, { subscriptions: subscriptions, reminders: customReminders, onNavigate: (view) => setActiveView(view), onAdd: handleAdd, onEditReminder: handleEditReminder, onDeleteReminder: handleDeleteReminder, settings: settings })), activeView === 'list' && (_jsx(SubscriptionList, { subscriptions: subscriptions, onEdit: handleEdit, onDelete: handleDelete, onAdd: handleAdd, settings: settings })), activeView === 'calendar' && (_jsx(CalendarView, { subscriptions: subscriptions, settings: settings })), activeView === 'reminders' && (_jsx(ReminderList, { reminders: customReminders, onEdit: handleEditReminder, onDelete: handleDeleteReminder, onAdd: handleAddReminder })), activeView === 'settings' && (_jsx(SettingsPanel, { onClose: () => setActiveView('dashboard'), subscriptions: subscriptions, settings: settings, onUpdateSettings: handleUpdateSettings, isAuthenticated: isAuthenticated }))] }), _jsx(Modal, { isOpen: showModal, onClose: () => setShowModal(false), maxWidth: "2xl", children: _jsx(SubscriptionForm, { subscription: editingSubscription, onSave: handleSave, onCancel: () => setShowModal(false), settings: settings, onUpdateSettings: handleUpdateSettings }) }), _jsx(Modal, { isOpen: showReminderModal, onClose: () => setShowReminderModal(false), maxWidth: "lg", children: _jsx(ReminderForm, { reminder: editingReminder, timezone: settings.timezone, onSave: handleSaveReminder, onCancel: () => setShowReminderModal(false) }) }), confirmDialog && (_jsx(ConfirmDialog, { isOpen: confirmDialog.isOpen, title: confirmDialog.title, message: confirmDialog.message, onConfirm: confirmDialog.onConfirm, onCancel: hideConfirm }))] }));
+    return (_jsxs(_Fragment, { children: [_jsx(ReminderToast, { reminders: reminders }), _jsxs("div", { className: "flex h-screen bg-transparent overflow-hidden", children: [_jsx("div", { className: "hidden lg:flex w-56 flex-shrink-0 border-r border-gray-200 bg-white", children: _jsxs("div", { className: "flex flex-col w-full", children: [_jsxs("div", { className: "p-4 border-b border-gray-100", children: [_jsx("h2", { className: "text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--theme-primary)] to-purple-600", children: "\u901A\u77E5\u7BA1\u7406" }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: "\u8BA2\u9605\u4E0E\u4E8B\u9879\u63D0\u9192" })] }), _jsx("nav", { className: "flex-1 p-2 space-y-1 overflow-y-auto", children: [
+                                        { id: 'dashboard', label: '仪表盘', icon: 'fa-solid fa-chart-pie' },
+                                        { id: 'list', label: '订阅列表', icon: 'fa-solid fa-list' },
+                                        { id: 'calendar', label: '日历视图', icon: 'fa-solid fa-calendar-alt' },
+                                        { id: 'reminders', label: '提醒列表', icon: 'fa-solid fa-bell' },
+                                        { id: 'settings', label: '设置', icon: 'fa-solid fa-cog' },
+                                    ].map((item) => (_jsxs("button", { onClick: () => setActiveView(item.id), className: `
+                                        w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                                        ${activeView === item.id
+                                            ? 'bg-[var(--theme-primary)] text-white shadow-md'
+                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+                                    `, children: [_jsx("i", { className: `${item.icon} w-5 mr-3 ${activeView === item.id ? 'text-white' : 'text-gray-400'}` }), item.label] }, item.id))) }), _jsx("div", { className: "p-3 border-t border-gray-100", children: _jsxs("button", { onClick: toggleTheme, className: "w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all", children: [_jsx("i", { className: `fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5` }), _jsx("span", { children: theme === 'light' ? '黑暗模式' : '明亮模式' })] }) })] }) }), mobileOpen && (_jsxs("div", { className: "fixed inset-0 z-[100] lg:hidden", children: [_jsx("div", { className: "absolute inset-0 bg-black/50 backdrop-blur-sm", onClick: () => setMobileOpen(false) }), _jsxs("div", { className: "absolute left-0 top-0 bottom-0 w-60 bg-white shadow-2xl flex flex-col", children: [_jsxs("div", { className: "h-14 flex items-center justify-between px-4 border-b border-gray-100", children: [_jsx("span", { className: "text-lg font-bold text-gray-800", children: "\u901A\u77E5\u7BA1\u7406" }), _jsx("button", { onClick: () => setMobileOpen(false), className: "text-gray-400 hover:text-gray-600", children: _jsx("i", { className: "fa-solid fa-times" }) })] }), _jsx("nav", { className: "flex-1 p-2 space-y-1 overflow-y-auto", children: [
+                                            { id: 'dashboard', label: '仪表盘', icon: 'fa-solid fa-chart-pie' },
+                                            { id: 'list', label: '订阅列表', icon: 'fa-solid fa-list' },
+                                            { id: 'calendar', label: '日历视图', icon: 'fa-solid fa-calendar-alt' },
+                                            { id: 'reminders', label: '提醒列表', icon: 'fa-solid fa-bell' },
+                                            { id: 'settings', label: '设置', icon: 'fa-solid fa-cog' },
+                                        ].map((item) => (_jsxs("button", { onClick: () => {
+                                                setActiveView(item.id);
+                                                setMobileOpen(false);
+                                            }, className: `
+                                            w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                                            ${activeView === item.id
+                                                ? 'bg-[var(--theme-primary)] text-white shadow-md'
+                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+                                        `, children: [_jsx("i", { className: `${item.icon} w-5 mr-3 ${activeView === item.id ? 'text-white' : 'text-gray-400'}` }), item.label] }, item.id))) }), _jsx("div", { className: "p-3 border-t border-gray-100", children: _jsxs("button", { onClick: toggleTheme, className: "w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 transition-all", children: [_jsx("i", { className: `fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'} w-5` }), _jsx("span", { children: theme === 'light' ? '黑暗模式' : '明亮模式' })] }) })] })] })), _jsxs("div", { className: "flex-1 flex flex-col min-w-0", children: [_jsx("div", { className: "lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3", children: _jsxs("div", { className: "flex items-center gap-3", children: [_jsx("button", { onClick: () => setMobileOpen(true), className: "p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors", children: _jsx("i", { className: "fa-solid fa-bars text-lg" }) }), _jsx("h1", { className: "text-lg font-bold text-gray-800", children: "\u901A\u77E5\u7BA1\u7406" })] }) }), _jsxs("div", { className: "flex-1 overflow-y-auto p-4 lg:p-6", children: [activeView === 'dashboard' && (_jsx(Dashboard, { subscriptions: subscriptions, reminders: customReminders, onNavigate: (view) => setActiveView(view), onAdd: handleAdd, onEditReminder: handleEditReminder, onDeleteReminder: handleDeleteReminder, settings: settings })), activeView === 'list' && (_jsx(SubscriptionList, { subscriptions: subscriptions, onEdit: handleEdit, onDelete: handleDelete, onAdd: handleAdd, settings: settings })), activeView === 'calendar' && (_jsx(CalendarView, { subscriptions: subscriptions, settings: settings })), activeView === 'reminders' && (_jsx(ReminderList, { reminders: customReminders, onEdit: handleEditReminder, onDelete: handleDeleteReminder, onAdd: handleAddReminder })), activeView === 'settings' && (_jsx(SettingsPanel, { onClose: () => setActiveView('dashboard'), subscriptions: subscriptions, settings: settings, onUpdateSettings: handleUpdateSettings, isAuthenticated: isAuthenticated }))] })] })] }), _jsx(Modal, { isOpen: showModal, onClose: () => setShowModal(false), maxWidth: "2xl", children: _jsx(SubscriptionForm, { subscription: editingSubscription, onSave: handleSave, onCancel: () => setShowModal(false), settings: settings, onUpdateSettings: handleUpdateSettings }) }), _jsx(Modal, { isOpen: showReminderModal, onClose: () => setShowReminderModal(false), maxWidth: "lg", children: _jsx(ReminderForm, { reminder: editingReminder, timezone: settings.timezone, onSave: handleSaveReminder, onCancel: () => setShowReminderModal(false) }) }), confirmDialog && (_jsx(ConfirmDialog, { isOpen: confirmDialog.isOpen, title: confirmDialog.title, message: confirmDialog.message, onConfirm: confirmDialog.onConfirm, onCancel: hideConfirm }))] }));
 }
 export default SubApp;

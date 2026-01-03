@@ -9,6 +9,7 @@ interface SubLayoutProps {
     onShowLogin?: () => void;
     mobileOpen: boolean;
     onMobileClose: () => void;
+    onMobileOpen?: () => void;
 }
 
 export const SubLayout: React.FC<SubLayoutProps> = ({ children, activeView, onViewChange, isAuthenticated, onShowLogin, mobileOpen, onMobileClose }) => {
@@ -69,13 +70,13 @@ export const SubLayout: React.FC<SubLayoutProps> = ({ children, activeView, onVi
                         key={item.id}
                         onClick={() => handleViewChange(item.id)}
                         className={`
-                            w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
+w - full flex items - center px - 4 py - 3 rounded - xl text - sm font - medium transition - all duration - 200 group
                             ${activeView === item.id
                                 ? 'bg-[var(--theme-primary)] text-white shadow-md shadow-[var(--theme-primary)]/30'
                                 : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
                             }
                             ${collapsed && isDesktop ? 'justify-center px-2' : ''}
-                        `}
+`}
                         title={collapsed && isDesktop ? item.label : ''}
                     >
                         <Icon
@@ -83,7 +84,7 @@ export const SubLayout: React.FC<SubLayoutProps> = ({ children, activeView, onVi
                             className={`
                                 ${collapsed && isDesktop ? 'text-lg' : 'mr-3'}
                                 ${activeView === item.id ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}
-                            `}
+`}
                         />
                         {(!collapsed || !isDesktop) && item.label}
                     </button>
@@ -96,10 +97,10 @@ export const SubLayout: React.FC<SubLayoutProps> = ({ children, activeView, onVi
                     <button
                         onClick={() => setCollapsed(!collapsed)}
                         className={`
-                            w-full flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-[var(--theme-primary)] 
-                            hover:bg-gray-50 rounded-lg transition-colors
+w - full flex items - center justify - center px - 4 py - 2 text - sm text - gray - 500 hover: text - [var(--theme - primary)]
+hover: bg - gray - 50 rounded - lg transition - colors
                             ${collapsed ? '' : 'gap-2'}
-                        `}
+`}
                         title={collapsed ? '展开' : '收起'}
                     >
                         {collapsed ? (
