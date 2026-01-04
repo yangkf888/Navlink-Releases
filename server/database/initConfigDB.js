@@ -134,6 +134,13 @@ export function initConfigDB() {
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- 角色权限表（RBAC）
+        CREATE TABLE IF NOT EXISTS role_permissions (
+            role TEXT PRIMARY KEY,
+            permissions TEXT NOT NULL, -- JSON string
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     console.log('[ConfigDB] Config database tables initialized successfully');

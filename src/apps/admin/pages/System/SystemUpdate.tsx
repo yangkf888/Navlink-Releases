@@ -442,7 +442,7 @@ export default function SystemUpdate() {
                         {updateCheck.hasUpdate && updateCheck.releaseInfo && (
                             <div className="mt-4">
                                 <h3 className="font-semibold text-gray-900 mb-2">更新日志</h3>
-                                <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                                <div className="bg-gray-50 rounded-lg p-4">
                                     <div className="text-sm text-gray-500 mb-2">
                                         {updateCheck.releaseInfo.name} - {new Date(updateCheck.releaseInfo.publishedAt).toLocaleDateString('zh-CN')}
                                     </div>

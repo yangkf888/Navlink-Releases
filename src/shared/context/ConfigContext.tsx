@@ -254,34 +254,29 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         window.dispatchEvent(new CustomEvent('nav-config-updated', { detail: finalConfig }));
     };
 
-    // Sync with other tabs/windows and within the same window
+    // Sync with other tabs/windows via storage event
+    // Note: We removed the local 'nav-config-updated' event listener because:
+    // 1. React Context state changes automatically propagate to all consumers
+    // 2. The event was causing self-listening loops when setConfig dispatched events
+    //    that were then consumed by the same component, triggering additional updates
     useEffect(() => {
         const handleStorageChange = (e: StorageEvent) => {
+            // Only sync from OTHER tabs (not the same window)
             if (e.key === 'nav_site_config' && e.newValue) {
                 try {
-                    console.log('[ConfigContext] Detected external config change, syncing...');
+                    console.log('[ConfigContext] Detected config change from another tab, syncing...');
                     const newConfig = JSON.parse(e.newValue);
                     setConfigState(newConfig);
                 } catch (err) {
-                    console.error('[ConfigContext] Failed to sync config:', err);
+                    console.error('[ConfigContext] Failed to sync config from storage:', err);
                 }
             }
         };
 
-        const handleLocalEvent = (e: Event) => {
-            const customEvent = e as CustomEvent<SiteConfig>;
-            if (customEvent.detail) {
-                console.log('[ConfigContext] Detected local config update event, syncing...');
-                setConfigState(customEvent.detail);
-            }
-        };
-
         window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('nav-config-updated', handleLocalEvent);
 
         return () => {
             window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('nav-config-updated', handleLocalEvent);
         };
     }, []);
 

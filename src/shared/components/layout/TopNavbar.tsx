@@ -209,7 +209,14 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                     ? 'text-green-500 hover:text-green-600'
                                     : iconButtonClass
                                     } hover:bg-transparent`}
-                                onClick={onUserClick}
+                                onClick={() => {
+                                    // 移动端友好：已登录时点击切换菜单，未登录时跳转登录
+                                    if (isAuthenticated) {
+                                        setShowUserMenu(prev => !prev);
+                                    } else {
+                                        onUserClick();
+                                    }
+                                }}
                             >
                                 {/* User Icon - changes style based on login status */}
                                 <IconComponent
@@ -225,7 +232,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                 {/* Tooltip - only show when dropdown is not visible */}
                                 {!showUserMenu && (
                                     <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 normal-case font-normal">
-                                        {isAuthenticated ? '已登录 · 管理' : '点击登录'}
+                                        {isAuthenticated ? '点击显示菜单' : '点击登录'}
                                         {/* Arrow */}
                                         <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
                                     </div>
