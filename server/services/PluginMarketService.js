@@ -96,7 +96,8 @@ export class PluginMarketService {
                 installed: !!installed,
                 installedVersion: installed?.version,
                 status: installed?.status || 'not_installed',
-                updateAvailable: installed && this.isUpdateAvailable(installed.version, plugin.version)
+                updateAvailable: installed && this.isUpdateAvailable(installed.version, plugin.version),
+                changelog: plugin.changelog || null  // 传递更新日志
             };
         });
     }

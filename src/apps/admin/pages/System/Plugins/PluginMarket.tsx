@@ -28,6 +28,7 @@ interface MarketPlugin {
     installedVersion?: string;
     status?: string;
     updateAvailable?: boolean;
+    changelog?: string;  // 更新日志
 }
 
 export default function PluginMarket() {
@@ -306,14 +307,11 @@ export default function PluginMarket() {
                 />
             )}
 
-            {/* General Confirm Modal (For Update) */}
+            {/* Update Dialog with Changelog */}
             {confirmModal && confirmModal.type === 'update' && (
-                <ConfirmDialog
+                <UpdateDialog
                     isOpen={confirmModal.isOpen}
-                    title="确认更新插件?"
-                    message={`即将更新插件 ${confirmModal.pluginId} 到最新版本。\n更新过程中插件将简短停止。`}
-                    confirmText="确认更新"
-                    confirmVariant="primary"
+                    plugin={plugins.find(p => p.id === confirmModal.pluginId)}
                     onConfirm={handleConfirm}
                     onCancel={() => setConfirmModal(null)}
                 />
@@ -408,6 +406,78 @@ function UninstallDialog({ isOpen, pluginId, onConfirm, onCancel, deleteData, se
     );
 }
 
+// 更新确认弹窗 - 展示更新日志
+interface UpdateDialogProps {
+    isOpen: boolean;
+    plugin?: MarketPlugin;
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+function UpdateDialog({ isOpen, plugin, onConfirm, onCancel }: UpdateDialogProps) {
+    if (!isOpen || !plugin) return null;
+
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[80vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-100 text-orange-600">
+                        <ArrowUpCircle size={24} />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900">更新插件</h3>
+                        <p className="text-sm text-gray-500">
+                            {plugin.name}: v{plugin.installedVersion} → v{plugin.version}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Changelog */}
+                {plugin.changelog ? (
+                    <div className="mb-6 flex-1 overflow-hidden">
+                        <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <Package size={16} />
+                            更新日志
+                        </h4>
+                        <div className="bg-gray-50 rounded-lg p-4 overflow-y-auto max-h-64 border border-gray-200">
+                            <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                                {plugin.changelog}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg text-gray-500 text-sm text-center">
+                        暂无更新说明
+                    </div>
+                )}
+
+                {/* Warning */}
+                <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                    ⚠️ 更新过程中插件将短暂停止，您的数据不会丢失。
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 justify-end">
+                    <button
+                        onClick={onCancel}
+                        className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                    >
+                        取消
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                        确认更新
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: PluginCardProps) {
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all">
@@ -439,11 +509,28 @@ function PluginCard({ plugin, installing, onInstall, onUpdate, onUninstall }: Pl
                 )}
             </div>
 
-            {/* Update Badge */}
+            {/* Update Section - 直接在卡片上展示更新信息 */}
             {plugin.updateAvailable && (
-                <div className="mb-4 p-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-2 text-orange-700 text-sm">
-                    <ArrowUpCircle size={16} />
-                    <span>有新版本可用</span>
+                <div className="mb-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
+                    {/* 版本对比标题 */}
+                    <div className="flex items-center gap-2 text-orange-700 font-medium mb-2">
+                        <ArrowUpCircle size={18} />
+                        <span>有新版本可用</span>
+                        <span className="text-xs bg-orange-200 px-2 py-0.5 rounded-full">
+                            v{plugin.installedVersion} → v{plugin.version}
+                        </span>
+                    </div>
+
+                    {/* 更新日志内容 */}
+                    {plugin.changelog ? (
+                        <div className="text-sm text-gray-700 bg-white/60 rounded p-2 mt-2 max-h-32 overflow-y-auto border border-orange-100">
+                            <div className="whitespace-pre-wrap leading-relaxed">
+                                {plugin.changelog}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-orange-600/70 mt-1">暂无更新说明</p>
+                    )}
                 </div>
             )}
 
