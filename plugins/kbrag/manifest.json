@@ -1,7 +1,7 @@
 {
     "id": "kbrag",
     "name": "本地知识库",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "description": "保存网页内容到本地知识库，支持向量检索和 AI 对话增强",
     "type": "node",
     "entry": "backend-nodejs/server.js",

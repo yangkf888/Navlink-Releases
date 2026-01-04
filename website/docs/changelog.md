@@ -11,8 +11,44 @@
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.0.17</span>
+      <span class="version">v2.1.0</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2026-01-04</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type warning">⚠️ 重要提示</span>
+        <ul>
+          <li><strong>升级到2.1.0最新版本后，应用商城的插件也需要同步更新</strong>，不然可能会无法使用侧边栏！</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type fix">🐛 修复</span>
+        <ul>
+          <li>修复 sub 插件初始化时漏了数据库字段</li>
+          <li>修复导航站内容分类子类tab拖拽排序</li>
+          <li>修复 ConfigContext 配置更新死循环警告</li>
+          <li>修复数据库缺失 Role Permissions 表导致启动失败</li>
+          <li>修复在线更新内容较多时需要滚动查看，现在可以展示全部更新内容</li>
+          <li>修复在移动端很难点击退出登录按钮问题</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type improve">🔧 更新</span>
+        <ul>
+          <li>更新全部插件，插件新增暗黑模式和明亮模式</li>
+          <li>更改插件侧边栏的实现方式</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.0.17</span>
     </div>
     <div class="date">2024-12-31</div>
     <div class="changes">
@@ -258,11 +294,13 @@
 .change-type.fix { background: #fce7f3; color: #be185d; }
 .change-type.docs { background: #e0e7ff; color: #4338ca; }
 .change-type.improve { background: #d1fae5; color: #047857; }
+.change-type.warning { background: #fef3c7; color: #b45309; }
 
 .dark .change-type.feature { background: #1e3a8a; color: #93c5fd; }
 .dark .change-type.fix { background: #831843; color: #f9a8d4; }
 .dark .change-type.docs { background: #312e81; color: #c7d2fe; }
 .dark .change-type.improve { background: #064e3b; color: #6ee7b7; }
+.dark .change-type.warning { background: #78350f; color: #fcd34d; }
 
 .changes ul {
   margin: 0.25rem 0 0;
