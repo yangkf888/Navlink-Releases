@@ -31,10 +31,17 @@ export function Favorites({ onNavigate }: FavoritesProps) {
     };
 
     const handleClick = (fav: Favorite) => {
-        onNavigate('play', {
-            sourceId: fav.source_id,
-            vodId: fav.vod_id
-        });
+        if (fav.source_type === 'netdisk') {
+            onNavigate('netdisk_play', {
+                sourceId: fav.source_id,
+                mediaId: parseInt(fav.vod_id)
+            });
+        } else {
+            onNavigate('play', {
+                sourceId: fav.source_id,
+                vodId: fav.vod_id
+            });
+        }
     };
 
     if (loading) {

@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react';
 import { LiveSource, LiveStatus } from '../types';
-import { apiGet } from '../utils/api';
+import { apiGet, apiPost } from '../utils/api';
 import { LiveCard } from '../components/LiveCard';
 
 const PLATFORMS = [
     { value: 'all', label: '全部平台' },
     { value: 'bilibili', label: 'B站' },
     { value: 'douyin', label: '抖音' },
-    { value: 'douyu', label: '斗鱼' },
-    { value: 'youtube', label: 'YouTube' },
-    { value: 'yy', label: 'YY' },
-    { value: 'huya', label: '虎牙' },
 ];
 
 interface LiveProps {
@@ -38,9 +34,15 @@ export function Live({ platform, onPlay }: LiveProps) {
     // 监听全局导航参数（如果 App.tsx 用了 Provider，这里可以用 context）
     // 但目前 App.tsx 直接渲染组件，我们需要在 App.tsx 层面传 props。
 
-    const loadData = async () => {
+    const loadData = async (forceRefresh = false) => {
         setLoading(true);
         try {
+            // 如果是强制刷新，先调用后端刷新所有直播状态
+            if (forceRefresh) {
+                console.log('[Live] Refreshing all live status...');
+                await apiPost('/live/refresh-all');
+            }
+
             // 获取直播源
             const sourcesRes = await apiGet<LiveSource[]>('/live/sources');
             if (sourcesRes.success && sourcesRes.data) {
@@ -59,6 +61,8 @@ export function Live({ platform, onPlay }: LiveProps) {
                             title: item.title,
                             viewer_count: item.viewer_count,
                             stream_url: item.stream_url,
+                            cover_url: item.current_cover,
+                            avatar_url: item.current_avatar,
                             updated_at: item.status_updated_at
                         };
                     }
@@ -102,9 +106,7 @@ export function Live({ platform, onPlay }: LiveProps) {
             } else {
                 const platformUrls: Record<string, string> = {
                     bilibili: `https://live.bilibili.com/${source.channel_id}`,
-                    douyu: `https://www.douyu.com/${source.channel_id}`,
-                    huya: `https://www.huya.com/${source.channel_id}`,
-                    youtube: `https://www.youtube.com/channel/${source.channel_id}`,
+                    douyin: `https://live.douyin.com/${source.channel_id}`,
                 };
                 const url = platformUrls[source.platform];
                 if (url) {
@@ -156,11 +158,12 @@ export function Live({ platform, onPlay }: LiveProps) {
                 </label>
 
                 <button
-                    onClick={loadData}
-                    className="ml-auto px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    onClick={() => loadData(true)}
+                    disabled={loading}
+                    className="ml-auto px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
-                    <i className="fas fa-sync-alt"></i>
-                    刷新
+                    <i className={`fas fa-sync-alt ${loading ? 'animate-spin' : ''}`}></i>
+                    {loading ? '刷新中...' : '刷新'}
                 </button>
             </div>
 
@@ -173,7 +176,7 @@ export function Live({ platform, onPlay }: LiveProps) {
                                 <span>{data.label}</span>
                                 <span className="text-sm text-gray-500">({data.sources.length})</span>
                             </h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                                 {data.sources.map(source => (
                                     <LiveCard
                                         key={source.id}
@@ -187,7 +190,7 @@ export function Live({ platform, onPlay }: LiveProps) {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                     {filteredSources.map(source => (
                         <LiveCard
                             key={source.id}

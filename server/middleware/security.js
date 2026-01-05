@@ -55,7 +55,7 @@ export const helmetConfig = helmet({
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite需要unsafe-eval
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "http:"],
             connectSrc: [
                 "'self'",
                 "ws:",
@@ -75,9 +75,24 @@ export const helmetConfig = helmet({
             fontSrc: ["'self'", "data:", "https://cdnjs.cloudflare.com"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'", "blob:", "https:", "http:"],  // 允许 blob URL 和外部视频源
-            frameSrc: ["'self'"], // 允许同源iframe (插件在主应用iframe中加载)
+            frameSrc: [
+                "'self'",
+                "https://*.douyu.com",
+                "https://douyu.com",
+                "https://*.douyucdn.cn",
+                "https://*.bilibili.com",
+                "https://bilibili.com",
+                "https://*.douyin.com",
+                "https://douyin.com",
+                "https://*.huya.com",
+                "https://huya.com",
+                "https://*.weibo.com",
+                "https://*.youtube.com"
+            ], // 允许同源及主流直播平台域名进入 iframe
             // 允许来自任何localhost端口的iframe嵌套
             frameAncestors: ["'self'", "http://127.0.0.1:*", "http://localhost:*"],
+            // 允许 Web Worker 使用 blob URL (hls.js 需要)
+            workerSrc: ["'self'", "blob:"],
             // 🔑 禁用upgrade-insecure-requests以支持HTTP访问
             upgradeInsecureRequests: null,
         },

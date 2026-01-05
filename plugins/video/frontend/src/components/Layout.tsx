@@ -2,7 +2,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { GlobalSearchBar } from './GlobalSearchBar';
-import { VideoSource, TvSource, TvChannel, Category } from '../types';
+import { VideoSource, TvSource, LiveSource, NetdiskSource, TvChannel, Category } from '../types';
 import { AppModule } from '../App';
 
 interface NavParams {
@@ -11,6 +11,9 @@ interface NavParams {
     categoryName?: string;
     vodId?: string;
     keyword?: string;
+    platform?: string;
+    liveSourceId?: number;
+    netdiskSourceId?: number; // For Netdisk
 }
 
 interface LayoutProps {
@@ -29,6 +32,12 @@ interface LayoutProps {
         currentChannelUrl?: string;
         tvRefreshKey?: number;
 
+        liveSources?: LiveSource[];
+
+        netdiskSources?: NetdiskSource[];
+        selectedNetdiskSourceId?: number | null;
+        onNetdiskSourceChange?: (id: number) => void;
+
         onNavigate: (view: string, params?: Record<string, unknown>) => void;
         activeView: string;
         navParams: NavParams;
@@ -36,6 +45,7 @@ interface LayoutProps {
         onModuleChange: (module: AppModule) => void;
         theme: 'light' | 'dark';
         onToggleTheme: () => void;
+        liveStatuses?: Record<number, any>;
     };
 }
 

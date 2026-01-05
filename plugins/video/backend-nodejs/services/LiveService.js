@@ -105,7 +105,7 @@ class LiveService {
     getAllStatus() {
         const db = getDatabase();
         return db.all(`
-            SELECT ls.*, lsc.is_live, lsc.title, lsc.viewer_count, lsc.stream_url, lsc.updated_at as status_updated_at
+            SELECT ls.*, lsc.is_live, lsc.title, lsc.viewer_count, lsc.stream_url, lsc.cover_url as current_cover, lsc.avatar_url as current_avatar, lsc.updated_at as status_updated_at
             FROM live_sources ls
             LEFT JOIN live_status_cache lsc ON ls.id = lsc.source_id
             WHERE ls.enabled = 1
@@ -119,7 +119,7 @@ class LiveService {
     getStatus(sourceId) {
         const db = getDatabase();
         return db.get(`
-            SELECT ls.*, lsc.is_live, lsc.title, lsc.viewer_count, lsc.stream_url, lsc.updated_at as status_updated_at
+            SELECT ls.*, lsc.is_live, lsc.title, lsc.viewer_count, lsc.stream_url, lsc.cover_url as current_cover, lsc.avatar_url as current_avatar, lsc.updated_at as status_updated_at
             FROM live_sources ls
             LEFT JOIN live_status_cache lsc ON ls.id = lsc.source_id
             WHERE ls.id = ?
@@ -132,8 +132,8 @@ class LiveService {
     updateStatusCache(sourceId, status) {
         const db = getDatabase();
         const stmt = db.prepare(`
-            INSERT OR REPLACE INTO live_status_cache (source_id, is_live, title, viewer_count, stream_url, updated_at)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT OR REPLACE INTO live_status_cache (source_id, is_live, title, viewer_count, stream_url, cover_url, avatar_url, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         `);
 
         return stmt.run([
@@ -141,7 +141,9 @@ class LiveService {
             status.is_live ? 1 : 0,
             status.title || null,
             status.viewer_count || null,
-            status.stream_url || null
+            status.stream_url || null,
+            status.cover_url || null,
+            status.avatar_url || null
         ]);
     }
 
@@ -155,6 +157,9 @@ class LiveService {
             switch (source.platform) {
                 case 'bilibili':
                     status = await this.checkBilibiliLive(source.channel_id);
+                    break;
+                case 'douyin':
+                    status = await this.checkDouyinLive(source.channel_id);
                     break;
                 case 'douyu':
                     status = await this.checkDouyuLive(source.channel_id);
@@ -170,6 +175,12 @@ class LiveService {
 
             if (status) {
                 this.updateStatusCache(source.id, status);
+
+                // 如果获取到封面且当前没有封面，自动更新
+                if (status.cover_url && !source.cover_url) {
+                    console.log(`[LiveService] Auto-updating cover for ${source.name}: ${status.cover_url}`);
+                    this.updateSource(source.id, { cover_url: status.cover_url });
+                }
             }
 
             return status;
@@ -184,22 +195,34 @@ class LiveService {
      */
     async checkBilibiliLive(roomId) {
         try {
-            const url = `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${roomId}`;
-            const response = await fetch(url, {
+            // 1. 获取房间基本信息 (标题、封面、在线人数)
+            const roomUrl = `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${roomId}`;
+            const roomResponse = await fetch(roomUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
             });
-            const data = await response.json();
+            const roomData = await roomResponse.json();
 
-            if (data.code === 0 && data.data) {
+            // 2. 获取主播基本信息 (头像)
+            const userUrl = `https://api.live.bilibili.com/live_user/v1/UserInfo/get_anchor_in_room?roomid=${roomId}`;
+            const userResponse = await fetch(userUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            const userData = await userResponse.json();
+
+            if (roomData.code === 0 && roomData.data) {
                 return {
-                    is_live: data.data.live_status === 1,
-                    title: data.data.title || '',
-                    viewer_count: data.data.online || 0,
+                    is_live: roomData.data.live_status === 1,
+                    title: roomData.data.title || '',
+                    viewer_count: roomData.data.online || 0,
                     stream_url: `https://live.bilibili.com/${roomId}`,
                     platform: 'bilibili',
-                    channel_id: roomId
+                    channel_id: roomId,
+                    cover_url: roomData.data.keyframe || roomData.data.user_cover || null,
+                    avatar_url: userData?.data?.info?.face || null
                 };
             }
             return null;
@@ -210,29 +233,205 @@ class LiveService {
     }
 
     /**
+     * 抖音直播状态检测
+     * 通过访问直播页面获取状态信息和直播流地址
+     */
+    async checkDouyinLive(roomId) {
+        try {
+            // 访问抖音直播页面获取信息
+            const url = `https://live.douyin.com/${roomId}`;
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+            const html = await response.text();
+
+            // 提取直播流地址 - 采用更通俗的全局匹配策略
+            let streamUrl = null;
+            let hlsUrl = null;
+
+            console.log(`[LiveService] Douyin ${roomId}: Parsing HTML (length: ${html.length})...`);
+
+            // 匹配所有可能是直播流的链接
+            const allUrls = html.match(/https?[:\/\\]+[^"&'<>]+(\.flv|\.m3u8)[^"&'<> ]*/g) || [];
+
+            for (let rawUrl of allUrls) {
+                // 解码各种可能的转义
+                let decodedUrl = rawUrl
+                    .replace(/\\u0026/g, '&')
+                    .replace(/&amp;/g, '&')
+                    .replace(/\\/g, '');
+
+                if (decodedUrl.includes('douyincdn.com')) {
+                    if (decodedUrl.includes('.flv') && !streamUrl) {
+                        streamUrl = decodedUrl;
+                    } else if (decodedUrl.includes('.m3u8') && !hlsUrl) {
+                        hlsUrl = decodedUrl;
+                    }
+                }
+            }
+
+            if (streamUrl) console.log(`[LiveService] Douyin ${roomId}: Found FLV URL`);
+            if (hlsUrl) console.log(`[LiveService] Douyin ${roomId}: Found HLS URL`);
+
+            // 判断是否正在直播 - 如果有流地址就是在播
+            const isLive = !!streamUrl || !!hlsUrl;
+
+            // 提取主播名称
+            let title = '';
+            const titleMatch = html.match(/"nickname":"([^"]+)"/);
+            if (titleMatch) {
+                title = titleMatch[1];
+            }
+
+            // 提取直播间标题
+            let roomTitle = '';
+            const roomTitleMatch = html.match(/"title":"([^"]+)"/);
+            if (roomTitleMatch) {
+                roomTitle = roomTitleMatch[1];
+            }
+
+            // 提取封面和头像 (从 data-config 或 data-anchor-info)
+            let coverUrl = null;
+            let avatarUrl = null;
+
+            // 1. 尝试从 data-config 提取 (最高优先，信息最全)
+            const configMatch = html.match(/data-config="([^"]+)"/);
+            if (configMatch) {
+                try {
+                    const configStr = configMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+                    const config = JSON.parse(configStr);
+                    // 封面：poster 字段
+                    if (config.poster) coverUrl = config.poster.replace(/&amp;/g, '&');
+                    if (!coverUrl && config.basicPlayerProps?.poster) {
+                        coverUrl = config.basicPlayerProps.poster.replace(/&amp;/g, '&');
+                    }
+
+                    // 头像：anchorInfo 字段
+                    if (config.anchorInfo?.avatar) avatarUrl = config.anchorInfo.avatar.replace(/&amp;/g, '&');
+                    if (!avatarUrl && config.playerAction?.anchorInfo?.avatar) {
+                        avatarUrl = config.playerAction.anchorInfo.avatar.replace(/&amp;/g, '&');
+                    }
+                } catch (e) { }
+            }
+
+            // 2. 尝试从 data-anchor-info 提取头像
+            if (!avatarUrl) {
+                const anchorMatch = html.match(/data-anchor-info="([^"]+)"/);
+                if (anchorMatch) {
+                    try {
+                        const anchorInfo = JSON.parse(anchorMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+                        avatarUrl = anchorInfo.avatar;
+                        if (avatarUrl) avatarUrl = avatarUrl.replace(/&amp;/g, '&');
+                    } catch (e) { }
+                }
+            }
+
+            // 3. 兜底正则提取封面 (匹配包含 resize:0:0 的任何链接)
+            if (!coverUrl) {
+                const coverRegex = html.match(/"(https?[:\/\\]+[^"&'<>]+resize:0:0[^"&'<>]*)"/);
+                if (coverRegex) {
+                    coverUrl = coverRegex[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+                }
+            }
+
+            // 4. 兜底正则提取头像 (匹配包含 resize:100:100 的任何链接)
+            if (!avatarUrl) {
+                const avatarRegex = html.match(/"(https?[:\/\\]+[^"&'<>]+resize:100:100[^"&'<>]*)"/);
+                if (avatarRegex) {
+                    avatarUrl = avatarRegex[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+                }
+            }
+
+            // 提取观看人数
+            let viewerCount = 0;
+            const viewerMatch = html.match(/"user_count_str":"([^"]+)"/);
+            if (viewerMatch) {
+                const countStr = viewerMatch[1];
+                if (countStr.includes('万')) {
+                    viewerCount = parseFloat(countStr) * 10000;
+                } else {
+                    viewerCount = parseInt(countStr) || 0;
+                }
+            }
+
+            console.log(`[LiveService] Douyin ${roomId}: isLive=${isLive}, streamUrl=${streamUrl ? 'found' : 'not found'}`);
+
+            console.log(`[LiveService] Douyin ${roomId}: Scraping result - isLive: ${isLive}, Title: ${roomTitle || title}, Avatar: ${avatarUrl ? 'Found' : 'Not found'}, Cover: ${coverUrl ? 'Found' : 'Not found'}`);
+
+            return {
+                is_live: isLive,
+                title: roomTitle || title,
+                viewer_count: viewerCount,
+                stream_url: streamUrl || hlsUrl || url,
+                hls_url: hlsUrl,
+                flv_url: streamUrl,
+                platform: 'douyin',
+                channel_id: roomId,
+                cover_url: coverUrl,
+                avatar_url: avatarUrl
+            };
+        } catch (error) {
+            console.error(`[LiveService] Douyin check error for room ${roomId}:`, error);
+            return null;
+        }
+    }
+
+    /**
      * 斗鱼直播状态检测
      */
     async checkDouyuLive(roomId) {
         try {
-            const url = `https://open.douyucdn.cn/api/RoomApi/room/${roomId}`;
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+            // 1. 获取基本信息 (API方式)
+            const apiUrl = `https://open.douyucdn.cn/api/RoomApi/room/${roomId}`;
+            const apiRes = await fetch(apiUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
-            const data = await response.json();
+            const apiData = await apiRes.json();
 
-            if (data.error === 0 && data.data) {
-                return {
-                    is_live: data.data.room_status === '1',
-                    title: data.data.room_name || '',
-                    viewer_count: parseInt(data.data.online || 0),
-                    stream_url: `https://www.douyu.com/${roomId}`,
-                    platform: 'douyu',
-                    channel_id: roomId
-                };
+            let status = {
+                is_live: false,
+                title: '',
+                viewer_count: 0,
+                stream_url: `https://www.douyu.com/${roomId}`,
+                platform: 'douyu',
+                channel_id: roomId,
+                cover_url: null,
+                avatar_url: null
+            };
+
+            if (apiData.error === 0 && apiData.data) {
+                status.is_live = apiData.data.room_status === '1';
+                status.title = apiData.data.room_name || '';
+                status.viewer_count = parseInt(apiData.data.online || 0);
+                status.cover_url = apiData.data.room_thumb || null;
+                status.avatar_url = apiData.data.avatar || null;
             }
-            return null;
+
+            // 2. 尝试获取直播流 (移动端解析模式)
+            // 斗鱼直播流提取较为复杂，这里尝试通过分享页获取简单的 HLS 流
+            if (status.is_live) {
+                try {
+                    const shareUrl = `https://m.douyu.com/${roomId}`;
+                    const shareRes = await fetch(shareUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
+                        }
+                    });
+                    const html = await shareRes.text();
+
+                    // 尝试匹配 HLS 地址
+                    const hlsMatch = html.match(/\"hls_url\":\"([^\"]+)\"/);
+                    if (hlsMatch) {
+                        status.hls_url = hlsMatch[1].replace(/\\/g, '');
+                    }
+                } catch (e) {
+                    console.warn(`[LiveService] Douyu stream parse failed for ${roomId}:`, e.message);
+                }
+            }
+
+            return status;
         } catch (error) {
             console.error(`[LiveService] Douyu API error for room ${roomId}:`, error);
             return null;
@@ -264,17 +463,37 @@ class LiveService {
      */
     async getPlayUrl(sourceId) {
         const source = await this.getStatus(sourceId);
-        if (!source || !source.is_live) return null;
+        if (!source) return null;
 
-        switch (source.platform) {
-            case 'bilibili':
-                return await this.getBilibiliStreamUrl(source.channel_id);
-            case 'douyu':
-                // 暂时返回原始 H5 URL，前端可以用 iframe 或尝试解析
-                return { url: `https://www.douyu.com/topic/h5show?room_id=${source.channel_id}`, type: 'iframe' };
-            default:
-                return { url: source.stream_url, type: 'link' };
+        const platform = (source.platform || '').toLowerCase();
+
+        // 如果是抖音，尝试实时提取最新流地址
+        if (platform === 'douyin') {
+            const status = await this.checkDouyinLive(source.channel_id);
+            if (status && status.is_live) {
+                if (status.flv_url) return { url: status.flv_url, type: 'flv', is_live: true };
+                if (status.hls_url) return { url: status.hls_url, type: 'm3u8', is_live: true };
+            }
+            return { url: `https://live.douyin.com/${source.channel_id}`, type: 'iframe' };
         }
+
+        // 如果是斗鱼，直接使用专用的 H5 播放页面
+        if (platform === 'douyu') {
+            return {
+                url: `https://www.douyu.com/topic/h5show?room_id=${source.channel_id}`,
+                type: 'iframe'
+            };
+        }
+
+        // B站处理
+        if (platform === 'bilibili') {
+            if (!source.is_live) return null;
+            return await this.getBilibiliStreamUrl(source.channel_id);
+        }
+
+        // 默认处理
+        if (!source.is_live) return null;
+        return { url: source.stream_url, type: 'link' };
     }
 
     /**

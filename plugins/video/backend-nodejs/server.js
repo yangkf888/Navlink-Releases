@@ -42,6 +42,7 @@ module.exports = {
         router.use('/api/home', require('./routes/home'));
         router.use('/api/tv', require('./routes/tv'));
         router.use('/api/live', require('./routes/live'));
+        router.use('/api/netdisk', require('./routes/netdisk'));
 
         // 启动时触发首页数据刷新（异步，延迟5秒执行）
         setTimeout(() => {

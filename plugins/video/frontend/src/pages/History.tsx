@@ -33,10 +33,18 @@ export function History({ onNavigate }: HistoryProps) {
     };
 
     const handleClick = (item: PlayHistory) => {
-        onNavigate('play', {
-            sourceId: item.source_id,
-            vodId: item.vod_id
-        });
+        if (item.source_type === 'netdisk') {
+            onNavigate('netdisk_play', {
+                sourceId: item.source_id,
+                mediaId: parseInt(item.vod_id),
+                videoIndex: item.episode - 1
+            });
+        } else {
+            onNavigate('play', {
+                sourceId: item.source_id,
+                vodId: item.vod_id
+            });
+        }
     };
 
     const formatTime = (dateStr: string) => {

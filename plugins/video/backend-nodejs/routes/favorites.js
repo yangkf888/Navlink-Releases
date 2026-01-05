@@ -18,9 +18,14 @@ router.get('/', (req, res) => {
         const userId = req.headers['x-nav-user-id'] || '0';
 
         const favorites = db.prepare(`
-            SELECT f.*, s.name as source_name
+            SELECT f.*, 
+                   CASE 
+                       WHEN f.source_type = 'netdisk' THEN ns.name 
+                       ELSE vs.name 
+                   END as source_name
             FROM favorites f
-            LEFT JOIN video_sources s ON f.source_id = s.id
+            LEFT JOIN video_sources vs ON f.source_id = vs.id AND (f.source_type = 'cms' OR f.source_type IS NULL)
+            LEFT JOIN netdisk_sources ns ON f.source_id = ns.id AND f.source_type = 'netdisk'
             WHERE f.user_id = ?
             ORDER BY f.created_at DESC
         `).all(userId);
@@ -37,14 +42,14 @@ router.get('/', (req, res) => {
  */
 router.get('/check', (req, res) => {
     try {
-        const { source_id, vod_id } = req.query;
+        const { source_id, vod_id, source_type = 'cms' } = req.query;
         const db = getDb();
         const userId = req.headers['x-nav-user-id'] || '0';
 
         const favorite = db.prepare(`
             SELECT id FROM favorites 
-            WHERE user_id = ? AND source_id = ? AND vod_id = ?
-        `).get(userId, source_id, vod_id);
+            WHERE user_id = ? AND source_id = ? AND vod_id = ? AND (source_type = ? OR (source_type IS NULL AND ? = 'cms'))
+        `).get(userId, source_id, vod_id, source_type, source_type);
 
         res.json({ success: true, data: { isFavorite: !!favorite } });
     } catch (error) {
@@ -58,24 +63,24 @@ router.get('/check', (req, res) => {
  */
 router.post('/', (req, res) => {
     try {
-        const { source_id, vod_id, title, cover, year } = req.body;
+        const { source_id, vod_id, title, cover, year, source_type = 'cms' } = req.body;
         const db = getDb();
         const userId = req.headers['x-nav-user-id'] || '0';
 
         // 检查是否已存在
         const existing = db.prepare(`
             SELECT id FROM favorites 
-            WHERE user_id = ? AND source_id = ? AND vod_id = ?
-        `).get(userId, source_id, vod_id);
+            WHERE user_id = ? AND source_id = ? AND vod_id = ? AND (source_type = ? OR (source_type IS NULL AND ? = 'cms'))
+        `).get(userId, source_id, vod_id, source_type, source_type);
 
         if (existing) {
             return res.json({ success: true, data: { id: existing.id }, message: '已收藏' });
         }
 
         const result = db.prepare(`
-            INSERT INTO favorites (user_id, source_id, vod_id, title, cover, year)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(userId, source_id, vod_id, title, cover, year);
+            INSERT INTO favorites (user_id, source_id, source_type, vod_id, title, cover, year)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(userId, source_id, source_type, vod_id, title, cover, year);
 
         res.json({ success: true, data: { id: result.lastInsertRowid } });
     } catch (error) {
@@ -107,14 +112,14 @@ router.delete('/:id', (req, res) => {
  */
 router.delete('/', (req, res) => {
     try {
-        const { source_id, vod_id } = req.query;
+        const { source_id, vod_id, source_type = 'cms' } = req.query;
         const db = getDb();
         const userId = req.headers['x-nav-user-id'] || '0';
 
         db.prepare(`
             DELETE FROM favorites 
-            WHERE user_id = ? AND source_id = ? AND vod_id = ?
-        `).run(userId, source_id, vod_id);
+            WHERE user_id = ? AND source_id = ? AND vod_id = ? AND (source_type = ? OR (source_type IS NULL AND ? = 'cms'))
+        `).run(userId, source_id, vod_id, source_type, source_type);
 
         res.json({ success: true });
     } catch (error) {

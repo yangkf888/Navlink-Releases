@@ -82,13 +82,13 @@ function initSchema(db) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT DEFAULT '0',
             source_id INTEGER,
+            source_type TEXT DEFAULT 'cms',
             vod_id TEXT NOT NULL,
             title TEXT,
             cover TEXT,
             year TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (source_id) REFERENCES video_sources(id) ON DELETE CASCADE,
-            UNIQUE(user_id, source_id, vod_id)
+            UNIQUE(user_id, source_id, vod_id, source_type)
         );
 
         -- 播放记录
@@ -96,6 +96,7 @@ function initSchema(db) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT DEFAULT '0',
             source_id INTEGER,
+            source_type TEXT DEFAULT 'cms',
             vod_id TEXT NOT NULL,
             title TEXT,
             cover TEXT,
@@ -104,8 +105,7 @@ function initSchema(db) {
             progress REAL DEFAULT 0,
             duration REAL DEFAULT 0,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (source_id) REFERENCES video_sources(id) ON DELETE CASCADE,
-            UNIQUE(user_id, source_id, vod_id)
+            UNIQUE(user_id, source_id, vod_id, source_type)
         );
 
         -- 设置表
@@ -168,9 +168,59 @@ function initSchema(db) {
             title TEXT,
             viewer_count INTEGER,
             stream_url TEXT,
+            cover_url TEXT,
+            avatar_url TEXT,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (source_id) REFERENCES live_sources(id) ON DELETE CASCADE
         );
+
+        -- 网盘源表
+        CREATE TABLE IF NOT EXISTS netdisk_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT DEFAULT 'alist',
+            url TEXT NOT NULL,
+            username TEXT,
+            password TEXT,
+            root_path TEXT DEFAULT '/',
+            enabled INTEGER DEFAULT 1,
+            proxy_enabled INTEGER DEFAULT 0,
+            hidden INTEGER DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            remark TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 网盘媒体索引表 (Emby风格媒体库)
+        CREATE TABLE IF NOT EXISTS netdisk_media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            path TEXT NOT NULL,
+            title TEXT NOT NULL,
+            original_title TEXT,
+            year INTEGER,
+            overview TEXT,
+            poster_url TEXT,
+            fanart_url TEXT,
+            rating REAL,
+            genres TEXT,
+            media_type TEXT DEFAULT 'movie',
+            tmdb_id INTEGER,
+            video_files TEXT,
+            nfo_parsed INTEGER DEFAULT 0,
+            director TEXT,
+            actor TEXT,
+            area TEXT,
+            tagline TEXT,
+            studio TEXT,
+            scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            extra_metadata TEXT,
+            UNIQUE(source_id, path),
+            FOREIGN KEY (source_id) REFERENCES netdisk_sources(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_netdisk_media_source ON netdisk_media(source_id);
+        CREATE INDEX IF NOT EXISTS idx_netdisk_media_type ON netdisk_media(media_type);
     `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
@@ -266,6 +316,129 @@ function migrateSchema(db) {
         } catch (err) {
             console.log(`[Database] Migration skipped for categories.${migration.column}: ${err.message}`);
         }
+    }
+
+    // live_status_cache 表迁移
+    try {
+        const tableInfo = db.all('PRAGMA table_info(live_status_cache)');
+
+        // 检查 cover_url
+        const hasCover = tableInfo.some(col => col.name === 'cover_url');
+        if (!hasCover) {
+            db.run('ALTER TABLE live_status_cache ADD COLUMN cover_url TEXT');
+            console.log('[Database] Migration: Added column cover_url to live_status_cache');
+        }
+
+        // 检查 avatar_url
+        const hasAvatar = tableInfo.some(col => col.name === 'avatar_url');
+        if (!hasAvatar) {
+            db.run('ALTER TABLE live_status_cache ADD COLUMN avatar_url TEXT');
+            console.log('[Database] Migration: Added column avatar_url to live_status_cache');
+        }
+    } catch (err) {
+        console.log(`[Database] Migration error for live_status_cache: ${err.message}`);
+    }
+
+    // favorites 表迁移 (添加 source_type 并移除外键)
+    try {
+        const tableInfo = db.all('PRAGMA table_info(favorites)');
+        const hasSourceType = tableInfo.some(col => col.name === 'source_type');
+
+        if (!hasSourceType) {
+            console.log('[Database] Migrating favorites table...');
+            db.exec(`
+                ALTER TABLE favorites RENAME TO favorites_old;
+                CREATE TABLE favorites (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT DEFAULT '0',
+                    source_id INTEGER,
+                    source_type TEXT DEFAULT 'cms',
+                    vod_id TEXT NOT NULL,
+                    title TEXT,
+                    cover TEXT,
+                    year TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, source_id, vod_id, source_type)
+                );
+                INSERT INTO favorites (id, user_id, source_id, vod_id, title, cover, year, created_at)
+                SELECT id, user_id, source_id, vod_id, title, cover, year, created_at FROM favorites_old;
+                DROP TABLE favorites_old;
+            `);
+            console.log('[Database] Favorites table migration completed');
+        }
+    } catch (err) {
+        console.error('[Database] Favorites migration error:', err.message);
+    }
+
+    // play_history 表迁移 (添加 source_type 并移除外键)
+    try {
+        const tableInfo = db.all('PRAGMA table_info(play_history)');
+        const hasSourceType = tableInfo.some(col => col.name === 'source_type');
+
+        if (!hasSourceType) {
+            console.log('[Database] Migrating play_history table...');
+            db.exec(`
+                ALTER TABLE play_history RENAME TO play_history_old;
+                CREATE TABLE play_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT DEFAULT '0',
+                    source_id INTEGER,
+                    source_type TEXT DEFAULT 'cms',
+                    vod_id TEXT NOT NULL,
+                    title TEXT,
+                    cover TEXT,
+                    episode INTEGER DEFAULT 1,
+                    episode_name TEXT,
+                    progress REAL DEFAULT 0,
+                    duration REAL DEFAULT 0,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, source_id, vod_id, source_type)
+                );
+                INSERT INTO play_history (id, user_id, source_id, vod_id, title, cover, episode, episode_name, progress, duration, updated_at)
+                SELECT id, user_id, source_id, vod_id, title, cover, episode, episode_name, progress, duration, updated_at FROM play_history_old;
+                DROP TABLE play_history_old;
+            `);
+            console.log('[Database] Play history table migration completed');
+        }
+    } catch (err) {
+        console.error('[Database] Play history migration error:', err.message);
+    }
+
+    // netdisk_sources 表迁移
+    try {
+        const tableInfo = db.all('PRAGMA table_info(netdisk_sources)');
+        const columnsToAdd = [
+            { name: 'scan_paths', type: 'TEXT' },
+            { name: 'type', type: 'TEXT DEFAULT \'alist\'' },
+            { name: 'proxy_enabled', type: 'INTEGER DEFAULT 0' },
+            { name: 'hidden', type: 'INTEGER DEFAULT 0' },
+            { name: 'remark', type: 'TEXT' }
+        ];
+
+        for (const col of columnsToAdd) {
+            if (!tableInfo.some(c => c.name === col.name)) {
+                db.run(`ALTER TABLE netdisk_sources ADD COLUMN ${col.name} ${col.type}`);
+                console.log(`[Database] Migration: Added column ${col.name} to netdisk_sources`);
+            }
+        }
+    } catch (err) {
+        console.log(`[Database] Migration error for netdisk_sources: ${err.message}`);
+    }
+
+    // netdisk_media 表迁移
+    try {
+        const mediaTableInfo = db.all('PRAGMA table_info(netdisk_media)');
+        const columns = ['director', 'actor', 'area', 'tagline', 'studio', 'extra_metadata'];
+
+        for (const col of columns) {
+            const exists = mediaTableInfo.some(c => c.name === col);
+            if (!exists) {
+                db.run(`ALTER TABLE netdisk_media ADD COLUMN ${col} TEXT`);
+                console.log(`[Database] Migration: Added column ${col} to netdisk_media`);
+            }
+        }
+    } catch (err) {
+        console.log(`[Database] Migration error for netdisk_media: ${err.message}`);
     }
 }
 

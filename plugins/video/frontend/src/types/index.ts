@@ -73,7 +73,52 @@ export interface LiveStatus {
     title?: string;
     viewer_count?: number;
     stream_url?: string;
+    cover_url?: string;
+    avatar_url?: string;
     updated_at: string;
+}
+
+/**
+ * 网盘扫描路径
+ */
+export interface NetdiskScanPath {
+    name: string;
+    path: string;
+}
+
+/**
+ * 网盘源
+ */
+export interface NetdiskSource {
+    id: number;
+    name: string;
+    type: string;
+    url: string;
+    username?: string;
+    root_path: string;
+    scan_paths?: NetdiskScanPath[] | string; // 指定扫描的目录列表
+    enabled: number;
+    proxy_enabled?: number;
+    hidden?: number;
+    remark?: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * 网盘文件
+ */
+export interface NetdiskFile {
+    name: string;
+    size: number;
+    is_dir: boolean;
+    modified: string;
+    created: string;
+    thumb?: string;
+    type: number;
+    isVideo?: boolean;
+    ext?: string;
 }
 
 /**
@@ -149,6 +194,7 @@ export interface VideoDetail extends Video {
 export interface Favorite {
     id: number;
     source_id: number;
+    source_type?: string;
     vod_id: string;
     title: string;
     cover: string;
@@ -163,6 +209,7 @@ export interface Favorite {
 export interface PlayHistory {
     id: number;
     source_id: number;
+    source_type?: string;
     vod_id: string;
     title: string;
     cover: string;

@@ -40,12 +40,13 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
             onClick={onClick}
         >
             {/* 封面 */}
-            <div className="relative w-full aspect-video bg-gray-900">
-                {source.cover_url ? (
+            <div className="relative w-full aspect-[4/3] bg-gray-900">
+                {(status?.cover_url || source.cover_url) ? (
                     <img
-                        src={source.cover_url}
+                        src={status?.cover_url || source.cover_url}
                         alt={source.name}
                         className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                         }}
@@ -78,22 +79,38 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
 
             {/* 信息 */}
             <div className="p-3">
-                <h3 className="text-white font-medium truncate text-sm mb-1">
-                    {source.streamer_name || source.name}
-                </h3>
+                <div className="flex items-center gap-2 mb-2">
+                    {/* 主播头像 */}
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0 border border-gray-600">
+                        {status?.avatar_url ? (
+                            <img src={status.avatar_url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <i className="fas fa-user text-xs text-gray-500"></i>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium truncate text-sm leading-tight">
+                            {source.streamer_name || source.name}
+                        </h3>
+                    </div>
+                </div>
 
                 {isLive && status.title && (
-                    <p className="text-gray-400 text-xs truncate mb-2">{status.title}</p>
+                    <p className="text-gray-400 text-xs truncate mb-2 leading-tight opacity-80">
+                        {status.title}
+                    </p>
                 )}
 
-                <div className="flex items-center justify-between">
-                    <span className={`inline-block px-2 py-0.5 text-xs rounded ${PLATFORM_COLORS[source.platform] || 'bg-gray-700/50 text-gray-400'
+                <div className="flex items-center justify-between mt-auto">
+                    <span className={`inline-block px-1.5 py-0.5 text-[10px] rounded leading-none ${PLATFORM_COLORS[source.platform] || 'bg-gray-700/50 text-gray-400'
                         }`}>
                         {PLATFORM_NAMES[source.platform] || source.platform}
                     </span>
 
                     {source.category && (
-                        <span className="text-gray-500 text-xs">{source.category}</span>
+                        <span className="text-gray-500 text-[10px] truncate max-w-[60px]">{source.category}</span>
                     )}
                 </div>
             </div>

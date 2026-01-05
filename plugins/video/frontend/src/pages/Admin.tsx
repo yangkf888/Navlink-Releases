@@ -4,6 +4,7 @@ import { SettingsManager } from '../components/SettingsManager';
 import { HomeManager } from '../components/HomeManager';
 import { TvSourceManager } from '../components/TvSourceManager';
 import { LiveSourceManager } from '../components/LiveSourceManager';
+import { NetdiskSourceManager } from '../components/NetdiskSourceManager';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoSource } from '../types';
 import { apiGet } from '../utils/api';
@@ -13,7 +14,7 @@ interface AdminProps {
     onSourcesChange?: () => void;
 }
 
-type TabType = 'home' | 'sources' | 'tv_sources' | 'live_sources' | 'settings';
+type TabType = 'home' | 'sources' | 'tv_sources' | 'live_sources' | 'netdisk_sources' | 'settings';
 
 export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) {
     const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -190,6 +191,16 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                     直播源管理
                 </button>
                 <button
+                    onClick={() => setActiveTab('netdisk_sources')}
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
+                        ${activeTab === 'netdisk_sources'
+                            ? 'bg-gray-800 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    网盘源管理
+                </button>
+                <button
                     onClick={() => setActiveTab('settings')}
                     className={`px-4 py-2 rounded-t-lg font-medium transition-colors
                         ${activeTab === 'settings'
@@ -219,6 +230,11 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             {/* 直播源管理 */}
             {activeTab === 'live_sources' && (
                 <LiveSourceManager onSourcesChange={() => { onSourcesChange?.(); }} />
+            )}
+
+            {/* 网盘源管理 */}
+            {activeTab === 'netdisk_sources' && (
+                <NetdiskSourceManager onSourceChange={() => { onSourcesChange?.(); }} />
             )}
 
             {/* 系统设置 - 使用独立组件 */}

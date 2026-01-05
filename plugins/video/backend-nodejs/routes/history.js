@@ -19,9 +19,14 @@ router.get('/', (req, res) => {
         const userId = req.headers['x-nav-user-id'] || '0';
 
         const history = db.prepare(`
-            SELECT h.*, s.name as source_name
+            SELECT h.*, 
+                   CASE 
+                       WHEN h.source_type = 'netdisk' THEN ns.name 
+                       ELSE vs.name 
+                   END as source_name
             FROM play_history h
-            LEFT JOIN video_sources s ON h.source_id = s.id
+            LEFT JOIN video_sources vs ON h.source_id = vs.id AND (h.source_type = 'cms' OR h.source_type IS NULL)
+            LEFT JOIN netdisk_sources ns ON h.source_id = ns.id AND h.source_type = 'netdisk'
             WHERE h.user_id = ?
             ORDER BY h.updated_at DESC
             LIMIT ?
@@ -39,15 +44,15 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
     try {
-        const { source_id, vod_id, title, cover, episode, episode_name, progress, duration } = req.body;
+        const { source_id, vod_id, title, cover, episode, episode_name, progress, duration, source_type = 'cms' } = req.body;
         const db = getDb();
         const userId = req.headers['x-nav-user-id'] || '0';
 
         // 检查是否已存在
         const existing = db.prepare(`
             SELECT id FROM play_history 
-            WHERE user_id = ? AND source_id = ? AND vod_id = ?
-        `).get(userId, source_id, vod_id);
+            WHERE user_id = ? AND source_id = ? AND vod_id = ? AND (source_type = ? OR (source_type IS NULL AND ? = 'cms'))
+        `).get(userId, source_id, vod_id, source_type, source_type);
 
         if (existing) {
             // 更新记录
@@ -63,9 +68,9 @@ router.post('/', (req, res) => {
             // 新增记录
             const result = db.prepare(`
                 INSERT INTO play_history 
-                (user_id, source_id, vod_id, title, cover, episode, episode_name, progress, duration)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(userId, source_id, vod_id, title, cover, episode, episode_name, progress, duration);
+                (user_id, source_id, source_type, vod_id, title, cover, episode, episode_name, progress, duration)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(userId, source_id, source_type, vod_id, title, cover, episode, episode_name, progress, duration);
 
             res.json({ success: true, data: { id: result.lastInsertRowid } });
         }

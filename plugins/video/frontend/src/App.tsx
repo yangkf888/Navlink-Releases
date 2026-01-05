@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { VideoSource, TvSource, Category } from './types';
+import { VideoSource, TvSource, LiveSource, NetdiskSource, Category } from './types';
 import { apiGet } from './utils/api';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -9,6 +9,8 @@ import { Play } from './pages/Play';
 import { TvPlayer } from './pages/TvPlayer';
 import { Live } from './pages/Live'; // New component
 import { LivePlayer } from './pages/LivePlayer'; // New component
+import { Netdisk } from './pages/Netdisk'; // Netdisk module
+import { NetdiskPlayer } from './pages/NetdiskPlayer'; // Netdisk Player
 import { Search } from './pages/Search';
 import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
@@ -16,7 +18,7 @@ import { History } from './pages/History';
 import { NavigationProvider } from './contexts/NavigationContext';
 
 // 视图类型
-type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'search' | 'favorites' | 'history' | 'admin';
+type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin';
 
 // 模块类型（顶部导航）
 export type AppModule = 'home' | 'sources' | 'tv' | 'live' | 'netdisk';
@@ -33,6 +35,9 @@ interface NavParams {
     liveSourceId?: number; // For Live
     tvSourceId?: number; // For TV
     channelUrl?: string; // For TV
+    mediaId?: number; // For Netdisk
+    videoIndex?: number; // For Netdisk
+    netdiskSourceId?: number; // For Netdisk source selection
 }
 
 // localStorage key
@@ -56,6 +61,16 @@ function VideoApp() {
 
     // 电视源
     const [tvSources, setTvSources] = useState<TvSource[]>([]);
+
+    // 直播源
+    const [liveSources, setLiveSources] = useState<LiveSource[]>([]);
+
+    // 网盘源
+    const [netdiskSources, setNetdiskSources] = useState<NetdiskSource[]>([]);
+    const [selectedNetdiskSourceId, setSelectedNetdiskSourceId] = useState<number | null>(null);
+
+    // 直播状态数据
+    const [liveStatuses, setLiveStatuses] = useState<Record<number, any>>({});
 
     // 当前选中的视频源
     const [selectedSourceId, setSelectedSourceId] = useState<number | null>(() => {
@@ -118,6 +133,11 @@ function VideoApp() {
             // 直播模块
             setActiveView('live');
             setNavParams({});
+        } else if (module === 'netdisk') {
+            // 网盘模块
+            setActiveView('netdisk');
+            setNavParams({});
+            setSelectedNetdiskSourceId(null);  // 清空选中的网盘源，显示全部网盘视图
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
@@ -174,12 +194,47 @@ function VideoApp() {
                 }
             }
 
+            // 加载直播源
+            const liveRes = await apiGet<LiveSource[]>('/live/sources');
+            if (liveRes.success && liveRes.data) {
+                setLiveSources(liveRes.data.filter(s => s.enabled === 1));
+            }
+
+            // 加载网盘源
+            const netdiskRes = await apiGet<NetdiskSource[]>('/netdisk/sources');
+            if (netdiskRes.success && netdiskRes.data) {
+                setNetdiskSources(netdiskRes.data);
+            }
+
         } catch (error) {
             console.error('[App] Failed to load sources:', error);
         } finally {
             setIsLoaded(true);
         }
     };
+
+    // 加载直播状态
+    const loadLiveStatuses = async () => {
+        try {
+            const res = await apiGet<any[]>('/live/status');
+            if (res.success && res.data) {
+                const statusMap: Record<number, any> = {};
+                res.data.forEach(s => {
+                    statusMap[s.source_id] = s;
+                });
+                setLiveStatuses(statusMap);
+            }
+        } catch (e) {
+            console.error('[App] Failed to fetch live statuses', e);
+        }
+    };
+
+    // 定期刷新直播状态 (60s)
+    useEffect(() => {
+        loadLiveStatuses();
+        const timer = setInterval(loadLiveStatuses, 60000);
+        return () => clearInterval(timer);
+    }, []);
 
     // 切换视频源
     const handleSourceChange = (sourceId: number) => {
@@ -307,6 +362,14 @@ function VideoApp() {
                     currentChannelUrl: navParams.channelUrl,
                     tvRefreshKey,
 
+                    liveSources, // Pass live sources to sidebar
+
+                    netdiskSources, // Pass netdisk sources to sidebar
+                    selectedNetdiskSourceId,
+                    onNetdiskSourceChange: (id: number) => setSelectedNetdiskSourceId(id),
+
+                    liveStatuses,   // 传递直播状态数据
+
                     onNavigate: navigate,
                     activeView,
                     navParams,
@@ -359,6 +422,24 @@ function VideoApp() {
                     <LivePlayer
                         sourceId={navParams.liveSourceId}
                         onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'netdisk' && (
+                    <Netdisk
+                        sourceId={navParams.netdiskSourceId || selectedNetdiskSourceId || undefined}
+                        selectedPath={navParams.keyword || undefined}
+                        onPlay={(mediaId, sourceId, videoIndex) => {
+                            navigate('netdisk_play', { mediaId, sourceId, videoIndex });
+                        }}
+                    />
+                )}
+                {activeView === 'netdisk_play' && navParams.mediaId && navParams.sourceId && (
+                    <NetdiskPlayer
+                        mediaId={navParams.mediaId}
+                        sourceId={navParams.sourceId}
+                        initialVideoIndex={navParams.videoIndex}
+                        onNavigate={navigate}
+                        onGoBack={goBack}
                     />
                 )}
                 {activeView === 'search' && (

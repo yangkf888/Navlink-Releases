@@ -201,15 +201,18 @@ body.light-theme,
 }
 
 [data-theme="light"] .text-gray-300 {
-    color: #4b5563 !important;
+    color: #6b7280 !important;
+    /* 原为 400 的值 */
 }
 
 [data-theme="light"] .text-gray-400 {
-    color: #6b7280 !important;
+    color: #4b5563 !important;
+    /* 原为 300 的值 */
 }
 
 [data-theme="light"] .text-gray-500 {
-    color: #9ca3af !important;
+    color: #374151 !important;
+    /* 修正为更深的灰色 */
 }
 
 [data-theme="light"] .border-gray-700,

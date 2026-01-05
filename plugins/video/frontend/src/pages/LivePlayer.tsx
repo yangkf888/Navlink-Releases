@@ -54,10 +54,12 @@ export function LivePlayer({ sourceId, onNavigate }: LivePlayerProps) {
 
         // B站等直播流通常需要代理来绕过 CORS 和 Referer 限制
         const useProxy = true; // 默认使用代理以确保稳定性
+        // Worker 模式需要完整的绝对 URL，不能使用相对路径
+        const baseUrl = window.location.origin;
         const playUrl = useProxy
             ? (playInfo.type === 'm3u8'
-                ? `/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(playInfo.url)}&proxy=1`
-                : `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(playInfo.url)}`)
+                ? `${baseUrl}/api/plugins/video/api/proxy/hls?url=${encodeURIComponent(playInfo.url)}&proxy=1`
+                : `${baseUrl}/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(playInfo.url)}`)
             : playInfo.url;
 
         const player = new Artplayer({

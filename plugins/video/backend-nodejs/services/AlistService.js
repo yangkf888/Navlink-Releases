@@ -7,15 +7,25 @@ class AlistService {
     constructor(baseUrl, password = '') {
         this.baseUrl = baseUrl.replace(/\/$/, '');
         this.password = password;
+        this.username = 'admin'; // 默认用户名
         this.token = null;
     }
 
     /**
      * 登录获取 Token
+     * @param {string} username - 用户名（可选，默认使用 this.username）
+     * @param {string} password - 密码（可选，默认使用 this.password）
      */
-    async login() {
-        if (!this.password) {
-            return true; // 无密码直接访问
+    async login(username = null, password = null) {
+        const loginUsername = username || this.username;
+        const loginPassword = password || this.password;
+
+        console.log(`[AList] DEBUG: Attempting login for user "${loginUsername}" at "${this.baseUrl}"`);
+
+        // 如果外部主动传入了 null/undefined 密码且内部也没有，说明用户确实没填
+        if (loginPassword === null || loginPassword === undefined || loginPassword === '') {
+            console.log(`[AList] DEBUG: No password provided, skipping authentication and using guest access (if allowed by server)`);
+            return true;
         }
 
         try {
@@ -23,21 +33,37 @@ class AlistService {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: 'admin',
-                    password: this.password
+                    username: loginUsername,
+                    password: loginPassword
                 })
             });
 
             const result = await response.json();
+            console.log(`[AList] DEBUG: Login Response Code: ${result.code}, Message: ${result.message}`);
             if (result.code === 200) {
                 this.token = result.data.token;
+                console.log(`[AList] DEBUG: Login successful, token acquired`);
                 return true;
             }
+            console.error(`[AList] ERROR: Login failed (Code ${result.code}): ${result.message}`);
             return false;
         } catch (error) {
-            console.error('[AList] Login failed:', error);
+            console.error('[AList] ERROR: Login request failed:', error);
             return false;
         }
+    }
+
+    /**
+     * 获取认证头
+     */
+    getHeaders() {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (this.token) {
+            headers['Authorization'] = this.token;
+        }
+        return headers;
     }
 
     /**
@@ -53,6 +79,7 @@ class AlistService {
                 headers['Authorization'] = this.token;
             }
 
+            console.log(`[AList] DEBUG: Listing path "${path}" at "${this.baseUrl}"`);
             const response = await fetch(`${this.baseUrl}/api/fs/list`, {
                 method: 'POST',
                 headers,
@@ -66,9 +93,24 @@ class AlistService {
             });
 
             const result = await response.json();
+            console.log(`[AList] DEBUG: Response Code: ${result.code}, Message: ${result.message}`);
+
             if (result.code === 200) {
-                return result.data.content || [];
+                const content = result.data.content || [];
+                console.log(`[AList] DEBUG: Raw content length: ${content.length}`);
+                if (content.length > 0) {
+                    console.log(`[AList] DEBUG: First item sample: ${JSON.stringify(content[0])}`);
+                }
+
+                // 标准化：AList 的 type=1 代表目录，或者本身就有 is_dir
+                const mapped = content.map(item => ({
+                    ...item,
+                    is_dir: item.is_dir === true || item.type === 1
+                }));
+                console.log(`[AList] DEBUG: Found ${mapped.filter(i => i.is_dir).length} directories after mapping`);
+                return mapped;
             }
+            console.error(`[AList] ERROR: List failed: ${result.message}`);
             return [];
         } catch (error) {
             console.error('[AList] List failed:', error);

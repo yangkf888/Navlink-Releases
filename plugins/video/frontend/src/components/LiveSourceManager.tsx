@@ -25,10 +25,6 @@ type PlatformFilter = 'all' | 'bilibili' | 'douyin' | 'douyu' | 'youtube' | 'yy'
 const PLATFORMS = [
     { value: 'bilibili', label: 'B站', color: 'text-pink-400' },
     { value: 'douyin', label: '抖音', color: 'text-red-400' },
-    { value: 'douyu', label: '斗鱼', color: 'text-orange-400' },
-    { value: 'youtube', label: 'YouTube', color: 'text-red-500' },
-    { value: 'yy', label: 'YY', color: 'text-yellow-400' },
-    { value: 'huya', label: '虎牙', color: 'text-orange-500' },
 ];
 
 export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {

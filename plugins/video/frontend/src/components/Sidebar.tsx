@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { VideoSource, TvSource, TvChannel, Category } from '../types';
+import { VideoSource, TvSource, LiveSource, NetdiskSource, TvChannel, Category } from '../types';
 import { apiPost, apiGet } from '../utils/api';
 import { AppModule } from '../App';
 
@@ -10,6 +10,7 @@ interface NavParams {
     vodId?: string;
     keyword?: string;
     platform?: string;
+    liveSourceId?: number;
 }
 
 interface SidebarProps {
@@ -24,6 +25,14 @@ interface SidebarProps {
     onTvSourceChange?: (id: number) => void;
     onPlayChannel?: (channel: TvChannel) => void;
 
+    // Live Props
+    liveSources?: LiveSource[];
+
+    // Netdisk Props
+    netdiskSources?: NetdiskSource[];
+    selectedNetdiskSourceId?: number | null;
+    onNetdiskSourceChange?: (id: number) => void;
+
     tvRefreshKey?: number; // New prop
     currentChannelUrl?: string; // Current playing channel URL
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
@@ -37,6 +46,7 @@ interface SidebarProps {
     onModuleChange?: (module: AppModule) => void; // 模块切换回调
     theme?: 'light' | 'dark';
     onToggleTheme?: () => void;
+    liveStatuses?: Record<number, any>;
 }
 
 export function Sidebar({
@@ -52,6 +62,12 @@ export function Sidebar({
     tvRefreshKey,
     currentChannelUrl,
 
+    liveSources = [],
+
+    netdiskSources = [],
+    selectedNetdiskSourceId,
+    onNetdiskSourceChange,
+
     onNavigate,
     activeView,
     navParams,
@@ -60,7 +76,8 @@ export function Sidebar({
     isMobile = false,
     onCloseMobile,
     activeModule,
-    onModuleChange
+    onModuleChange,
+    liveStatuses = {}
 }: SidebarProps) {
     const [isSourcesOpen, setIsSourcesOpen] = useState(true);
 
@@ -81,7 +98,6 @@ export function Sidebar({
         try {
             const res = await apiGet<TvChannel[]>(`/tv/playlist/${sourceId}`);
             if (res.success && res.data) {
-                // setTvChannels(res.data);
                 // Group channels
                 const groups: Record<string, TvChannel[]> = {};
                 res.data.forEach(ch => {
@@ -90,11 +106,10 @@ export function Sidebar({
                     groups[g].push(ch);
                 });
                 setGroupedChannels(groups);
-                // Default expand all or some? expanded '央视' and '卫视' maybe?
+
+                // 默认展开所有电视分组
                 const initExpanded: Record<string, boolean> = {};
-                Object.keys(groups).forEach(g => {
-                    if (g.includes('央视') || g.includes('卫视') || g.includes('CCTV')) initExpanded[g] = true;
-                });
+                Object.keys(groups).forEach(g => initExpanded[g] = true);
                 setExpandedGroups(initExpanded);
             }
         } catch (e) {
@@ -134,7 +149,7 @@ export function Sidebar({
             <div className="p-4 h-16 border-b border-gray-800 flex items-center justify-between">
                 <div>
                     <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                        <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-blue-500`}></i>
+                        <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text - blue - 500`}></i>
                         {activeModule === 'tv' ? '电视直播' : '视频中心'}
                     </h1>
                     <p className="text-xs text-gray-500 mt-1 truncate">
@@ -155,38 +170,159 @@ export function Sidebar({
     };
 
     const renderLiveSidebar = () => {
-        const platforms = [
-            { key: 'all', label: '全部直播', icon: 'fas fa-broadcast-tower' },
-            { key: 'bilibili', label: 'B站', icon: 'fab fa-lg fa-product-hunt' }, // Roughly matches B站 icon or use generic
-            { key: 'douyu', label: '斗鱼', icon: 'fas fa-fish' },
-            { key: 'huya', label: '虎牙', icon: 'fas fa-tiger' },
-            { key: 'douyin', label: '抖音', icon: 'fab fa-tiktok' },
-            { key: 'youtube', label: 'YouTube', icon: 'fab fa-youtube' },
-        ];
-
         return (
-            <div className="w-full space-y-1 mt-2">
-                {!collapsed && <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">平台</div>}
-                {platforms.map(p => (
+            <div className="w-full space-y-0.5 mt-2">
+                {/* 全部直播 */}
+                <SidebarItem
+                    key="all"
+                    icon="fas fa-broadcast-tower"
+                    label="全部直播"
+                    isActive={!navParams.platform || navParams.platform === 'all'}
+                    onClick={() => {
+                        onNavigate('live', { platform: 'all' });
+                        if (isMobile && onCloseMobile) onCloseMobile();
+                    }}
+                    collapsed={collapsed}
+                />
+
+                {/* B站 */}
+                <div className="w-full">
                     <SidebarItem
-                        key={p.key}
-                        icon={p.icon}
-                        label={p.label}
-                        isActive={navParams.platform === p.key || (!navParams.platform && p.key === 'all')}
+                        icon="fab fa-product-hunt"
+                        label="B站"
+                        isActive={navParams.platform === 'bilibili'}
                         onClick={() => {
-                            onNavigate('live', { platform: p.key });
-                            if (isMobile && onCloseMobile) onCloseMobile();
+                            if (!collapsed) toggleGroup('live-bilibili');
+                            onNavigate('live', { platform: 'bilibili' });
                         }}
-                        activeColor="text-blue-400"
                         collapsed={collapsed}
+                        hasChildren={liveSources.some(s => s.platform === 'bilibili')}
+                        isExpanded={expandedGroups['live-bilibili'] !== false} // 默认展开
                     />
-                ))}
+                    {!collapsed && expandedGroups['live-bilibili'] !== false && (
+                        <div className="space-y-0.5">
+                            {liveSources.filter(s => s.platform === 'bilibili').map(source => (
+                                <SidebarItem
+                                    key={source.id}
+                                    icon=""
+                                    dot={true}
+                                    label={source.name}
+                                    status={liveStatuses[source.id]?.is_live ? 'live' : 'none'}
+                                    isActive={navParams.liveSourceId === source.id}
+                                    onClick={() => {
+                                        onNavigate('live_play', { liveSourceId: source.id });
+                                        if (isMobile && onCloseMobile) onCloseMobile();
+                                    }}
+                                    level={1}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* 抖音 */}
+                <div className="w-full">
+                    <SidebarItem
+                        icon="fab fa-tiktok"
+                        label="抖音"
+                        isActive={navParams.platform === 'douyin'}
+                        onClick={() => {
+                            if (!collapsed) toggleGroup('live-douyin');
+                            onNavigate('live', { platform: 'douyin' });
+                        }}
+                        collapsed={collapsed}
+                        hasChildren={liveSources.some(s => s.platform === 'douyin')}
+                        isExpanded={expandedGroups['live-douyin'] !== false} // 默认展开
+                    />
+                    {!collapsed && expandedGroups['live-douyin'] !== false && (
+                        <div className="space-y-0.5">
+                            {liveSources.filter(s => s.platform === 'douyin').map(source => (
+                                <SidebarItem
+                                    key={source.id}
+                                    icon=""
+                                    dot={true}
+                                    label={source.name}
+                                    status={liveStatuses[source.id]?.is_live ? 'live' : 'none'}
+                                    isActive={navParams.liveSourceId === source.id}
+                                    onClick={() => {
+                                        onNavigate('live_play', { liveSourceId: source.id });
+                                        if (isMobile && onCloseMobile) onCloseMobile();
+                                    }}
+                                    level={1}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
 
+    const renderNetdiskSidebar = () => (
+        <div className="w-full space-y-0.5 mt-2">
+            {/* 全部网盘 */}
+            {!isMobile && (
+                <SidebarItem
+                    icon="fas fa-cloud"
+                    label="全部网盘"
+                    isActive={activeView === 'netdisk' && !selectedNetdiskSourceId}
+                    onClick={() => {
+                        onNetdiskSourceChange?.(0);  // 清空选中的网盘源
+                        onNavigate('netdisk', { netdiskSourceId: undefined });
+                        if (onCloseMobile) onCloseMobile();
+                    }}
+                    collapsed={collapsed}
+                />
+            )}
+
+            {/* 网盘源列表 */}
+            {netdiskSources.filter(s => s.enabled).map(source => {
+                const scanPaths = Array.isArray(source.scan_paths) ? source.scan_paths : [];
+                const isExpanded = expandedGroups[`netdisk-${source.id}`] !== false; // 默认展开
+
+                return (
+                    <div key={source.id} className="w-full">
+                        <SidebarItem
+                            icon="fas fa-hdd"
+                            label={source.name}
+                            isActive={selectedNetdiskSourceId === source.id && !navParams.keyword}
+                            onClick={() => {
+                                if (!collapsed && scanPaths.length > 0) {
+                                    toggleGroup(`netdisk-${source.id}`);
+                                }
+                                onNetdiskSourceChange?.(source.id);
+                                onNavigate('netdisk', { netdiskSourceId: source.id });
+                            }}
+                            collapsed={collapsed}
+                            hasChildren={scanPaths.length > 0}
+                            isExpanded={isExpanded}
+                        />
+                        {!collapsed && isExpanded && scanPaths.length > 0 && (
+                            <div className="space-y-0.5">
+                                {scanPaths.map((pathObj: any, idx) => (
+                                    <SidebarItem
+                                        key={`${source.id}-${idx}`}
+                                        icon="fas fa-folder"
+                                        label={pathObj.name}
+                                        isActive={selectedNetdiskSourceId === source.id && navParams.keyword === pathObj.path}
+                                        onClick={() => {
+                                            onNetdiskSourceChange?.(source.id);
+                                            onNavigate('netdisk', { netdiskSourceId: source.id, keyword: pathObj.path });
+                                            if (isMobile && onCloseMobile) onCloseMobile();
+                                        }}
+                                        level={1}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+
     const renderVideoSidebar = () => (
-        <>
+        <div className="w-full space-y-0.5">
             {/* 首页 (桌面端) */}
             {!isMobile && (
                 <SidebarItem
@@ -202,21 +338,20 @@ export function Sidebar({
             <div className="w-full mt-2">
                 {!collapsed ? (
                     <div
-                        className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-400 cursor-pointer hover:text-white hover:bg-white/5 transition-colors"
+                        className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-pointer hover:text-black dark:hover:text-white transition-colors"
                         onClick={() => setIsSourcesOpen(!isSourcesOpen)}
                     >
-                        <i className={`fas fa-chevron-right text-xs w-4 transition-transform ${isSourcesOpen ? 'rotate-90' : ''}`}></i>
-                        <span className="flex-1 ml-2">视频源</span>
-                        <i className="fas fa-server text-xs opacity-70"></i>
+                        <i className={`fas fa-chevron-right text-[10px] w-4 transition-transform ${isSourcesOpen ? 'rotate-90' : ''}`}></i>
+                        <span className="flex-1 ml-1">视频源站</span>
                     </div>
                 ) : (
-                    <div className="flex justify-center py-2 text-gray-500 border-t border-gray-800 mt-2 pt-4">
+                    <div className="flex justify-center py-2 text-gray-400 border-t border-gray-800 dark:border-gray-800/50 mt-2 pt-4">
                         <i className="fas fa-server text-xs" title="视频源"></i>
                     </div>
                 )}
 
                 {(isSourcesOpen || collapsed) && (
-                    <div className={collapsed ? "w-full space-y-1" : "w-full pl-4 space-y-1 mt-1"}>
+                    <div className="w-full space-y-0.5 mt-0">
                         {sources.map(source => (
                             <SidebarItem
                                 key={source.id}
@@ -229,29 +364,45 @@ export function Sidebar({
                                     apiPost(`/sources/${source.id}/background-sync`).catch(() => { });
                                     if (onCloseMobile) onCloseMobile();
                                 }}
-                                activeColor="text-blue-400"
                                 collapsed={collapsed}
+                            />
+                        ))}
+                    </div >
+                )}
+            </div >
+        </div>
+    );
+
+    const renderTvSidebar = () => {
+        // 源选择器 (重构为折叠列表)
+        const sourceSelector = !collapsed && (
+            <div className="w-full mb-2">
+                <SidebarItem
+                    icon="fas fa-server"
+                    label="电视源选择"
+                    isActive={false}
+                    onClick={() => toggleGroup('tv-sources')}
+                    hasChildren={true}
+                    isExpanded={expandedGroups['tv-sources'] !== false}
+                />
+                {expandedGroups['tv-sources'] !== false && (
+                    <div className="space-y-0.5">
+                        {tvSources.map(s => (
+                            <SidebarItem
+                                key={s.id}
+                                icon="fas fa-satellite-dish"
+                                label={s.name}
+                                isActive={selectedTvSourceId === s.id}
+                                onClick={() => {
+                                    onTvSourceChange?.(s.id);
+                                    // 自动收起
+                                    toggleGroup('tv-sources');
+                                }}
+                                level={1}
                             />
                         ))}
                     </div>
                 )}
-            </div>
-        </>
-    );
-
-    const renderTvSidebar = () => {
-        // 源选择器
-        const sourceSelector = !collapsed && (
-            <div className="px-3 mb-2">
-                <select
-                    className="w-full bg-gray-800 text-gray-300 text-xs rounded border border-gray-700 p-1 focus:outline-none focus:border-blue-500"
-                    value={selectedTvSourceId || ''}
-                    onChange={(e) => onTvSourceChange?.(parseInt(e.target.value))}
-                >
-                    {tvSources.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                </select>
             </div>
         );
 
@@ -293,36 +444,35 @@ export function Sidebar({
                 {sourceSelector}
                 {searchBox}
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-1">
+                <div className="flex-1 overflow-y-auto sidebar-scrollbar px-1 space-y-0.5">
                     {Object.entries(displayGroups).map(([group, channels]) => (
-                        <div key={group}>
+                        <div key={group} className="w-full">
                             {!collapsed ? (
                                 <>
-                                    <div
-                                        className="flex items-center px-2 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-300"
+                                    <SidebarItem
+                                        icon="fas fa-list-ul"
+                                        label={group}
+                                        isActive={false}
                                         onClick={() => toggleGroup(group)}
-                                    >
-                                        <i className={`fas fa-caret-right mr-1.5 transition-transform ${currentExpanded[group] ? 'rotate-90' : ''}`}></i>
-                                        {group}
-                                        <span className="ml-auto text-[10px] opacity-50">{channels.length}</span>
-                                    </div>
+                                        hasChildren={true}
+                                        isExpanded={currentExpanded[group]}
+                                    />
                                     {currentExpanded[group] && (
-                                        <div className="space-y-0.5 ml-1">
+                                        <div className="space-y-0.5">
                                             {channels.map((ch, idx) => (
-                                                <div
+                                                <SidebarItem
                                                     key={`${idx}-${ch.name}`}
-                                                    className={`px-3 py-1.5 rounded text-sm cursor-pointer truncate flex items-center transition-colors ${ch.url === currentChannelUrl
-                                                        ? 'bg-gray-800 text-blue-400 border-l-[3px] border-blue-500'
-                                                        : 'text-gray-400 hover:text-white hover:bg-white/5 border-l-[3px] border-transparent'
-                                                        }`}
+                                                    icon=""
+                                                    img={ch.logo}
+                                                    dot={!ch.logo}
+                                                    label={ch.name}
+                                                    isActive={ch.url === currentChannelUrl}
                                                     onClick={() => {
                                                         onPlayChannel?.(ch);
                                                         if (isMobile && onCloseMobile) onCloseMobile();
                                                     }}
-                                                >
-                                                    {ch.logo && <img src={ch.logo} className="w-4 h-4 mr-2 object-contain bg-white/10 rounded-sm" onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />}
-                                                    <span className="truncate">{ch.name}</span>
-                                                </div>
+                                                    level={1}
+                                                />
                                             ))}
                                         </div>
                                     )}
@@ -330,7 +480,7 @@ export function Sidebar({
                             ) : (
                                 // Collapsed view (just icons or skipped)
                                 <div className="flex justify-center py-2 relative group" title={group}>
-                                    <span className="text-[10px] text-gray-500 font-mono border border-gray-700 rounded px-1">{group.substring(0, 2)}</span>
+                                    <span className="text-[10px] text-gray-500 font-mono border border-gray-700/50 rounded px-1">{group.substring(0, 2)}</span>
                                 </div>
                             )}
                         </div>
@@ -347,8 +497,8 @@ export function Sidebar({
             <div className={`flex-1 w-full min-w-full sidebar-scrollbar scrollbar-overlay space-y-0.5 ${collapsed ? 'py-4' : 'py-2'}`}>
                 {/* 移动端导航菜单 */}
                 {isMobile && onModuleChange && (
-                    <div className="px-2 pb-3 mb-2 border-b border-gray-800">
-                        <div className="text-xs text-gray-500 px-2 mb-2">导航</div>
+                    <div className="px-1 pb-3 mb-2 border-b border-gray-800 dark:border-gray-800/50">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">导航</div>
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
@@ -356,26 +506,27 @@ export function Sidebar({
                             { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
                             { key: 'netdisk', label: '网盘', icon: 'fa-cloud' },
                         ].map(item => (
-                            <button
+                            <SidebarItem
                                 key={item.key}
+                                icon={`fas ${item.icon}`}
+                                label={item.label}
+                                isActive={activeModule === item.key}
                                 onClick={() => {
                                     onModuleChange(item.key as AppModule);
                                     if (onCloseMobile) onCloseMobile();
                                 }}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                                    ${activeModule === item.key
-                                        ? 'bg-red-500 text-white'
-                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                            >
-                                <i className={`fas ${item.icon} w-5 text-center`}></i>
-                                <span>{item.label}</span>
-                            </button>
+                            />
                         ))}
                     </div>
                 )}
 
-                {activeModule === 'tv' ? renderTvSidebar() : (activeModule === 'live' ? renderLiveSidebar() : renderVideoSidebar())}
+                {activeModule === 'tv'
+                    ? renderTvSidebar()
+                    : (activeModule === 'live'
+                        ? renderLiveSidebar()
+                        : (activeModule === 'netdisk'
+                            ? renderNetdiskSidebar()
+                            : renderVideoSidebar()))}
             </div>
 
             {/* 底部功能按钮 */}
@@ -401,23 +552,85 @@ export function Sidebar({
 
 
 
-// 辅助组件：侧边栏项 (Full Bleed 风格)
-function SidebarItem({ icon, label, isActive, onClick, activeColor = 'bg-gray-800 text-blue-400', collapsed }: any) {
+// 辅助组件：侧边栏项 (标准化风格)
+interface SidebarItemProps {
+    icon: string;
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+    collapsed?: boolean;
+    hasChildren?: boolean;
+    isExpanded?: boolean;
+    level?: number;      // 0: 一级, 1: 二级
+    dot?: boolean;       // 是否显示小圆点（用于二级无图标项）
+    img?: string;        // 是否显示图标图片
+    status?: 'live' | 'offline' | 'none'; // 状态灯
+}
+
+function SidebarItem({
+    icon,
+    label,
+    isActive,
+    onClick,
+    collapsed,
+    hasChildren,
+    isExpanded,
+    level = 0,
+    dot = false,
+    img,
+    status = 'none'
+}: SidebarItemProps) {
+    const isLevel1 = level === 1;
+
     return (
         <div
             className={`
-            w-full min-w-full flex items-center transition-colors text-sm cursor-pointer relative
-            ${collapsed ? 'justify-center py-3 px-0' : 'px-4 py-3'}
-            ${isActive
-                    ? `${activeColor} font-medium border-l-[3px] border-blue-500`
-                    : 'hover:bg-white/5 border-l-[3px] border-transparent text-gray-400 hover:text-gray-200'
+                group w-full flex items-center transition-all duration-200 text-sm cursor-pointer relative min-h-[44px]
+                ${collapsed ? 'justify-center py-3 px-0' : `${isLevel1 ? 'pl-9 pr-4' : 'px-4'} py-2.5`}
+                ${isActive
+                    ? 'bg-blue-600/10 text-blue-500 dark:text-blue-400 font-semibold border-l-[3px] border-blue-600 dark:border-blue-500'
+                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/5 border-l-[3px] border-transparent'
                 }
-        `}
+            `}
             onClick={onClick}
             title={collapsed ? label : ''}
         >
-            <i className={`${icon} ${collapsed ? 'text-lg' : 'w-5 text-center text-sm opacity-80'}`}></i>
-            {!collapsed && <span className="ml-3 flex-1 truncate text-left">{label}</span>}
+            {/* 图标容器 - 固定宽度确保对齐 */}
+            <div className={`flex items-center justify-center ${collapsed ? '' : 'w-8 -ml-1'} transition-transform group-hover:scale-110`}>
+                {img ? (
+                    <img
+                        src={img}
+                        className="w-4 h-4 object-contain opacity-80 group-hover:opacity-100 rounded-sm bg-white/10"
+                        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                    />
+                ) : dot ? (
+                    <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-500' : 'bg-gray-500 opacity-60'}`}></div>
+                ) : (
+                    <i className={`${icon} ${collapsed ? 'text-lg' : 'text-sm opacity-80 group-hover:opacity-100'}`}></i>
+                )}
+            </div>
+
+            {!collapsed && (
+                <>
+                    <span className="flex-1 truncate text-left ml-1 flex items-center gap-2">
+                        {label}
+                        {status === 'live' && (
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                        )}
+                    </span>
+                    {hasChildren && (
+                        <i className={`fas fa-chevron-right text-[10px] opacity-40 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}></i>
+                    )}
+                </>
+            )}
+
+            {/* 选中时的右侧装饰（可选） */}
+            {isActive && !collapsed && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500/20 rounded-l-full"></div>
+            )}
         </div>
     );
 }
