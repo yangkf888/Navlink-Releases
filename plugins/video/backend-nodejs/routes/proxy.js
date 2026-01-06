@@ -39,8 +39,10 @@ router.post('/', async (req, res) => {
     }
 });
 
+const ImageCacheService = require('../services/ImageCacheService');
+
 /**
- * 图片预览代理 (通用)
+ * 图片预览代理 (带本地缓存与压缩增强)
  */
 router.get('/image', async (req, res) => {
     try {
@@ -48,10 +50,8 @@ router.get('/image', async (req, res) => {
         if (!url) return res.status(400).send('Missing url');
 
         // URL解码处理：确保得到正确的目标URL
-        // 前端可能已经对URL进行了编码，这里需要解码
         let targetUrl = url;
         try {
-            // 尝试解码，直到不再变化（处理多次编码的情况）
             let decoded = url;
             for (let i = 0; i < 3; i++) {
                 const next = decodeURIComponent(decoded);
@@ -60,28 +60,38 @@ router.get('/image', async (req, res) => {
             }
             targetUrl = decoded;
         } catch (e) {
-            // 解码失败则使用原始URL
             targetUrl = url;
         }
 
+        // 优先使用后端缓存与压缩服务
+        const cachePath = await ImageCacheService.getCachedImage(targetUrl);
+
+        if (cachePath && fs.existsSync(cachePath)) {
+            res.setHeader('Content-Type', 'image/webp');
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30天
+            return res.sendFile(cachePath);
+        }
+
+        // 降级：直接 Fetch 
+        console.warn(`[ImageProxy] Cache failed for ${targetUrl.substring(0, 50)}, falling back to direct fetch.`);
         const response = await fetch(targetUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 15000
+            timeout: 10000
         });
 
         if (!response.ok) {
-            console.error(`[ImageProxy] Fetch failed: ${response.status} for ${targetUrl}`);
             return res.status(response.status).send('Fetch failed');
         }
 
         res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
-        res.setHeader('Content-Disposition', 'inline'); // 强制预览
+        res.setHeader('Content-Disposition', 'inline');
         res.setHeader('Cache-Control', 'public, max-age=86400');
 
         response.body.pipe(res);
     } catch (error) {
         console.error(`[ImageProxy] Error: ${error.message}`);
-        res.status(500).send(error.message);
+        if (!res.headersSent) res.status(500).send(error.message);
     }
 });
 
