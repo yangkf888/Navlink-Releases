@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 /**
  * 通用代理接口

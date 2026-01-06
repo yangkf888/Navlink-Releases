@@ -76,6 +76,23 @@ class ImageCacheService {
             return null;
         }
     }
+
+    /**
+     * 清理所有缓存文件
+     */
+    async clearAllCache() {
+        if (fs.existsSync(CACHE_DIR)) {
+            try {
+                const files = fs.readdirSync(CACHE_DIR);
+                for (const file of files) {
+                    fs.unlinkSync(path.join(CACHE_DIR, file));
+                }
+                console.log(`[ImageCache] Cleared ${files.length} cache files.`);
+            } catch (err) {
+                console.error(`[ImageCache] Failed to clear cache:`, err.message);
+            }
+        }
+    }
 }
 
 module.exports = new ImageCacheService();

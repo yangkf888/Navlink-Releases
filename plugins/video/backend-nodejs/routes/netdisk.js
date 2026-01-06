@@ -799,6 +799,16 @@ router.post('/clear-index', async (req, res) => {
     try {
         const { sourceId, path } = req.body;
         await mediaScanService.clearIndex(parseInt(sourceId), path);
+
+        // 如果是清空整个源的索引，则同步清空海报缓存
+        if (!path || path === '/') {
+            const ImageCacheService = require('../services/ImageCacheService');
+            try {
+                await ImageCacheService.clearAllCache();
+            } catch (e) {
+                console.error('[Netdisk] Failed to clear image cache:', e.message);
+            }
+        }
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
