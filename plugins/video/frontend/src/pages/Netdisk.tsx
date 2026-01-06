@@ -113,7 +113,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         const channel = new BroadcastChannel('video-plugin-sync');
         channel.onmessage = (event) => {
             if (event.data === 'sources-updated') {
-                console.log('[Netdisk] Sources updated, refreshing sources list...');
+                // 同步网盘源
                 loadSources();
             }
         };
@@ -127,6 +127,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
 
     const observerRef = useRef<IntersectionObserver | null>(null);
     const loadMoreRef = useRef<HTMLDivElement>(null);
+
+
 
     // 同步外部 props 到内部状态
     useEffect(() => {
@@ -165,29 +167,6 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         }
     }, [currentLevel, currentSourceId, currentPath, sources, sourcesLoaded, activeFilters]);
 
-    // 无限滚动监听（仅三级视图）
-    useEffect(() => {
-        if (currentLevel !== 'directory' || !hasMore || loadingMore) return;
-
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && !loadingMore) {
-                    loadMoreMedia();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observerRef.current.observe(loadMoreRef.current);
-        }
-
-        return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
-        };
-    }, [currentLevel, hasMore, loadingMore, page]);
 
     const { isAuthenticated } = useAuth();
     const loadSources = async () => {
@@ -347,6 +326,56 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         }
     }, [currentSourceId, currentPath, page, loadingMore, hasMore]);
 
+    // 使用 ref 追踪状态，避免 IntersectionObserver 频繁重建
+    const stateRef = useRef({
+        currentLevel,
+        hasMore,
+        loadingMore,
+        loadMoreMedia: () => { }
+    });
+
+    // 更新状态 ref
+    useEffect(() => {
+        stateRef.current = { currentLevel, hasMore, loadingMore, loadMoreMedia };
+    }, [currentLevel, hasMore, loadingMore, loadMoreMedia, media.length]);
+
+
+    // 无限滚动监听（仅三级视图）
+    useEffect(() => {
+        if (currentLevel !== 'directory' || !hasMore) return;
+
+        // 等待 sentinel 节点渲染完成
+        if (!loadMoreRef.current) return;
+
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                const state = stateRef.current;
+
+                if (entry.isIntersecting && state.hasMore && !state.loadingMore) {
+                    state.loadMoreMedia();
+                }
+            },
+            {
+                threshold: 0,
+                rootMargin: '100px'
+            }
+        );
+
+        observerRef.current.observe(loadMoreRef.current);
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [currentLevel, hasMore, loadingMore, page, media.length]);
+
+
     const pollScanStatus = async (srcId: number) => {
         try {
             const res = await apiGet<ScanStatus>(`/netdisk/scan/${srcId}/status`);
@@ -379,6 +408,13 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         setCurrentLevel('source');
         setCurrentSourceId(srcId);
         setCurrentPath(null);
+    };
+
+    // 导航到三级视图（具体目录）
+    const navigateToDirectory = (srcId: number, path: string) => {
+        setCurrentLevel('directory');
+        setCurrentSourceId(srcId);
+        setCurrentPath(path);
     };
 
 
@@ -523,9 +559,9 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-900">
-            {/* 顶部工具栏 */}
-            <div className="flex items-center gap-4 px-4 py-3 border-b border-gray-800 bg-gray-950 flex-wrap">
+        <div className="min-h-full bg-gray-900">
+            {/* 顶部工具栏 - 使用 sticky 定位以保持原本的顶部停留效果，或者直接随页面滚动 */}
+            <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 border-b border-gray-800 bg-gray-950 flex-wrap">
                 {/* 当前位置标题 */}
                 <span className="text-white font-medium">
                     {currentLevel === 'all'
@@ -567,7 +603,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             </div>
 
             {/* 内容区域 */}
-            <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-8">
+            <div className="p-4 lg:p-6 space-y-8">
                 {currentLevel === 'all' ? (
                     /* 一级视图：全部网盘（类似 SourceOverview） */
                     sourceSections.length === 0 ? (
@@ -619,13 +655,25 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             {directorySections.map(section => (
                                 <section key={section.path}>
                                     <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                            <i className="fas fa-folder text-yellow-400"></i>
+                                        <h2
+                                            className="text-lg font-bold text-white flex items-center gap-2 cursor-pointer hover:text-blue-400 transition-colors group"
+                                            onClick={() => navigateToDirectory(currentSourceId!, section.path)}
+                                        >
+                                            <i className="fas fa-folder text-yellow-400 group-hover:scale-110 transition-transform"></i>
                                             {section.name}
                                             <span className="text-sm text-gray-500 font-normal">
                                                 ({section.items.length}{section.hasMore ? '+' : ''})
                                             </span>
+                                            <i className="fas fa-chevron-right text-xs opacity-0 group-hover:opacity-100 transition-opacity ml-1"></i>
                                         </h2>
+                                        {section.hasMore && (
+                                            <button
+                                                onClick={() => navigateToDirectory(currentSourceId!, section.path)}
+                                                className="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+                                            >
+                                                查看全部
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                         {section.items.map(item => renderMediaCard(item))}
@@ -658,11 +706,28 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                 </div>
 
                                 {/* 无限滚动加载触发器 */}
-                                <div ref={loadMoreRef} className="h-10 flex items-center justify-center mt-4">
-                                    {loadingMore && (
-                                        <div className="flex items-center gap-2 text-gray-400">
-                                            <i className="fas fa-spinner animate-spin"></i>
-                                            <span>加载更多...</span>
+                                <div
+                                    ref={loadMoreRef}
+                                    className="h-16 flex items-center justify-center mt-4 cursor-pointer hover:bg-gray-800/30 rounded-lg transition-colors"
+                                    onClick={() => {
+                                        if (hasMore && !loadingMore) {
+                                            loadMoreMedia();
+                                        }
+                                    }}
+                                >
+                                    {(loadingMore || hasMore) && (
+                                        <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                            {loadingMore ? (
+                                                <>
+                                                    <i className="fas fa-spinner animate-spin text-blue-400"></i>
+                                                    <span>正在加载...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-arrow-down animate-bounce text-gray-500"></i>
+                                                    <span>加载更多 (点击或滚动)</span>
+                                                </>
+                                            )}
                                         </div>
                                     )}
                                     {!hasMore && media.length > 0 && (
@@ -674,6 +739,6 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     </>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

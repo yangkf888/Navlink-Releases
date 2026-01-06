@@ -18,6 +18,11 @@ const POSTER_FILES = ['poster.jpg', 'poster.png', 'folder.jpg', 'cover.jpg', 'co
 const FANART_FILES = ['fanart.jpg', 'fanart.png', 'backdrop.jpg', 'background.jpg'];
 // 视频扩展名
 const VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m3u8', '.ts', '.webm', '.rmvb', '.rm', '.strm'];
+// 排除的文件夹名称（花絮、预告、元数据等）
+const EXCLUDE_FOLDERS = [
+    'behind the scenes', 'trailers', 'extras', 'metadata', '.actors', 'sample', 'proof',
+    'backdrops', '.discovery', 'advs', 'others', 'featurettes', 'scenes', 'shorts'
+];
 
 class MediaScanService {
     constructor() {
@@ -202,7 +207,7 @@ class MediaScanService {
                 result.push({ path, name: path.split('/').filter(Boolean).pop() || path, videos, items });
             }
 
-            const dirs = items.filter(f => f.is_dir);
+            const dirs = items.filter(f => f.is_dir && !EXCLUDE_FOLDERS.includes(f.name.toLowerCase()));
             // 并行执行子目录扫描
             const subFoldersResults = await Promise.all(dirs.map(dir => {
                 const subPath = (path + '/' + dir.name).replace(/\/+/g, '/');
