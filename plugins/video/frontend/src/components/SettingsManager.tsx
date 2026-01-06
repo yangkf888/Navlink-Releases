@@ -14,11 +14,14 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     // 测试状态
     const [testingProxy, setTestingProxy] = useState(false);
     const [testingTmdb, setTestingTmdb] = useState(false);
+    const [testingFfmpeg, setTestingFfmpeg] = useState(false);
     const [proxyTestResult, setProxyTestResult] = useState<{ valid: boolean; message: string } | null>(null);
     const [tmdbTestResult, setTmdbTestResult] = useState<{ valid: boolean; message: string } | null>(null);
+    const [ffmpegTestResult, setFfmpegTestResult] = useState<{ available: boolean; version: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } } | null>(null);
 
     // 密码确认
     const [confirmPassword, setConfirmPassword] = useState('');
+
 
     useEffect(() => {
         loadSettings();
@@ -89,6 +92,22 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             setTmdbTestResult({ valid: false, message: res.error || '测试失败' });
         }
         setTestingTmdb(false);
+    };
+
+    const handleTestFfmpeg = async () => {
+        setTestingFfmpeg(true);
+        setFfmpegTestResult(null);
+
+        const res = await apiGet<{ available: boolean; version: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } }>('/transcode/detect', {
+            path: settings.ffmpeg_path || ''
+        });
+
+        if (res.success && res.data) {
+            setFfmpegTestResult(res.data);
+        } else {
+            setFfmpegTestResult({ available: false, version: '' });
+        }
+        setTestingFfmpeg(false);
     };
 
     if (loading) {
@@ -338,6 +357,149 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             </span>
                         )}
                     </div>
+                </div>
+            </div>
+
+            {/* STRM 转码设置 */}
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                        <i className="fas fa-film text-orange-400"></i>
+                    </div>
+                    <h3 className="text-lg font-bold">STRM 转码设置</h3>
+                </div>
+
+                <p className="text-gray-500 text-sm mb-4">
+                    当 STRM 链接的视频（如 HEVC 编码）无法直接播放时，使用 FFmpeg 转码为兼容格式
+                </p>
+
+                <div className="space-y-4">
+                    {/* 启用开关 */}
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={settings.strm_transcode_enabled || false}
+                            onChange={e => setSettings(prev => ({ ...prev, strm_transcode_enabled: e.target.checked }))}
+                            className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-orange-500 
+                                     focus:ring-orange-500 focus:ring-offset-0"
+                        />
+                        <span>启用 STRM 转码</span>
+                    </label>
+
+                    {settings.strm_transcode_enabled && (
+                        <>
+                            {/* FFmpeg 路径 */}
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">FFmpeg 路径</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={settings.ffmpeg_path || ''}
+                                        onChange={e => setSettings(prev => ({ ...prev, ffmpeg_path: e.target.value }))}
+                                        placeholder="ffmpeg (留空使用系统默认)"
+                                        className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                                 focus:border-orange-500 focus:outline-none"
+                                    />
+                                    <button
+                                        onClick={handleTestFfmpeg}
+                                        disabled={testingFfmpeg}
+                                        className="px-4 py-2 bg-orange-500 rounded-lg hover:bg-orange-600 
+                                                 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                        style={{ color: '#fff' }}
+                                    >
+                                        {testingFfmpeg ? (
+                                            <><i className="fas fa-spinner fa-spin"></i></>
+                                        ) : (
+                                            <>检测</>
+                                        )}
+                                    </button>
+                                </div>
+                                {ffmpegTestResult && (
+                                    <div className={`mt-2 text-sm ${ffmpegTestResult.available ? 'text-green-400' : 'text-red-400'}`}>
+                                        <i className={`fas fa-${ffmpegTestResult.available ? 'check-circle' : 'times-circle'} mr-1`}></i>
+                                        {ffmpegTestResult.available
+                                            ? `已检测到 FFmpeg ${ffmpegTestResult.version}`
+                                            : '未检测到 FFmpeg，请安装或指定正确路径'}
+                                        {ffmpegTestResult.hwaccel && (
+                                            <span className="ml-2 text-gray-400">
+                                                硬件加速:
+                                                {ffmpegTestResult.hwaccel.nvenc && <span className="text-green-400 ml-1">NVENC</span>}
+                                                {ffmpegTestResult.hwaccel.qsv && <span className="text-green-400 ml-1">QSV</span>}
+                                                {ffmpegTestResult.hwaccel.vaapi && <span className="text-green-400 ml-1">VA-API</span>}
+                                                {!ffmpegTestResult.hwaccel.nvenc && !ffmpegTestResult.hwaccel.qsv && !ffmpegTestResult.hwaccel.vaapi && <span className="text-gray-500 ml-1">无</span>}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 转码模式 */}
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">转码模式</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="transcode_mode"
+                                            checked={settings.strm_transcode_mode !== 'force'}
+                                            onChange={() => setSettings(prev => ({ ...prev, strm_transcode_mode: 'auto' }))}
+                                            className="text-orange-500 focus:ring-orange-500"
+                                        />
+                                        <span>自动 <span className="text-gray-500 text-sm">(播放失败时转码)</span></span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="transcode_mode"
+                                            checked={settings.strm_transcode_mode === 'force'}
+                                            onChange={() => setSettings(prev => ({ ...prev, strm_transcode_mode: 'force' }))}
+                                            className="text-orange-500 focus:ring-orange-500"
+                                        />
+                                        <span>强制 <span className="text-gray-500 text-sm">(所有 STRM 都转码)</span></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* 硬件加速 */}
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">硬件加速</label>
+                                <select
+                                    value={settings.ffmpeg_hwaccel || 'none'}
+                                    onChange={e => setSettings(prev => ({ ...prev, ffmpeg_hwaccel: e.target.value as Settings['ffmpeg_hwaccel'] }))}
+                                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                             focus:border-orange-500 focus:outline-none"
+                                >
+                                    <option value="none">无 (CPU 软解)</option>
+                                    <option value="nvenc">NVIDIA NVENC</option>
+                                    <option value="qsv">Intel QSV</option>
+                                    <option value="vaapi">VA-API (Linux)</option>
+                                </select>
+                            </div>
+
+                            {/* 输出质量 */}
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">输出质量</label>
+                                <div className="flex gap-4">
+                                    {[
+                                        { value: 'fast', label: '快速', desc: '速度优先' },
+                                        { value: 'medium', label: '平衡', desc: '推荐' },
+                                        { value: 'high', label: '高质量', desc: '画质优先' }
+                                    ].map(opt => (
+                                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="ffmpeg_quality"
+                                                checked={(settings.ffmpeg_quality || 'medium') === opt.value}
+                                                onChange={() => setSettings(prev => ({ ...prev, ffmpeg_quality: opt.value as Settings['ffmpeg_quality'] }))}
+                                                className="text-orange-500 focus:ring-orange-500"
+                                            />
+                                            <span>{opt.label} <span className="text-gray-500 text-sm">({opt.desc})</span></span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

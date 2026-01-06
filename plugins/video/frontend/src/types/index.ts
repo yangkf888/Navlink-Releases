@@ -268,4 +268,12 @@ export interface Settings {
     banner_sources: number[];
     default_source_id: string;
     theme: 'dark' | 'light';
+
+    // STRM 转码配置
+    strm_transcode_enabled: boolean;
+    strm_transcode_mode: 'auto' | 'force';
+    ffmpeg_path: string;
+    ffmpeg_hwaccel: 'none' | 'nvenc' | 'qsv' | 'vaapi' | 'auto';
+    ffmpeg_quality: 'fast' | 'medium' | 'high';
 }
+

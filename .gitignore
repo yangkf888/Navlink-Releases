@@ -55,3 +55,4 @@ dist-plugins/
 
 # Cache
 data/cache/
+data/transcode_cache/

@@ -8,6 +8,7 @@ const { AlistService } = require('../services/AlistService');
 const { WebdavService } = require('../services/WebdavService');
 const { LocalService } = require('../services/LocalService');
 const { mediaScanService } = require('../services/MediaScanService');
+const transcodeService = require('../services/TranscodeService');
 
 // Client 缓存 (sourceId -> { client, expireAt })
 const clientCache = new Map();
@@ -707,12 +708,41 @@ router.post('/media/:id/play', async (req, res) => {
         const client = await getNetdiskClient(source);
         const videoFile = media.video_files[videoIndex] || media.video_files[0];
         let playUrl;
+        let isStrm = false;
+        let strmRawUrl = null;
 
         // 如果是 .strm 格式 (文件名|URL)
         if (videoFile && videoFile.includes('|')) {
-            const rawUrl = videoFile.split('|')[1];
-            // 强制走代理以纠正头部（防止 AList 触发下载）并支持重定向 Range
-            playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(rawUrl)}`;
+            isStrm = true;
+            strmRawUrl = videoFile.split('|')[1];
+
+            // 读取转码设置
+            const settings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_enabled'");
+            const modeSettings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_mode'");
+            const qualitySettings = db.get("SELECT value FROM video_settings WHERE key = 'ffmpeg_quality'");
+            const hwaccelSettings = db.get("SELECT value FROM video_settings WHERE key = 'ffmpeg_hwaccel'");
+
+            const transcodeEnabled = settings?.value === 'true' || settings?.value === '1';
+            const transcodeMode = modeSettings?.value || 'auto';
+            const quality = qualitySettings?.value || 'medium';
+            const hwaccel = hwaccelSettings?.value || 'none';
+
+            if (transcodeEnabled && transcodeMode === 'force') {
+                // 强制模式：直接启动转码
+                try {
+                    console.log(`[Netdisk] Starting transcode for STRM: ${strmRawUrl.substring(0, 80)}...`);
+                    const result = await transcodeService.startTranscode(strmRawUrl, { quality, hwaccel });
+                    playUrl = result.playlistUrl;
+                    console.log(`[Netdisk] Transcode started, playlist: ${playUrl}`);
+                } catch (err) {
+                    console.error('[Netdisk] Transcode failed, fallback to proxy:', err.message);
+                    // 转码失败时回退到直接代理
+                    playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
+                }
+            } else {
+                // 自动模式或禁用：使用代理，前端播放失败后可请求转码
+                playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
+            }
         } else {
             const videoPath = (media.path + '/' + videoFile).replace(/\/+/g, '/');
             if (source.type === 'webdav') {
@@ -753,14 +783,22 @@ router.post('/media/:id/play', async (req, res) => {
             } catch (e) { /* ignore pre-warm error */ }
         }
 
+        // 获取转码设置状态（用于前端判断是否可请求转码）
+        const transcodeSettings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_enabled'");
+        const transcodeAvailable = isStrm && (transcodeSettings?.value === 'true' || transcodeSettings?.value === '1');
+
         res.json({
             success: true,
             data: {
                 playUrl,
                 fileName: videoFile,
-                videoFiles: media.video_files
+                videoFiles: media.video_files,
+                isStrm,
+                strmRawUrl: isStrm ? strmRawUrl : undefined,
+                transcodeAvailable
             }
         });
+
     } catch (error) {
         console.error('[Netdisk] Failed to get play URL:', error);
         res.status(500).json({ success: false, error: error.message });
