@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { PlayHistory, VideoSource, NetdiskSource } from '../types';
 import { apiGet, apiDelete } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface HistoryProps {
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
@@ -13,6 +14,15 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
     const { isAuthenticated } = useAuth();
     const [history, setHistory] = useState<PlayHistory[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // 对话框状态
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'primary';
+    } | null>(null);
 
     useEffect(() => {
         loadHistory();
@@ -44,13 +54,20 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
         });
     }, [history, isAuthenticated, sources, netdiskSources]);
 
-    const clearAll = async () => {
-        if (!confirm('确定要清空所有播放记录吗？')) return;
-
-        const res = await apiDelete('/history');
-        if (res.success) {
-            setHistory([]);
-        }
+    const clearAll = () => {
+        setConfirmDialog({
+            isOpen: true,
+            title: '确认清空',
+            message: '确定要清空所有播放记录吗？',
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const res = await apiDelete('/history');
+                if (res.success) {
+                    setHistory([]);
+                }
+            }
+        });
     };
 
     const handleClick = (item: PlayHistory) => {
@@ -201,6 +218,18 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
                     <i className="fas fa-history text-4xl mb-4 opacity-50"></i>
                     <p>暂无播放记录</p>
                 </div>
+            )}
+
+            {/* 确认对话框 */}
+            {confirmDialog && (
+                <ConfirmDialog
+                    isOpen={confirmDialog.isOpen}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmVariant={confirmDialog.variant}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
             )}
         </div>
     );

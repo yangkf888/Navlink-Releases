@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { TvSource } from '../types';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
+import { ConfirmDialog } from './ConfirmDialog';
+import { AlertDialog } from './AlertDialog';
 
 interface TvSourceManagerProps {
     onSourcesChange?: () => void;
@@ -13,12 +15,28 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // 对话框状态
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'primary';
+    } | null>(null);
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        variant?: 'success' | 'error' | 'info' | 'warning';
+    } | null>(null);
+
     // 筛选和搜索
     const [searchKeyword, setSearchKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
     // 选择状态
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
 
     // 表单状态
     const [showForm, setShowForm] = useState(false);
@@ -118,11 +136,19 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
     };
 
     // 删除
-    const handleDelete = async (id: number, name: string) => {
-        if (!confirm(`确定要删除电视源"${name}"吗？`)) return;
-        await apiDelete(`/tv/sources/${id}`);
-        setSources(prev => prev.filter(s => s.id !== id));
-        onSourcesChange?.();
+    const handleDelete = (id: number, name: string) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: '确认删除',
+            message: `确定要删除电视源"${name}"吗？`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                await apiDelete(`/tv/sources/${id}`);
+                setSources(prev => prev.filter(s => s.id !== id));
+                onSourcesChange?.();
+            }
+        });
     };
 
     // 切换启用状态
@@ -157,17 +183,31 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
         onSourcesChange?.();
     };
 
-    const handleBatchDelete = async () => {
+    const handleBatchDelete = () => {
         if (selectedIds.length === 0) {
-            alert('请先选择要删除的电视源');
+            setAlertDialog({
+                isOpen: true,
+                title: '提示',
+                message: '请先选择要删除的电视源',
+                variant: 'warning'
+            });
             return;
         }
-        if (!confirm(`确定要删除选中的 ${selectedIds.length} 个电视源吗？`)) return;
-        await apiPost('/tv/sources/batch-delete', { ids: selectedIds });
-        await loadSources();
-        setSelectedIds([]);
-        onSourcesChange?.();
+        setConfirmDialog({
+            isOpen: true,
+            title: '批量删除',
+            message: `确定要删除选中的 ${selectedIds.length} 个电视源吗？`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                await apiPost('/tv/sources/batch-delete', { ids: selectedIds });
+                await loadSources();
+                setSelectedIds([]);
+                onSourcesChange?.();
+            }
+        });
     };
+
 
     if (loading) {
         return (
@@ -454,6 +494,29 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                     </div>
                 )
             }
+
+            {/* 确认对话框 */}
+            {confirmDialog && (
+                <ConfirmDialog
+                    isOpen={confirmDialog.isOpen}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmVariant={confirmDialog.variant}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
+            )}
+
+            {/* 提示对话框 */}
+            {alertDialog && (
+                <AlertDialog
+                    isOpen={alertDialog.isOpen}
+                    title={alertDialog.title}
+                    message={alertDialog.message}
+                    variant={alertDialog.variant}
+                    onClose={() => setAlertDialog(null)}
+                />
+            )}
         </div >
     );
 }

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NetdiskSource } from '../types';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
 import { DirectoryPicker } from './DirectoryPicker';
+import { ConfirmDialog } from './ConfirmDialog';
+import { AlertDialog } from './AlertDialog';
 
 interface NetdiskSourceManagerProps {
     onSourceChange?: () => void;
@@ -14,6 +16,21 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
     const [scanningStatuses, setScanningStatuses] = useState<Record<number, any>>({});
 
+    // 对话框状态
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'primary';
+    } | null>(null);
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        variant?: 'success' | 'error' | 'info' | 'warning';
+    } | null>(null);
+
     // 目录选择器状态
     const [pickerOpen, setPickerOpen] = useState(false);
     const [pickerSourceId, setPickerSourceId] = useState<number | null>(null);
@@ -25,6 +42,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
     // 选择状态
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
 
     // 表单状态
     const [showForm, setShowForm] = useState(false);
@@ -141,7 +159,12 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             onSourceChange?.();
         } catch (error) {
             console.error('Failed to save source:', error);
-            alert('保存失败');
+            setAlertDialog({
+                isOpen: true,
+                title: '保存失败',
+                message: '保存失败',
+                variant: 'error'
+            });
         } finally {
             setSaving(false);
         }
@@ -157,30 +180,53 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
         }
     };
 
-    const handleDelete = async (id: number, name: string) => {
-        if (!confirm(`确定要删除媒体库"${name}"吗？`)) return;
-
-        try {
-            await apiDelete(`/netdisk/sources/${id}`);
-            loadSources();
-            onSourceChange?.();
-        } catch (error) {
-            console.error('Failed to delete source:', error);
-        }
+    const handleDelete = (id: number, name: string) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: '确认删除',
+            message: `确定要删除媒体库"${name}"吗？`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                try {
+                    await apiDelete(`/netdisk/sources/${id}`);
+                    loadSources();
+                    onSourceChange?.();
+                } catch (error) {
+                    console.error('Failed to delete source:', error);
+                }
+            }
+        });
     };
+
 
     const handleTest = async (source: NetdiskSource) => {
         try {
             const res = await apiPost<{ connected: boolean; itemCount?: number; error?: string }>(`/netdisk/sources/${source.id}/test`);
             if (res.success && res.data) {
                 if (res.data.connected) {
-                    alert(`连接成功！共 ${res.data.itemCount || 0} 个项目`);
+                    setAlertDialog({
+                        isOpen: true,
+                        title: '连接测试',
+                        message: `连接成功！共 ${res.data.itemCount || 0} 个项目`,
+                        variant: 'success'
+                    });
                 } else {
-                    alert(`连接失败：${res.data.error || '未知错误'}`);
+                    setAlertDialog({
+                        isOpen: true,
+                        title: '连接测试',
+                        message: `连接失败：${res.data.error || '未知错误'}`,
+                        variant: 'error'
+                    });
                 }
             }
         } catch (error) {
-            alert('测试失败');
+            setAlertDialog({
+                isOpen: true,
+                title: '连接测试',
+                message: '测试失败',
+                variant: 'error'
+            });
         }
     };
 
@@ -213,20 +259,27 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
         );
     };
 
-    const handleBatchDelete = async () => {
+    const handleBatchDelete = () => {
         if (selectedIds.length === 0) return;
-        if (!confirm(`确定要删除选中的 ${selectedIds.length} 个媒体库吗？`)) return;
-
-        try {
-            // 这里通常后端支持批量删除，如果不支持则循环。本项目后端目前需循环。
-            await Promise.all(selectedIds.map(id => apiDelete(`/netdisk/sources/${id}`)));
-            setSelectedIds([]);
-            loadSources();
-            onSourceChange?.();
-        } catch (error) {
-            console.error('Batch delete failed:', error);
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: '批量删除',
+            message: `确定要删除选中的 ${selectedIds.length} 个媒体库吗？`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                try {
+                    await Promise.all(selectedIds.map(id => apiDelete(`/netdisk/sources/${id}`)));
+                    setSelectedIds([]);
+                    loadSources();
+                    onSourceChange?.();
+                } catch (error) {
+                    console.error('Batch delete failed:', error);
+                }
+            }
+        });
     };
+
 
     const handleBatchStatus = async (enabled: boolean) => {
         if (selectedIds.length === 0) return;
@@ -250,25 +303,54 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
         try {
             const res = await apiPost(`/netdisk/scan`, { sourceId, path });
             if (res.success) {
-                alert(path ? `正在扫描目录: ${path}` : '正在全量扫描...');
+                setAlertDialog({
+                    isOpen: true,
+                    title: '扫描已启动',
+                    message: path ? `正在扫描目录: ${path}` : '正在全量扫描...',
+                    variant: 'info'
+                });
             }
         } catch (error) {
-            alert('扫描启动失败');
+            setAlertDialog({
+                isOpen: true,
+                title: '扫描失败',
+                message: '扫描启动失败',
+                variant: 'error'
+            });
         }
     };
 
-    const handleClearIndex = async (sourceId: number, path?: string) => {
-        if (!confirm(path ? `确定要清除目录 "${path}" 的媒体索引吗？` : '确定要清除该媒体库的所有索引吗？')) return;
-        try {
-            const res = await apiPost(`/netdisk/clear-index`, { sourceId, path });
-            if (res.success) {
-                alert('清理成功');
-                onSourceChange?.();
+    const handleClearIndex = (sourceId: number, path?: string) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: '确认清除',
+            message: path ? `确定要清除目录 "${path}" 的媒体索引吗？` : '确定要清除该媒体库的所有索引吗？',
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                try {
+                    const res = await apiPost(`/netdisk/clear-index`, { sourceId, path });
+                    if (res.success) {
+                        setAlertDialog({
+                            isOpen: true,
+                            title: '操作成功',
+                            message: '清理成功',
+                            variant: 'success'
+                        });
+                        onSourceChange?.();
+                    }
+                } catch (error) {
+                    setAlertDialog({
+                        isOpen: true,
+                        title: '操作失败',
+                        message: '清理失败',
+                        variant: 'error'
+                    });
+                }
             }
-        } catch (error) {
-            alert('清理失败');
-        }
+        });
     };
+
 
     const handleUpdateScanPaths = async (source: NetdiskSource, newPaths: any[]) => {
         try {
@@ -278,7 +360,12 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             loadSources();
             onSourceChange?.();
         } catch (error) {
-            alert('更新失败');
+            setAlertDialog({
+                isOpen: true,
+                title: '更新失败',
+                message: '更新失败',
+                variant: 'error'
+            });
         }
     };
 
@@ -879,6 +966,29 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                     />
                 )
             }
+
+            {/* 确认对话框 */}
+            {confirmDialog && (
+                <ConfirmDialog
+                    isOpen={confirmDialog.isOpen}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmVariant={confirmDialog.variant}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
+            )}
+
+            {/* 提示对话框 */}
+            {alertDialog && (
+                <AlertDialog
+                    isOpen={alertDialog.isOpen}
+                    title={alertDialog.title}
+                    message={alertDialog.message}
+                    variant={alertDialog.variant}
+                    onClose={() => setAlertDialog(null)}
+                />
+            )}
         </div >
     );
 }
