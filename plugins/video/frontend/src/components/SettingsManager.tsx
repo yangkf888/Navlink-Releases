@@ -18,6 +18,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     const [proxyTestResult, setProxyTestResult] = useState<{ valid: boolean; message: string } | null>(null);
     const [tmdbTestResult, setTmdbTestResult] = useState<{ valid: boolean; message: string } | null>(null);
     const [ffmpegTestResult, setFfmpegTestResult] = useState<{ available: boolean; version: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } } | null>(null);
+    const [isInstallingFfmpeg, setIsInstallingFfmpeg] = useState(false);
+    const [installProgress, setInstallProgress] = useState(0);
 
     // 密码确认
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -108,6 +110,47 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             setFfmpegTestResult({ available: false, version: '' });
         }
         setTestingFfmpeg(false);
+    };
+
+    const handleInstallFfmpeg = async () => {
+        if (!confirm('确定要自动下载并安装 FFmpeg 吗？\n将从 reliable CDN 下载静态包 (~70MB)，仅支持 Linux x64/arm64。')) return;
+
+        setIsInstallingFfmpeg(true);
+        setInstallProgress(0);
+
+        try {
+            // 触发安装
+            const startRes = await apiPost('/transcode/install', {});
+            if (!startRes.success) {
+                alert('启动安装失败: ' + startRes.error);
+                setIsInstallingFfmpeg(false);
+                return;
+            }
+
+            // 轮询进度
+            const interval = setInterval(async () => {
+                const statusRes = await apiGet<{ status: string; progress: number; error?: string }>('/transcode/install/status');
+                if (statusRes.success && statusRes.data) {
+                    const { status, progress, error } = statusRes.data;
+                    setInstallProgress(progress);
+
+                    if (status === 'completed') {
+                        clearInterval(interval);
+                        setIsInstallingFfmpeg(false);
+                        alert('FFmpeg 安装成功！');
+                        handleTestFfmpeg(); // 重新检测
+                    } else if (status === 'error') {
+                        clearInterval(interval);
+                        setIsInstallingFfmpeg(false);
+                        alert('安装失败: ' + error);
+                    }
+                }
+            }, 1000);
+        } catch (e) {
+            console.error(e);
+            setIsInstallingFfmpeg(false);
+            alert('请求失败');
+        }
     };
 
     if (loading) {
@@ -416,10 +459,36 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                 </div>
                                 {ffmpegTestResult && (
                                     <div className={`mt-2 text-sm ${ffmpegTestResult.available ? 'text-green-400' : 'text-red-400'}`}>
-                                        <i className={`fas fa-${ffmpegTestResult.available ? 'check-circle' : 'times-circle'} mr-1`}></i>
-                                        {ffmpegTestResult.available
-                                            ? `已检测到 FFmpeg ${ffmpegTestResult.version}`
-                                            : '未检测到 FFmpeg，请安装或指定正确路径'}
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <i className={`fas fa-${ffmpegTestResult.available ? 'check-circle' : 'times-circle'} mr-1`}></i>
+                                                {ffmpegTestResult.available
+                                                    ? `已检测到 FFmpeg ${ffmpegTestResult.version}`
+                                                    : '未检测到 FFmpeg'}
+                                            </div>
+
+                                            {/* 一键安装按钮 */}
+                                            {!ffmpegTestResult.available && !isInstallingFfmpeg && (
+                                                <button
+                                                    onClick={handleInstallFfmpeg}
+                                                    className="text-orange-400 hover:text-orange-300 underline text-xs ml-4"
+                                                >
+                                                    一键安装便携版 (Linux Only)
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* 安装进度条 */}
+                                        {isInstallingFfmpeg && (
+                                            <div className="mt-2 w-full bg-gray-700 rounded-full h-2.5">
+                                                <div
+                                                    className="bg-orange-500 h-2.5 rounded-full transition-all duration-300"
+                                                    style={{ width: `${installProgress}%` }}
+                                                ></div>
+                                                <p className="text-xs text-gray-400 mt-1 text-center">正在下载并安装... {installProgress}%</p>
+                                            </div>
+                                        )}
+
                                         {ffmpegTestResult.hwaccel && (
                                             <span className="ml-2 text-gray-400">
                                                 硬件加速:

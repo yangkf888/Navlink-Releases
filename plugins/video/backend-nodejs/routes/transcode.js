@@ -6,7 +6,31 @@ const express = require('express');
 const router = express.Router();
 const transcodeService = require('../services/TranscodeService');
 const path = require('path');
-const fs = require('fs');
+const ffmpegInstaller = require('../services/FfmpegInstaller');
+
+/**
+ * 安装 FFmpeg (自动下载)
+ * POST /install
+ */
+router.post('/install', async (req, res) => {
+    try {
+        // 异步开始安装，不阻塞响应
+        ffmpegInstaller.install().catch(err => {
+            console.error('[Transcode] Install error:', err);
+        });
+        res.json({ success: true, message: 'Installation started' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * 获取安装进度
+ * GET /install/status
+ */
+router.get('/install/status', (req, res) => {
+    res.json({ success: true, data: ffmpegInstaller.getStatus() });
+});
 
 /**
  * 检测 FFmpeg 可用性

@@ -11,7 +11,15 @@ class TranscodeService {
     constructor() {
         this.cacheDir = path.join(__dirname, '../../data/transcode_cache');
         this.activeSessions = new Map();
-        this.ffmpegPath = 'ffmpeg'; // 可通过 setFfmpegPath 配置
+
+        // 优先查找本地便携版 FFmpeg
+        const localBinPath = path.join(__dirname, '../../data/bin/ffmpeg');
+        if (fs.existsSync(localBinPath)) {
+            this.ffmpegPath = localBinPath;
+            console.log('[Transcode] Using local portable FFmpeg:', localBinPath);
+        } else {
+            this.ffmpegPath = 'ffmpeg'; // 默认回退到系统 PATH
+        }
 
         // 确保缓存目录存在
         if (!fs.existsSync(this.cacheDir)) {
