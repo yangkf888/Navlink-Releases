@@ -289,38 +289,47 @@ class MediaScanService {
         }
 
         // 查找图片
+        const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+
         // 1. 优先查找标准封面文件（poster, folder, cover）
         let posterFile = items.find(f => !f.is_dir && POSTER_FILES.includes(f.name.toLowerCase()));
         let fanartFile = items.find(f => !f.is_dir && FANART_FILES.includes(f.name.toLowerCase()));
 
-        // 2. 如果没找到标准封面，查找文件夹内任何图片文件（jpg, png, jpeg, webp）
+        // 2. 如果没找到标准文件名，尝试查找文件名中包含 'poster' 关键字的图片
         if (!posterFile) {
-            const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
-            posterFile = items.find(f => !f.is_dir && IMG_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
-        }
-
-        // 如果没找到通用封面，尝试查找视频同名封面
-        if (!posterFile && videoFiles.length > 0) {
-            const mainVideoRaw = videoFiles[0];
-            const mainVideo = (mainVideoRaw.includes('|') ? mainVideoRaw.split('|')[0] : mainVideoRaw).replace(/\.[^/.]+$/, "");
-
-            // 优先级排序：1. 精确匹配前缀 + poster  2. 模糊包含前缀 + poster
             posterFile = items.find(f => {
                 const name = f.name.toLowerCase();
-                const vBase = mainVideo.toLowerCase();
-                return !f.is_dir &&
-                    (name === vBase + '-poster.jpg' || name === vBase + '-poster.png' || name === vBase + '-poster.jpeg');
+                return !f.is_dir && IMG_EXTS.some(ext => name.endsWith(ext)) && name.includes('poster');
+            });
+        }
+
+        // 3. 尝试查找视频同名且带 'poster' 关键字的海报 (如 movie-poster.jpg)
+        if (!posterFile && videoFiles.length > 0) {
+            const mainVideoRaw = videoFiles[0];
+            const mainVideo = (mainVideoRaw.includes('|') ? mainVideoRaw.split('|')[0] : mainVideoRaw).replace(/\.[^/.]+$/, "").toLowerCase();
+
+            posterFile = items.find(f => {
+                const name = f.name.toLowerCase();
+                return !f.is_dir && name.startsWith(mainVideo) &&
+                    IMG_EXTS.some(ext => name.endsWith(ext)) && name.includes('poster');
             });
 
+            // 4. 尝试查找视频同名且带 'thumb' 或 'cover' 的图片 (作为次选)
             if (!posterFile) {
                 posterFile = items.find(f => {
                     const name = f.name.toLowerCase();
-                    const vBase = mainVideo.toLowerCase();
-                    return !f.is_dir && name.includes(vBase) &&
-                        (name.includes('poster') || name.includes('thumb') || name.includes('cover'));
+                    return !f.is_dir && name.startsWith(mainVideo) &&
+                        IMG_EXTS.some(ext => name.endsWith(ext)) &&
+                        (name.includes('thumb') || name.includes('cover'));
                 });
             }
         }
+
+        // 5. 最后回退：查找文件夹内任何图片文件
+        if (!posterFile) {
+            posterFile = items.find(f => !f.is_dir && IMG_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
+        }
+
 
         let metadata = {
             title: this.parseTitle(folder.name),
