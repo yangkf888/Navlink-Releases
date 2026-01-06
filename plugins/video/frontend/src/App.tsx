@@ -16,6 +16,7 @@ import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
 import { History } from './pages/History';
 import { NavigationProvider } from './contexts/NavigationContext';
+import { useAuth } from './contexts/AuthContext';
 
 // 视图类型
 type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin';
@@ -47,7 +48,27 @@ const ACTIVE_VIEW_KEY = 'video_active_view';
 const NAV_PARAMS_KEY = 'video_nav_params';
 const ACTIVE_MODULE_KEY = 'video_active_module';
 
+// 辅助组件：访问受限提示
+function AccessDenied({ onGoHome }: { onGoHome: () => void }) {
+    return (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6">
+                <i className="fas fa-lock text-3xl"></i>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
+            <p className="mb-6">您没有权限访问该资源站，请先登录管理员账号</p>
+            <button
+                onClick={onGoHome}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+                返回首页
+            </button>
+        </div>
+    );
+}
+
 function VideoApp() {
+    const { isAuthenticated } = useAuth();
     const [isLoaded, setIsLoaded] = useState(false);
 
     // 从 localStorage 初始化状态
@@ -186,7 +207,7 @@ function VideoApp() {
     // 加载视频源和分类
     useEffect(() => {
         loadSourcesAndCategories();
-    }, []);
+    }, [isAuthenticated]);
 
     const loadSourcesAndCategories = async () => {
         try {
@@ -200,13 +221,16 @@ function VideoApp() {
 
             // 处理视频源
             if (sourcesRes.success && sourcesRes.data) {
-                const enabledSources = sourcesRes.data.filter(s => s.enabled);
+                const enabledSources = sourcesRes.data.filter(s => s.enabled && (isAuthenticated || !s.hidden));
                 setSources(enabledSources);
 
-                if (!selectedSourceId && enabledSources.length > 0) {
-                    const firstSourceId = enabledSources[0].id;
-                    setSelectedSourceId(firstSourceId);
-                    localStorage.setItem(SELECTED_SOURCE_KEY, String(firstSourceId));
+                let finalSelectedId = selectedSourceId;
+                const isSelectedValid = enabledSources.some(s => s.id === selectedSourceId);
+
+                if (!isSelectedValid && enabledSources.length > 0) {
+                    finalSelectedId = enabledSources[0].id;
+                    setSelectedSourceId(finalSelectedId);
+                    localStorage.setItem(SELECTED_SOURCE_KEY, String(finalSelectedId));
                 }
 
                 // 2. 并发加载这些源的分类 (不再一个一个 await)
@@ -242,7 +266,13 @@ function VideoApp() {
 
             // 处理网盘源
             if (netdiskRes.success && netdiskRes.data) {
-                setNetdiskSources(netdiskRes.data);
+                const enabledNetdisk = netdiskRes.data.filter(s => s.enabled && (isAuthenticated || !s.hidden));
+                setNetdiskSources(enabledNetdisk);
+
+                // 验证选中的网盘源是否有效
+                if (selectedNetdiskSourceId && !enabledNetdisk.some(s => s.id === selectedNetdiskSourceId)) {
+                    setSelectedNetdiskSourceId(null);
+                }
             }
 
         } catch (error) {
@@ -396,6 +426,17 @@ function VideoApp() {
         if (activeModule !== 'tv') setActiveModule('tv');
     };
 
+    // 辅助函数：检查当前视图所请求的视频源是否可见
+    const isSourceVisible = (id?: number) => {
+        if (!id) return true;
+        return sources.some(s => s.id === id);
+    };
+
+    const isNetdiskVisible = (id?: number) => {
+        if (!id) return true;
+        return netdiskSources.some(s => s.id === id);
+    };
+
     return (
         <NavigationProvider navigate={navigate}>
             <Layout
@@ -433,30 +474,36 @@ function VideoApp() {
                     <Home />
                 )}
                 {activeView === 'category' && (
-                    <CategoryPage
-                        sourceId={navParams.sourceId}
-                        categoryId={navParams.categoryId}
-                        categoryName={navParams.categoryName}
-                        subCategories={navParams.subCategories}
-                        onNavigate={navigate}
-                        categories={categoriesMap[selectedSourceId || 0] || []}
-                    />
+                    isSourceVisible(navParams.sourceId) ? (
+                        <CategoryPage
+                            sourceId={navParams.sourceId}
+                            categoryId={navParams.categoryId}
+                            categoryName={navParams.categoryName}
+                            subCategories={navParams.subCategories}
+                            onNavigate={navigate}
+                            categories={categoriesMap[selectedSourceId || 0] || []}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'source' && selectedSourceId && (
-                    <SourceOverview
-                        sourceId={selectedSourceId}
-                        sourceName={sources.find(s => s.id === selectedSourceId)?.name}
-                        categories={categoriesMap[selectedSourceId] || []}
-                        onNavigate={navigate}
-                    />
+                    isSourceVisible(selectedSourceId) ? (
+                        <SourceOverview
+                            sourceId={selectedSourceId}
+                            sourceName={sources.find(s => s.id === selectedSourceId)?.name}
+                            categories={categoriesMap[selectedSourceId] || []}
+                            onNavigate={navigate}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'play' && navParams.sourceId && navParams.vodId && (
-                    <Play
-                        sourceId={navParams.sourceId}
-                        vodId={navParams.vodId}
-                        onNavigate={navigate}
-                        onGoBack={goBack}
-                    />
+                    isSourceVisible(navParams.sourceId) ? (
+                        <Play
+                            sourceId={navParams.sourceId}
+                            vodId={navParams.vodId}
+                            onNavigate={navigate}
+                            onGoBack={goBack}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'tv_play' && (
                     <TvPlayer
@@ -475,22 +522,26 @@ function VideoApp() {
                     />
                 )}
                 {activeView === 'netdisk' && (
-                    <Netdisk
-                        sourceId={navParams.netdiskSourceId || selectedNetdiskSourceId || undefined}
-                        selectedPath={navParams.keyword || undefined}
-                        onPlay={(mediaId, sourceId, videoIndex) => {
-                            navigate('netdisk_play', { mediaId, sourceId, videoIndex });
-                        }}
-                    />
+                    isNetdiskVisible(navParams.netdiskSourceId || selectedNetdiskSourceId || undefined) ? (
+                        <Netdisk
+                            sourceId={navParams.netdiskSourceId || selectedNetdiskSourceId || undefined}
+                            selectedPath={navParams.keyword || undefined}
+                            onPlay={(mediaId, sourceId, videoIndex) => {
+                                navigate('netdisk_play', { mediaId, sourceId, videoIndex });
+                            }}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'netdisk_play' && navParams.mediaId && navParams.sourceId && (
-                    <NetdiskPlayer
-                        mediaId={navParams.mediaId}
-                        sourceId={navParams.sourceId}
-                        initialVideoIndex={navParams.videoIndex}
-                        onNavigate={navigate}
-                        onGoBack={goBack}
-                    />
+                    isNetdiskVisible(navParams.sourceId) ? (
+                        <NetdiskPlayer
+                            mediaId={navParams.mediaId}
+                            sourceId={navParams.sourceId}
+                            initialVideoIndex={navParams.videoIndex}
+                            onNavigate={navigate}
+                            onGoBack={goBack}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'search' && (
                     <Search
@@ -500,17 +551,24 @@ function VideoApp() {
                         onNavigate={navigate}
                     />
                 )}
-                {activeView === 'favorites' && (
+                {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (
+                    <AccessDenied onGoHome={() => navigate('home')} />
+                )}
+                {activeView === 'favorites' && isAuthenticated && (
                     <Favorites
                         onNavigate={navigate}
+                        sources={sources}
+                        netdiskSources={netdiskSources}
                     />
                 )}
-                {activeView === 'history' && (
+                {activeView === 'history' && isAuthenticated && (
                     <History
                         onNavigate={navigate}
+                        sources={sources}
+                        netdiskSources={netdiskSources}
                     />
                 )}
-                {activeView === 'admin' && (
+                {activeView === 'admin' && isAuthenticated && (
                     <Admin
                         onNavigate={navigate}
                         onSourcesChange={handleSourcesChangeSync}

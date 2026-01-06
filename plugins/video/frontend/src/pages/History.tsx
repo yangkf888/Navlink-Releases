@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
-import { PlayHistory } from '../types';
+import { useState, useEffect, useMemo } from 'react';
+import { PlayHistory, VideoSource, NetdiskSource } from '../types';
 import { apiGet, apiDelete } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface HistoryProps {
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
+    sources: VideoSource[];
+    netdiskSources: NetdiskSource[];
 }
 
-export function History({ onNavigate }: HistoryProps) {
+export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
+    const { isAuthenticated } = useAuth();
     const [history, setHistory] = useState<PlayHistory[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -22,6 +26,23 @@ export function History({ onNavigate }: HistoryProps) {
         }
         setLoading(false);
     };
+
+    // 过滤观看历史内容：未登录时隐藏来自“隐藏源”的内容
+    const filteredHistory = useMemo(() => {
+        if (isAuthenticated) return history;
+
+        // 获取所有隐藏源的 ID
+        const hiddenCmsIds = new Set(sources.filter(s => s.hidden).map(s => s.id));
+        const hiddenNetdiskIds = new Set(netdiskSources.filter(s => s.hidden).map(s => s.id));
+
+        return history.filter(item => {
+            if (item.source_type === 'netdisk') {
+                return !hiddenNetdiskIds.has(item.source_id);
+            }
+            // 默认为 cms 资源站
+            return !hiddenCmsIds.has(item.source_id);
+        });
+    }, [history, isAuthenticated, sources, netdiskSources]);
 
     const clearAll = async () => {
         if (!confirm('确定要清空所有播放记录吗？')) return;
@@ -87,11 +108,30 @@ export function History({ onNavigate }: HistoryProps) {
         );
     }
 
+    // 未登录硬拦截
+    if (!isAuthenticated) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6">
+                    <i className="fas fa-lock text-3xl"></i>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
+                <p className="mb-6">请先登录管理员账号以查看播放记录</p>
+                <button
+                    onClick={() => onNavigate('home')}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    返回首页
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 lg:p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white">播放历史</h1>
-                {history.length > 0 && (
+                {filteredHistory.length > 0 && (
                     <button
                         onClick={clearAll}
                         className="text-gray-400 hover:text-red-400 text-sm"
@@ -102,9 +142,9 @@ export function History({ onNavigate }: HistoryProps) {
                 )}
             </div>
 
-            {history.length > 0 ? (
+            {filteredHistory.length > 0 ? (
                 <div className="space-y-3">
-                    {history.map(item => (
+                    {filteredHistory.map(item => (
                         <div
                             key={item.id}
                             onClick={() => handleClick(item)}

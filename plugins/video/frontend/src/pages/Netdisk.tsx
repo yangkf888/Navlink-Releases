@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { NetdiskSource } from '../types';
 import { apiGet, apiPost } from '../utils/api';
 import { NetdiskFilter } from '../components/NetdiskFilter';
+import { useAuth } from '../contexts/AuthContext';
 
 interface MediaItem {
     id: number;
@@ -188,11 +189,12 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         };
     }, [currentLevel, hasMore, loadingMore, page]);
 
+    const { isAuthenticated } = useAuth();
     const loadSources = async () => {
         try {
             const res = await apiGet<NetdiskSource[]>('/netdisk/sources');
             if (res.success && res.data) {
-                setSources(res.data.filter(s => s.enabled));
+                setSources(res.data.filter(s => s.enabled && (isAuthenticated || !s.hidden)));
             }
             setSourcesLoaded(true);
         } catch (err) {

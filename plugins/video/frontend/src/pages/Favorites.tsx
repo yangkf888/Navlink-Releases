@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Favorite } from '../types';
+import { useState, useEffect, useMemo } from 'react';
+import { Favorite, VideoSource, NetdiskSource } from '../types';
 import { apiGet, apiDelete } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FavoritesProps {
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
+    sources: VideoSource[];
+    netdiskSources: NetdiskSource[];
 }
 
-export function Favorites({ onNavigate }: FavoritesProps) {
+export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProps) {
+    const { isAuthenticated } = useAuth();
     const [favorites, setFavorites] = useState<Favorite[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -22,6 +26,23 @@ export function Favorites({ onNavigate }: FavoritesProps) {
         }
         setLoading(false);
     };
+
+    // 过滤收藏夹内容：未登录时隐藏来自“隐藏源”的内容
+    const filteredFavorites = useMemo(() => {
+        if (isAuthenticated) return favorites;
+
+        // 获取所有隐藏源的 ID
+        const hiddenCmsIds = new Set(sources.filter(s => s.hidden).map(s => s.id));
+        const hiddenNetdiskIds = new Set(netdiskSources.filter(s => s.hidden).map(s => s.id));
+
+        return favorites.filter(fav => {
+            if (fav.source_type === 'netdisk') {
+                return !hiddenNetdiskIds.has(fav.source_id);
+            }
+            // 默认为 cms 资源站
+            return !hiddenCmsIds.has(fav.source_id);
+        });
+    }, [favorites, isAuthenticated, sources, netdiskSources]);
 
     const handleRemove = async (id: number) => {
         const res = await apiDelete(`/favorites/${id}`);
@@ -57,13 +78,32 @@ export function Favorites({ onNavigate }: FavoritesProps) {
         );
     }
 
+    // 未登录硬拦截（如果产品决定直接拦截页面）
+    if (!isAuthenticated) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6">
+                    <i className="fas fa-lock text-3xl"></i>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
+                <p className="mb-6">请先登录管理员账号以查看收藏记录</p>
+                <button
+                    onClick={() => onNavigate('home')}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    返回首页
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 lg:p-6 space-y-6">
             <h1 className="text-2xl font-bold text-white">我的收藏</h1>
 
-            {favorites.length > 0 ? (
+            {filteredFavorites.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {favorites.map(fav => (
+                    {filteredFavorites.map(fav => (
                         <div
                             key={fav.id}
                             className="video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"

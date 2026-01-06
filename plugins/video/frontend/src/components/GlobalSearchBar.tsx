@@ -470,34 +470,40 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <div className={`w-px h-6 mx-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
 
                         {/* 收藏按钮 */}
-                        <button
-                            onClick={() => onNavigate('favorites')}
-                            className={buttonClass(activeView === 'favorites')}
-                            style={buttonStyle(activeView === 'favorites')}
-                            title="我的收藏"
-                        >
-                            <i className="fas fa-heart"></i>
-                        </button>
+                        {isAuthenticated && (
+                            <button
+                                onClick={() => onNavigate('favorites')}
+                                className={buttonClass(activeView === 'favorites')}
+                                style={buttonStyle(activeView === 'favorites')}
+                                title="我的收藏"
+                            >
+                                <i className="fas fa-heart"></i>
+                            </button>
+                        )}
 
                         {/* 历史按钮 */}
-                        <button
-                            onClick={() => onNavigate('history')}
-                            className={buttonClass(activeView === 'history')}
-                            style={buttonStyle(activeView === 'history')}
-                            title="观看历史"
-                        >
-                            <i className="fas fa-history"></i>
-                        </button>
+                        {isAuthenticated && (
+                            <button
+                                onClick={() => onNavigate('history')}
+                                className={buttonClass(activeView === 'history')}
+                                style={buttonStyle(activeView === 'history')}
+                                title="观看历史"
+                            >
+                                <i className="fas fa-history"></i>
+                            </button>
+                        )}
 
                         {/* 管理按钮 */}
-                        <button
-                            onClick={() => onNavigate('admin')}
-                            className={buttonClass(activeView === 'admin')}
-                            style={buttonStyle(activeView === 'admin')}
-                            title="视频源管理"
-                        >
-                            <i className="fas fa-cog"></i>
-                        </button>
+                        {isAuthenticated && (
+                            <button
+                                onClick={() => onNavigate('admin')}
+                                className={buttonClass(activeView === 'admin')}
+                                style={buttonStyle(activeView === 'admin')}
+                                title="视频源管理"
+                            >
+                                <i className="fas fa-cog"></i>
+                            </button>
+                        )}
 
                         {/* 登录状态图标 */}
                         <div className="relative">
