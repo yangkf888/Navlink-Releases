@@ -446,7 +446,7 @@ router.get('/scan/:sourceId/status', (req, res) => {
  */
 router.get('/media', (req, res) => {
     try {
-        const { sourceId, type = 'all', limit = 100, offset = 0, path = '', genres, year, area, rating } = req.query;
+        const { sourceId, type = 'all', limit = 100, offset = 0, path = '', genres, year, area, rating, actor, studio } = req.query;
 
         if (!sourceId) {
             return res.status(400).json({ success: false, error: '缺少 sourceId' });
@@ -475,7 +475,9 @@ router.get('/media', (req, res) => {
             genres: genres || undefined,
             year: year || undefined,
             area: area || undefined,
-            rating: rating || undefined
+            rating: rating || undefined,
+            actor: actor || undefined,
+            studio: studio || undefined
         };
 
         let media = mediaScanService.getMedia(parseInt(sourceId), filterOptions);
@@ -527,7 +529,7 @@ router.get('/media/filters', (req, res) => {
  */
 router.get('/media/grouped', (req, res) => {
     try {
-        const { sourceId, limit = 12, genres, year, area } = req.query;
+        const { sourceId, limit = 12, genres, year, area, actor, studio } = req.query;
 
         if (!sourceId) {
             return res.status(400).json({ success: false, error: '缺少 sourceId' });
@@ -550,7 +552,9 @@ router.get('/media/grouped', (req, res) => {
             limit: parseInt(limit),
             genres: genres || undefined,
             year: year || undefined,
-            area: area || undefined
+            area: area || undefined,
+            actor: actor || undefined,
+            studio: studio || undefined
         };
 
         // 解析扫描路径

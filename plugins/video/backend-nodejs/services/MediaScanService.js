@@ -475,6 +475,14 @@ class MediaScanService {
             sql += ' AND rating >= ?';
             params.push(parseFloat(options.rating));
         }
+        if (options.actor) {
+            sql += ' AND actor LIKE ?';
+            params.push('%' + options.actor + '%');
+        }
+        if (options.studio) {
+            sql += ' AND studio LIKE ?';
+            params.push('%' + options.studio + '%');
+        }
 
         sql += ' ORDER BY title ASC';
         if (options.limit) { sql += ' LIMIT ?'; params.push(options.limit); }
@@ -522,6 +530,14 @@ class MediaScanService {
         if (options.rating) {
             sql += ' AND rating >= ?';
             params.push(parseFloat(options.rating));
+        }
+        if (options.actor) {
+            sql += ' AND actor LIKE ?';
+            params.push('%' + options.actor + '%');
+        }
+        if (options.studio) {
+            sql += ' AND studio LIKE ?';
+            params.push('%' + options.studio + '%');
         }
 
         const result = db.get(sql, params);

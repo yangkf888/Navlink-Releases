@@ -84,6 +84,7 @@ type ViewLevel = 'all' | 'source' | 'directory';
 
 export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [sources, setSources] = useState<NetdiskSource[]>([]);
+    const [sourcesLoaded, setSourcesLoaded] = useState(false);
     const [sourceSections, setSourceSections] = useState<SourceSection[]>([]);
     const [directorySections, setDirectorySections] = useState<DirectorySection[]>([]);
     const [media, setMedia] = useState<MediaItem[]>([]);
@@ -99,7 +100,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [currentSourceId, setCurrentSourceId] = useState<number | null>(null);
 
     // 筛选状态
-    const [activeFilters, setActiveFilters] = useState<{ genres?: string; year?: number; area?: string }>({});
+    const [activeFilters, setActiveFilters] = useState<{ genres?: string; year?: number; area?: string; actor?: string; studio?: string }>({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     // 监听窗口大小变化
@@ -139,7 +140,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
 
     // 根据层级加载数据
     useEffect(() => {
-        if (currentLevel === 'all' && sources.length > 0) {
+        if (currentLevel === 'all' && sourcesLoaded && sources.length > 0) {
             loadAllSourcesSections();
         } else if (currentLevel === 'source' && currentSourceId) {
             loadDirectorySections(currentSourceId, activeFilters);
@@ -148,7 +149,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             loadMediaByPath(currentSourceId, currentPath, 1, true);
             pollScanStatus(currentSourceId);
         }
-    }, [currentLevel, currentSourceId, currentPath, sources]);
+    }, [currentLevel, currentSourceId, currentPath, sources, sourcesLoaded, activeFilters]);
 
     // 无限滚动监听（仅三级视图）
     useEffect(() => {
@@ -180,6 +181,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             if (res.success && res.data) {
                 setSources(res.data.filter(s => s.enabled));
             }
+            setSourcesLoaded(true);
         } catch (err) {
             console.error('Failed to load netdisk sources:', err);
         }
@@ -191,7 +193,15 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         try {
             const enabledSources = sources.filter(s => s.enabled);
             const promises = enabledSources.map(async (source) => {
-                const res = await apiGet<MediaItem[]>(`/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}`);
+                // 构建筛选参数
+                let url = `/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}`;
+                if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
+                if (activeFilters.year) url += `&year=${activeFilters.year}`;
+                if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
+                if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
+                if (activeFilters.studio) url += `&studio=${encodeURIComponent(activeFilters.studio)}`;
+
+                const res = await apiGet<MediaItem[]>(url);
                 if (res.success && res.data && res.data.length > 0) {
                     return {
                         sourceId: source.id,
@@ -215,7 +225,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     };
 
     // 加载网盘源的扫描目录板块（类似 Category 子分类概览）
-    const loadDirectorySections = async (srcId: number, filters?: { genres?: string; year?: number; area?: string }) => {
+    const loadDirectorySections = async (srcId: number, filters?: { genres?: string; year?: number; area?: string; actor?: string; studio?: string }) => {
         setLoading(true);
         try {
             // 构建查询参数
@@ -223,6 +233,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             if (filters?.genres) url += `&genres=${encodeURIComponent(filters.genres)}`;
             if (filters?.year) url += `&year=${filters.year}`;
             if (filters?.area) url += `&area=${encodeURIComponent(filters.area)}`;
+            if (filters?.actor) url += `&actor=${encodeURIComponent(filters.actor)}`;
+            if (filters?.studio) url += `&studio=${encodeURIComponent(filters.studio)}`;
 
             const res = await apiGet<{ groups: MediaGroup[] }>(url);
             if (res.success && res.data) {

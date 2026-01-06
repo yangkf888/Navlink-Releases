@@ -846,7 +846,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
                             if (pickerMode === 'add') {
                                 // 添加新目录
-                                handleUpdateScanPaths(source, [...currentPaths, { name, path, tmdb_enabled: true }]);
+                                handleUpdateScanPaths(source, [...currentPaths, { name, path, tmdb_enabled: false }]);
                                 // 自动执行扫描任务
                                 setTimeout(() => {
                                     handleScan(source.id, path);

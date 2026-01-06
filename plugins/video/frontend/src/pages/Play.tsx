@@ -149,30 +149,14 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                 return absolute ? `${window.location.origin}${path}` : path;
             };
 
-            // 检查是否需要使用代理
-            const needsProxy = (url: string) => {
-                // 1. 如果源配置了强制代理
-                if (video.source_proxy_enabled) return true;
-
-                // 2. 常见的不稳定或有跨域/DNS问题的域名
-                const proxyRequiredDomains = [
-                    'dytt-cine.com',
-                    'dytt-live.com',
-                    'dyttzyapi.com',
-                    'huyall.com',       // 用户反馈
-                    'baisiweiting.com',  // 用户反馈
-                    'm3u8.com',
-                    'cdn',              // 许多 CDN 域名在某些地区解析不稳定
-                    'xb66.com',
-                    'v.api',
-                    'play'
-                ];
-                return proxyRequiredDomains.some(domain => url.toLowerCase().includes(domain.toLowerCase()));
+            // 检查是否需要使用代理 - 完全由后台配置决定
+            const needsProxy = () => {
+                return !!video.source_proxy_enabled;
             };
 
             // 决定初始使用的 URL
-            const initialUrl = needsProxy(videoUrl) ? getProxyUrl(videoUrl) : videoUrl;
-            console.log('[Play] Using URL:', initialUrl, needsProxy(videoUrl) ? '(proxied)' : '(direct)');
+            const initialUrl = needsProxy() ? getProxyUrl(videoUrl) : videoUrl;
+            console.log('[Play] Using URL:', initialUrl, needsProxy() ? '(proxied)' : '(direct)');
 
             // 创建播放器配置
             const playerConfig: any = {
