@@ -109,50 +109,56 @@ export function Home() {
 
     useEffect(() => {
         loadData();
+
+        // 监听同步消息
+        const channel = new BroadcastChannel('video-plugin-sync');
+        channel.onmessage = (event) => {
+            if (event.data === 'sources-updated' || event.data === 'home-refreshed') {
+                console.log('[Home] Data updated in another window, reloading...');
+                loadData(false); // 静默重载
+            }
+        };
+        return () => channel.close();
     }, []);
 
-    const loadData = async () => {
+    const loadData = async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         try {
-            setLoading(true);
-            // 1. 先获取缓存数据和最后更新时间
+            // 1. 先获取缓存数据
             const res = await apiGet<{ data: HomeData; lastUpdated: string | null }>('/home');
 
-            if (!res.success || !res.data) {
-                throw new Error('Failed to load cache');
-            }
+            if (res.success && res.data) {
+                setData(res.data.data);
 
-            setData(res.data.data);
-            setLoading(false);
+                // 2. 判断是否需要自动刷新 (24小时刷新一次)
+                if (res.data.lastUpdated) {
+                    const lastUpdated = new Date(res.data.lastUpdated);
+                    const now = new Date();
+                    const hoursDiff = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
 
-            // 2. 判断是否需要自动刷新
-            if (res.data.lastUpdated) {
-                const lastUpdated = new Date(res.data.lastUpdated);
-                const now = new Date();
-                const hoursDiff = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
-
-                if (hoursDiff < 24) {
-                    console.log(`[Home] Cache is fresh (${hoursDiff.toFixed(1)}h old), skipping auto-refresh`);
-                    return;
+                    if (hoursDiff > 24) {
+                        console.log(`[Home] Cache is stale (${hoursDiff.toFixed(1)}h old), triggering refresh`);
+                        setUpdating(true);
+                        await loadDataStream();
+                    } else {
+                        console.log(`[Home] Cache is fresh (${hoursDiff.toFixed(1)}h old)`);
+                    }
+                } else {
+                    console.log('[Home] No lastUpdated timestamp, triggering initial refresh');
+                    setUpdating(true);
+                    await loadDataStream();
                 }
-
-                console.log(`[Home] Cache is stale (${hoursDiff.toFixed(1)}h old), triggering refresh`);
-            } else {
-                console.log('[Home] No lastUpdated timestamp, triggering initial refresh');
             }
-
-            // 3. 超过24小时或首次加载，触发流式刷新
-            setUpdating(true);
-            await loadDataStream();
         } catch (error) {
-            console.error('[Home] Failed to load:', error);
-            // 降级：尝试流式加载
+            console.error('[Home] Failed to load home data:', error);
+            // 降级：尝试直接流式加载
             try {
                 await loadDataStream();
             } catch (e) {
                 console.error('[Home] Stream fallback failed:', e);
             }
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
             setUpdating(false);
         }
     };
@@ -189,7 +195,7 @@ export function Home() {
                         const dataStr = line.replace('data: ', '').trim();
                         if (dataStr === '[DONE]') {
                             setUpdating(false);
-                            console.log('[Home] SSE Stream finished via [DONE]');
+                            console.log('[Home] SSE Stream finished');
                             continue;
                         }
 
@@ -198,7 +204,6 @@ export function Home() {
                             if (message.type === 'cache') {
                                 setData(message.data);
                                 setLoading(false);
-                                setUpdating(true); // 缓存加载后，显示“正在更新”状态
                             } else if (message.type === 'update') {
                                 const { section, sub, data: newData } = message;
                                 setData(prev => {
@@ -209,22 +214,20 @@ export function Home() {
                                     return {
                                         ...prev,
                                         [section]: {
-                                            ...(prev[section as keyof HomeData] as any),
+                                            ...(prev[section as keyof HomeData] || {}),
                                             [sub]: newData
                                         }
                                     };
                                 });
-                            } else if (message.type === 'error') {
-                                console.error('[Home] Server reported error during SSE:', message.message);
                             }
                         } catch (e) {
-                            console.error('[Home] Failed to parse SSE data:', e, 'Raw data:', dataStr);
+                            console.error('[Home] Parse SSE error:', e);
                         }
                     }
                 }
             }
         } catch (error) {
-            console.error('[Home] Failed to load home data via SSE:', error);
+            console.error('[Home] Stream error:', error);
             throw error;
         }
     };
@@ -235,18 +238,19 @@ export function Home() {
             const res = await apiPost<any>('/home/refresh-section', { section });
 
             if (res.success && res.data) {
-                // 更新对应板块数据
-                if (section === 'hot') {
-                    setData(prev => ({ ...prev!, hot: res.data }));
-                } else {
-                    setData(prev => ({
-                        ...prev!,
+                setData(prev => {
+                    if (!prev) return null;
+                    if (section === 'hot') {
+                        return { ...prev, hot: res.data };
+                    }
+                    return {
+                        ...prev,
                         [section]: res.data
-                    }));
-                }
+                    };
+                });
             }
         } catch (error) {
-            console.error(`[Home] Failed to refresh ${section}:`, error);
+            console.error(`[Home] Refresh section ${section} error:`, error);
         } finally {
             setRefreshingSection(null);
         }
@@ -301,7 +305,7 @@ export function Home() {
         return (
             <div className="text-center py-20 text-gray-500">
                 <p>暂无数据，后台可能正在初始化...</p>
-                <button onClick={loadData} className="mt-4 text-blue-400 hover:underline">刷新重试</button>
+                <button onClick={() => loadData()} className="mt-4 text-blue-400 hover:underline">刷新重试</button>
             </div>
         );
     }

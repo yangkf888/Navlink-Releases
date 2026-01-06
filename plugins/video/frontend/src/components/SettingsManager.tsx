@@ -46,6 +46,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
         const res = await apiPut('/settings', settings);
         if (res.success) {
             alert('设置已保存');
+
             onSettingsChange?.();
         } else {
             alert('保存失败: ' + res.error);

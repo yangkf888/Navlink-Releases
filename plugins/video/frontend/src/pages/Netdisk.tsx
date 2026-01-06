@@ -103,11 +103,24 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [activeFilters, setActiveFilters] = useState<{ genres?: string; year?: number; area?: string; actor?: string; studio?: string }>({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    // 监听窗口大小变化
+    // 监听窗口大小变化及全局同步消息
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+
+        // 监听同步消息
+        const channel = new BroadcastChannel('video-plugin-sync');
+        channel.onmessage = (event) => {
+            if (event.data === 'sources-updated') {
+                console.log('[Netdisk] Sources updated, refreshing sources list...');
+                loadSources();
+            }
+        };
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            channel.close();
+        };
     }, []);
     const [currentPath, setCurrentPath] = useState<string | null>(null);
 

@@ -43,17 +43,40 @@ interface NavParams {
 // localStorage key
 const SELECTED_SOURCE_KEY = 'video_selected_source';
 const SELECTED_TV_SOURCE_KEY = 'video_selected_tv_source';
+const ACTIVE_VIEW_KEY = 'video_active_view';
+const NAV_PARAMS_KEY = 'video_nav_params';
+const ACTIVE_MODULE_KEY = 'video_active_module';
 
 function VideoApp() {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [activeView, setActiveView] = useState<ViewType>('home');
-    const [navParams, setNavParams] = useState<NavParams>({});
+
+    // 从 localStorage 初始化状态
+    const [activeView, setActiveView] = useState<ViewType>(() => {
+        return (localStorage.getItem(ACTIVE_VIEW_KEY) as ViewType) || 'home';
+    });
+    const [navParams, setNavParams] = useState<NavParams>(() => {
+        const saved = localStorage.getItem(NAV_PARAMS_KEY);
+        try {
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            return {};
+        }
+    });
 
     // 导航历史记录栈
     const [navHistory, setNavHistory] = useState<Array<{ view: ViewType; params: NavParams }>>([]);
 
     // 当前激活的模块（顶部导航）
-    const [activeModule, setActiveModule] = useState<AppModule>('home');
+    const [activeModule, setActiveModule] = useState<AppModule>(() => {
+        return (localStorage.getItem(ACTIVE_MODULE_KEY) as AppModule) || 'home';
+    });
+
+    // 状态持久化
+    useEffect(() => {
+        localStorage.setItem(ACTIVE_VIEW_KEY, activeView);
+        localStorage.setItem(NAV_PARAMS_KEY, JSON.stringify(navParams));
+        localStorage.setItem(ACTIVE_MODULE_KEY, activeModule);
+    }, [activeView, navParams, activeModule]);
 
     // 视频源和分类
     const [sources, setSources] = useState<VideoSource[]>([]);
@@ -148,6 +171,18 @@ function VideoApp() {
     // TV 刷新 Key
     const [tvRefreshKey, setTvRefreshKey] = useState(0);
 
+    // 全局数据同步通道 (用于多标签页间通信)
+    useEffect(() => {
+        const channel = new BroadcastChannel('video-plugin-sync');
+        channel.onmessage = (event) => {
+            if (event.data === 'refresh-data' || event.data === 'sources-updated') {
+                console.log('[App] Received sync message, reloading data...');
+                loadSourcesAndCategories();
+            }
+        };
+        return () => channel.close();
+    }, []);
+
     // 加载视频源和分类
     useEffect(() => {
         loadSourcesAndCategories();
@@ -155,37 +190,43 @@ function VideoApp() {
 
     const loadSourcesAndCategories = async () => {
         try {
-            // 加载视频源
-            const sourcesRes = await apiGet<VideoSource[]>('/sources');
+            // 1. 并发加载基础源数据
+            const [sourcesRes, tvRes, liveRes, netdiskRes] = await Promise.all([
+                apiGet<VideoSource[]>('/sources'),
+                apiGet<TvSource[]>('/tv/sources'),
+                apiGet<LiveSource[]>('/live/sources'),
+                apiGet<NetdiskSource[]>('/netdisk/sources')
+            ]);
+
+            // 处理视频源
             if (sourcesRes.success && sourcesRes.data) {
                 const enabledSources = sourcesRes.data.filter(s => s.enabled);
                 setSources(enabledSources);
 
-                // 如果没有选中的源，默认选择第一个
                 if (!selectedSourceId && enabledSources.length > 0) {
                     const firstSourceId = enabledSources[0].id;
                     setSelectedSourceId(firstSourceId);
                     localStorage.setItem(SELECTED_SOURCE_KEY, String(firstSourceId));
                 }
 
-                // 加载每个源的分类
+                // 2. 并发加载这些源的分类 (不再一个一个 await)
+                const catPromises = enabledSources.map(source =>
+                    apiGet<Category[]>('/categories', { source_id: source.id })
+                        .then(res => ({ id: source.id, data: res.success ? res.data : [] }))
+                );
+
+                const catResults = await Promise.all(catPromises);
                 const catMap: Record<number, Category[]> = {};
-                for (const source of enabledSources) {
-                    const catRes = await apiGet<Category[]>('/categories', { source_id: source.id });
-                    if (catRes.success && catRes.data) {
-                        catMap[source.id] = catRes.data;
-                    }
-                }
+                catResults.forEach(result => {
+                    catMap[result.id] = result.data || [];
+                });
                 setCategoriesMap(catMap);
             }
 
-            // 加载电视源
-            const tvRes = await apiGet<TvSource[]>('/tv/sources');
+            // 处理电视源
             if (tvRes.success && tvRes.data) {
                 const enabledTv = tvRes.data.filter(s => s.enabled);
                 setTvSources(enabledTv);
-
-                // 刷新 Sidebar 频道列表
                 setTvRefreshKey(prev => prev + 1);
 
                 if (!selectedTvSourceId && enabledTv.length > 0) {
@@ -194,14 +235,12 @@ function VideoApp() {
                 }
             }
 
-            // 加载直播源
-            const liveRes = await apiGet<LiveSource[]>('/live/sources');
+            // 处理直播源
             if (liveRes.success && liveRes.data) {
                 setLiveSources(liveRes.data.filter(s => s.enabled === 1));
             }
 
-            // 加载网盘源
-            const netdiskRes = await apiGet<NetdiskSource[]>('/netdisk/sources');
+            // 处理网盘源
             if (netdiskRes.success && netdiskRes.data) {
                 setNetdiskSources(netdiskRes.data);
             }
@@ -227,6 +266,17 @@ function VideoApp() {
         } catch (e) {
             console.error('[App] Failed to fetch live statuses', e);
         }
+    };
+
+    // 处理源数据变动的同步回调
+    const handleSourcesChangeSync = () => {
+        console.log('[App] Sources changed, refreshing and broadcasting...');
+        loadSourcesAndCategories();
+
+        // 发送广播消息，通知其他标签页
+        const channel = new BroadcastChannel('video-plugin-sync');
+        channel.postMessage('sources-updated');
+        channel.close();
     };
 
     // 定期刷新直播状态 (60s)
@@ -463,7 +513,7 @@ function VideoApp() {
                 {activeView === 'admin' && (
                     <Admin
                         onNavigate={navigate}
-                        onSourcesChange={loadSourcesAndCategories}
+                        onSourcesChange={handleSourcesChangeSync}
                     />
                 )}
             </Layout>

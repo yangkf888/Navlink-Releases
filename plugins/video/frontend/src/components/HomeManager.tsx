@@ -9,6 +9,7 @@ import { apiGet, apiPost, apiPut } from '../utils/api';
 interface HomeManagerProps {
     sources: VideoSource[];
     onRefresh?: () => void;
+    onSourcesChange?: () => void;
 }
 
 // 延迟测试结果
@@ -18,7 +19,7 @@ interface LatencyResult {
     error: boolean;
 }
 
-export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
+export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManagerProps) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -142,6 +143,7 @@ export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
                 value: JSON.stringify(selectedIds)
             });
             alert('保存成功！需要刷新首页缓存后生效。');
+            onSourcesChange?.();
         } catch (error) {
             console.error('Failed to save settings:', error);
             alert('保存失败');

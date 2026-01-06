@@ -117,13 +117,22 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
         setSaving(true);
         try {
             if (editingSource) {
-                await apiPut(`/sources/${editingSource.id}`, formData);
+                const res = await apiPut<VideoSource>(`/sources/${editingSource.id}`, formData);
+                if (res.success && res.data) {
+                    // 乐观更新本地状态，无需等待重新加载整个列表
+                    setSources(prev => prev.map(s => s.id === editingSource.id ? res.data! : s));
+                }
             } else {
-                await apiPost('/sources', formData);
+                const res = await apiPost<VideoSource>('/sources', formData);
+                if (res.success && res.data) {
+                    setSources(prev => [res.data!, ...prev]);
+                }
             }
-            await loadSources();
-            setShowForm(false);
+
+            // 通知全局 (App.tsx)
             onSourcesChange?.();
+
+            setShowForm(false);
         } catch (error) {
             alert('保存失败');
         }
@@ -136,15 +145,20 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
         await apiDelete(`/sources/${id}`);
         setSources(prev => prev.filter(s => s.id !== id));
         onSourcesChange?.();
+
+
     };
 
     // 切换启用状态
     const handleToggleEnabled = async (source: VideoSource) => {
-        await apiPut(`/sources/${source.id}`, { enabled: !source.enabled });
+        const newStatus = !source.enabled;
+        await apiPut(`/sources/${source.id}`, { enabled: newStatus });
         setSources(prev => prev.map(s =>
-            s.id === source.id ? { ...s, enabled: s.enabled ? 0 : 1 } : s
+            s.id === source.id ? { ...s, enabled: newStatus ? 1 : 0 } : s
         ));
         onSourcesChange?.();
+
+
     };
 
     // 切换隐藏状态

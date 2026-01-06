@@ -220,7 +220,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
 
             {/* 首页管理 */}
             {activeTab === 'home' && (
-                <HomeManager sources={sources} />
+                <HomeManager sources={sources} onRefresh={onSourcesChange} onSourcesChange={onSourcesChange} />
             )}
 
             {/* 视频源管理 - 使用独立组件 */}
@@ -245,7 +245,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
 
             {/* 系统设置 - 使用独立组件 */}
             {activeTab === 'settings' && (
-                <SettingsManager />
+                <SettingsManager onSettingsChange={onSourcesChange} />
             )}
         </div>
     );

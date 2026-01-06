@@ -276,6 +276,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                 scan_paths: JSON.stringify(newPaths)
             });
             loadSources();
+            onSourceChange?.();
         } catch (error) {
             alert('更新失败');
         }
