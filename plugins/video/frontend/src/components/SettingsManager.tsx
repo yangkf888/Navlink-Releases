@@ -105,7 +105,10 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
         <div className="space-y-6">
             {/* 代理配置 */}
             <div className="bg-gray-800/50 rounded-xl p-6">
-                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <h3
+                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
+                    style={{ color: '#fff' }}
+                >
                     <i className="fas fa-network-wired text-blue-400"></i>
                     代理配置
                 </h3>
@@ -208,8 +211,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                 <button
                                     onClick={handleTestProxy}
                                     disabled={testingProxy || !settings.proxy_host || !settings.proxy_port}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
+                                    className="px-4 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 
                                              transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    style={{ color: '#fff' }}
                                 >
                                     {testingProxy ? (
                                         <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -231,7 +235,10 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
             {/* 安全设置 */}
             <div className="bg-gray-800/50 rounded-xl p-6">
-                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <h3
+                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
+                    style={{ color: '#fff' }}
+                >
                     <i className="fas fa-shield-alt text-green-400"></i>
                     安全设置
                 </h3>
@@ -282,7 +289,10 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
             {/* TMDB API 设置 */}
             <div className="bg-gray-800/50 rounded-xl p-6">
-                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <h3
+                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
+                    style={{ color: '#fff' }}
+                >
                     <i className="fas fa-film text-purple-400"></i>
                     TMDB API 设置
                 </h3>
@@ -310,8 +320,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                         <button
                             onClick={handleTestTmdb}
                             disabled={testingTmdb || !settings.tmdb_api_key}
-                            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 
+                            className="px-4 py-2 bg-purple-500 rounded-lg hover:bg-purple-600 
                                      transition-colors disabled:opacity-50 flex items-center gap-2"
+                            style={{ color: '#fff' }}
                         >
                             {testingTmdb ? (
                                 <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -333,8 +344,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                className="px-6 py-3 bg-red-500 rounded-lg hover:bg-red-600 
                          transition-colors disabled:opacity-50 font-medium"
+                style={{ color: '#fff' }}
             >
                 {saving ? (
                     <><i className="fas fa-spinner fa-spin mr-2"></i> 保存中...</>

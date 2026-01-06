@@ -201,7 +201,10 @@ export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
         <div className="space-y-6">
             {/* 头部说明 */}
             <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                <h3
+                    className="text-lg font-semibold text-white mb-2 flex items-center gap-2"
+                    style={{ color: '#fff' }}
+                >
                     <i className="fas fa-home text-blue-400"></i>
                     首页聚合资源站
                 </h3>
@@ -221,7 +224,8 @@ export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
                     <button
                         onClick={testAllLatency}
                         disabled={testingAll}
-                        className="px-3 py-1.5 text-sm text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
+                        style={{ color: '#fff' }}
                     >
                         {testingAll ? (
                             <><i className="fas fa-spinner fa-spin mr-1"></i> 测速中...</>
@@ -231,27 +235,31 @@ export function HomeManager({ sources, onRefresh }: HomeManagerProps) {
                     </button>
                     <button
                         onClick={handleSelectAll}
-                        className="px-3 py-1.5 text-sm text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                        style={{ color: '#fff' }}
                     >
                         全选
                     </button>
                     <button
                         onClick={handleSelectNone}
-                        className="px-3 py-1.5 text-sm text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                        style={{ color: '#fff' }}
                     >
                         清空
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="px-4 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50"
+                        className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50"
+                        style={{ color: '#fff' }}
                     >
                         {saving ? '保存中...' : '保存设置'}
                     </button>
                     <button
                         onClick={handleRefreshHome}
                         disabled={refreshing}
-                        className="px-4 py-1.5 text-sm text-white bg-green-600 hover:bg-green-500 rounded-lg transition-colors disabled:opacity-50"
+                        className="px-4 py-1.5 text-sm bg-green-600 hover:bg-green-500 rounded-lg transition-colors disabled:opacity-50"
+                        style={{ color: '#fff' }}
                     >
                         {refreshing ? '刷新中...' : '刷新首页'}
                     </button>

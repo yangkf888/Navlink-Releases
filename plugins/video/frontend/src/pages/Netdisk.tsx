@@ -419,10 +419,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     </div>
                 </div>
 
-                {/* 类型标签 */}
-                <div className={`absolute top-2 left-2 rounded px-2 py-0.5 text-xs text-white font-bold ${item.media_type === 'tvshow' ? 'bg-purple-600' : 'bg-blue-600'}`}>
-                    {item.media_type === 'tvshow' ? '剧集' : '电影'}
-                </div>
+
 
                 {/* 评分 */}
                 {item.rating && item.rating > 0 && (

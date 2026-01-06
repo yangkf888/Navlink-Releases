@@ -272,8 +272,9 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                 {/* 添加按钮 */}
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                    className="px-4 py-2 bg-red-500 rounded-lg hover:bg-red-600 
                              transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
                     <i className="fas fa-plus"></i>
                     添加
@@ -287,18 +288,21 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 1 })}
                         className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 0 })}
                         className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={handleBatchDelete}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量删除
                     </button>
@@ -350,8 +354,10 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                     <span className="text-gray-400 text-sm">{source.streamer_name || '-'}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${PLATFORMS.find(p => p.value === source.platform)?.color || 'text-gray-400'
-                                        } bg-gray-700/50`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.platform === 'bilibili' ? 'bg-pink-500' : 'bg-red-500'}`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {PLATFORMS.find(p => p.value === source.platform)?.label || source.platform}
                                     </span>
                                 </td>
@@ -362,10 +368,13 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                     <span className="text-gray-400 text-sm">{source.category || '-'}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.enabled
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'bg-gray-500/20 text-gray-400'
-                                        }`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.enabled
+                                            ? 'bg-green-600'
+                                            : 'bg-gray-500'
+                                            }`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
                                 </td>

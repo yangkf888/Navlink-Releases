@@ -212,8 +212,9 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                 {/* 操作按钮 */}
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                    className="px-4 py-2 bg-red-500 rounded-lg hover:bg-red-600 
                              transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
                     <i className="fas fa-plus"></i>
                     添加
@@ -227,18 +228,21 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 1 })}
                         className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 0 })}
                         className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={handleBatchDelete}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量删除
                     </button>
@@ -285,10 +289,13 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                                     <span className="text-white font-medium">{source.name}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.enabled
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'bg-gray-500/20 text-gray-400'
-                                        }`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.enabled
+                                            ? 'bg-green-600'
+                                            : 'bg-gray-500'
+                                            }`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
                                 </td>
@@ -298,7 +305,10 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                                     </span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.type === 'm3u' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'}`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.type === 'm3u' ? 'bg-purple-600' : 'bg-cyan-600'}`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.type.toUpperCase()}
                                     </span>
                                 </td>

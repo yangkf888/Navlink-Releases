@@ -156,12 +156,14 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const buttonClass = (isActive: boolean) => `
         p-2.5 rounded-lg transition-colors text-sm
         ${isActive
-            ? 'bg-blue-500 text-white'
+            ? 'bg-blue-500'
             : theme === 'dark'
                 ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
         }
     `;
+
+    const buttonStyle = (isActive: boolean) => isActive ? { color: '#fff' } : undefined;
 
     return (
         <>
@@ -430,11 +432,12 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 onClick={() => onModuleChange(item.key as AppModule)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5
                                 ${activeModule === item.key
-                                        ? 'bg-blue-500 text-white'
+                                        ? 'bg-blue-500'
                                         : theme === 'dark'
                                             ? 'text-gray-400 hover:text-white hover:bg-gray-800'
                                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                                     }`}
+                                style={activeModule === item.key ? { color: '#fff' } : undefined}
                             >
                                 <i className={`fas ${item.icon} text-xs`}></i>
                                 <span>{item.label}</span>
@@ -470,6 +473,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <button
                             onClick={() => onNavigate('favorites')}
                             className={buttonClass(activeView === 'favorites')}
+                            style={buttonStyle(activeView === 'favorites')}
                             title="我的收藏"
                         >
                             <i className="fas fa-heart"></i>
@@ -479,6 +483,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <button
                             onClick={() => onNavigate('history')}
                             className={buttonClass(activeView === 'history')}
+                            style={buttonStyle(activeView === 'history')}
                             title="观看历史"
                         >
                             <i className="fas fa-history"></i>
@@ -488,6 +493,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <button
                             onClick={() => onNavigate('admin')}
                             className={buttonClass(activeView === 'admin')}
+                            style={buttonStyle(activeView === 'admin')}
                             title="视频源管理"
                         >
                             <i className="fas fa-cog"></i>

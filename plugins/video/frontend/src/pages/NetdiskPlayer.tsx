@@ -403,13 +403,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                             <div className="text-gray-400 text-sm flex-1 min-w-0">
                                 <span className="hidden sm:inline">正在播放：</span>
                                 <span className="text-white font-medium">{media.title}</span>
-                                {media.video_files[selectedVideoIndex] && (
-                                    <span className="text-red-400 ml-2 text-xs">
-                                        {media.video_files[selectedVideoIndex].includes('|')
-                                            ? media.video_files[selectedVideoIndex].split('|')[0]
-                                            : media.video_files[selectedVideoIndex]}
-                                    </span>
-                                )}
                             </div>
                         </div>
 

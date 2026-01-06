@@ -366,8 +366,9 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                 {/* 操作按钮 */}
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                    className="px-4 py-2 bg-red-500 rounded-lg hover:bg-red-600 
                              transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
                     <i className="fas fa-plus"></i>
                     添加
@@ -375,9 +376,12 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    className="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 
+                             transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
-                    <i className="fas fa-file-import mr-2"></i>导入
+                    <i className="fas fa-file-import"></i>
+                    导入
                 </button>
                 <input
                     ref={fileInputRef}
@@ -389,9 +393,12 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
                 <button
                     onClick={handleExport}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    className="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 
+                             transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
-                    <i className="fas fa-file-export mr-2"></i>导出
+                    <i className="fas fa-file-export"></i>
+                    导出
                 </button>
             </div>
 
@@ -402,36 +409,42 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                     <button
                         onClick={() => handleBatchUpdate({ enabled: true })}
                         className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: false })}
                         className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: true })}
                         className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量隐藏
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: false })}
                         className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量显示
                     </button>
                     <button
                         onClick={handleBatchTest}
-                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-500 text-sm"
+                        className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
-                        批量测速
+                        批量测试
                     </button>
                     <button
                         onClick={handleBatchDelete}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
+                        style={{ color: '#fff' }}
                     >
                         批量删除
                     </button>
@@ -481,26 +494,35 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     <span className="text-white font-medium">{source.name}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.enabled
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'bg-gray-500/20 text-gray-400'
-                                        }`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.enabled
+                                            ? 'bg-green-600'
+                                            : 'bg-gray-500'
+                                            }`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.proxy_enabled
-                                        ? 'bg-purple-500/20 text-purple-400'
-                                        : 'bg-gray-500/20 text-gray-400'
-                                        }`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.proxy_enabled
+                                            ? 'bg-purple-600'
+                                            : 'bg-gray-500'
+                                            }`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.proxy_enabled ? '开启' : '关闭'}
                                     </span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs ${source.hidden
-                                        ? 'bg-orange-500/20 text-orange-400'
-                                        : 'bg-blue-500/20 text-blue-400'
-                                        }`}>
+                                    <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.hidden
+                                            ? 'bg-orange-500'
+                                            : 'bg-blue-600'
+                                            }`}
+                                        style={{ color: '#fff' }}
+                                    >
                                         {source.hidden ? '是' : '否'}
                                     </span>
                                 </td>
