@@ -169,7 +169,8 @@ class CmsApiParser {
             vod_time: item.vod_time,
             vod_score: item.vod_score || item.vod_douban_score,
             type_id: item.type_id,
-            type_name: item.type_name
+            type_name: item.type_name,
+            vod_actor: item.vod_actor
         };
     }
 

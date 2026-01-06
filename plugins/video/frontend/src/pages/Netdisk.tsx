@@ -27,6 +27,7 @@ interface MediaItem {
     tmdb_id?: number;
     video_files: string[];
     nfo_parsed: number;
+    actor?: string;
 }
 
 interface ScanStatus {
@@ -432,70 +433,80 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         return section?.name || currentPath.split('/').filter(Boolean).pop() || '';
     };
 
-    // 渲染媒体卡片
+    // 渲染媒体卡片 (统一样式：对齐视频站 VideoCard)
     const renderMediaCard = (item: MediaItem) => (
         <div
             key={item.id}
             onClick={() => handlePlay(item)}
-            className="group cursor-pointer"
+            className="video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
         >
-            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200">
-                {item.poster_url ? (
-                    <img
-                        src={item.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}` : item.poster_url}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                        onError={e => {
-                            const img = e.target as HTMLImageElement;
-                            img.style.display = 'none';
-                            if (img.parentElement) {
-                                const fallback = img.parentElement.querySelector('.poster-fallback');
-                                if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                            }
-                        }}
-                    />
-                ) : null}
+            {/* 封面部分 */}
+            <div className="relative">
+                <div className="aspect-[2/3] overflow-hidden bg-gray-900">
+                    {item.poster_url ? (
+                        <img
+                            src={item.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}` : item.poster_url}
+                            alt={item.title}
+                            className="video-cover w-full h-full object-cover"
+                            loading="lazy"
+                            onError={e => {
+                                const img = e.target as HTMLImageElement;
+                                img.style.display = 'none';
+                                if (img.parentElement) {
+                                    const fallback = img.parentElement.querySelector('.poster-fallback');
+                                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                }
+                            }}
+                        />
+                    ) : null}
 
-                {(!item.poster_url || item.poster_url) && (
-                    <div className="poster-fallback w-full h-full flex flex-col items-center justify-center p-4" style={{ display: item.poster_url ? 'none' : 'flex' }}>
-                        <i className={`fas ${item.media_type === 'tvshow' ? 'fa-tv text-purple-400' : 'fa-film text-blue-400'} text-5xl mb-3`}></i>
-                        <p className="text-gray-400 text-sm text-center line-clamp-3">{item.title}</p>
-                    </div>
-                )}
-
-                {/* 悬停播放按钮 */}
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg">
-                        <i className="fas fa-play text-white text-xl ml-1"></i>
+                    {/* 降级文字封面 (暂无图片时显示) */}
+                    <div className="poster-fallback w-full h-full flex flex-col items-center justify-center p-4 bg-gray-800"
+                        style={{ display: item.poster_url ? 'none' : 'flex' }}>
+                        <i className={`fas ${item.media_type === 'tvshow' ? 'fa-tv text-purple-400/60' : 'fa-film text-blue-400/60'} text-4xl mb-3`}></i>
+                        <p className="text-gray-500 text-[11px] text-center line-clamp-3 px-2 leading-relaxed">{item.title}</p>
                     </div>
                 </div>
 
+                {/* 悬停遮罩 */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
+                              transition-opacity flex items-center justify-center border-b-2 border-red-500">
+                    <i className="fas fa-play-circle text-4xl text-white"></i>
+                </div>
 
-
-                {/* 评分 */}
+                {/* 评分 (右上角) */}
                 {item.rating && item.rating > 0 && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 rounded px-2 py-0.5 text-xs text-black font-bold flex items-center gap-1">
-                        <i className="fas fa-star text-[10px]"></i>
+                    <span className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 
+                                   text-[10px] text-yellow-400 rounded flex items-center gap-1 font-bold">
+                        <i className="fas fa-star"></i>
                         {item.rating.toFixed(1)}
-                    </div>
+                    </span>
                 )}
 
-                {/* 年份 */}
+                {/* 年份/备注 (右下角) */}
                 {item.year && (
-                    <div className="absolute bottom-2 left-2 bg-black/70 rounded px-2 py-0.5 text-xs text-gray-300">
+                    <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-500/90 
+                                   text-[10px] text-white rounded font-medium">
                         {item.year}
-                    </div>
+                    </span>
                 )}
             </div>
 
-            {/* 标题 */}
-            <div className="mt-2 px-1">
-                <p className="text-sm text-gray-200 font-medium truncate" title={item.title}>
+            {/* 信息部分 (底部) */}
+            <div className="p-3">
+                <h3 className="text-white text-sm font-medium truncate" title={item.title}>
                     {item.title}
-                </p>
-                {item.video_files.length > 1 && (
-                    <p className="text-xs text-gray-500">{item.video_files.length} 个视频</p>
-                )}
+                </h3>
+                <div className="flex items-center justify-between mt-1">
+                    <span className="text-gray-500 text-[11px] truncate flex-1 mr-2" title={item.actor}>
+                        {item.actor ? item.actor.split(/[,，/\s]/)[0].trim() : (item.media_type === 'tvshow' ? '剧集系列' : '电影视频')}
+                    </span>
+                    {item.video_files.length > 1 && (
+                        <span className="text-red-500/80 text-[10px] font-bold">
+                            {item.video_files.length}P
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -547,7 +558,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
                         <div className="h-6 bg-gray-800 rounded w-32"></div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                             {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 6)].map((_, j) => (
                                 <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
                             ))}
@@ -629,7 +640,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                         <i className="fas fa-chevron-right text-xs"></i>
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                                     {section.items.slice(0, SOURCE_PREVIEW_COUNT).map(item => renderMediaCard(item))}
                                 </div>
                             </section>
@@ -675,7 +686,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                                         {section.items.map(item => renderMediaCard(item))}
                                         {/* "加载更多"卡片 - 始终显示在最后位置 */}
                                         {section.hasMore && renderLoadMoreCard(section.path, section.loading)}
@@ -701,7 +712,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                                     {media.map(item => renderMediaCard(item))}
                                 </div>
 

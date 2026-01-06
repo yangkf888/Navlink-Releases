@@ -153,6 +153,7 @@ export interface Video {
     vod_score: string;
     type_id: string;
     type_name: string;
+    vod_actor?: string;
     source_id?: number;
     source_name?: string;
 }
