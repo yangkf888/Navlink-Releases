@@ -194,6 +194,7 @@ class MediaScanService {
 
     /**
      * 递归查找媒体文件夹
+     * 优化逻辑：如果当前目录有视频且[没有]有效子目录，则视为末梢节点并停止深搜。
      */
     async findMediaFolders(client, path, maxDepth, currentDepth = 0) {
         if (currentDepth > maxDepth) return [];
@@ -202,13 +203,38 @@ class MediaScanService {
         try {
             const items = await client.list(path);
             const videos = items.filter(f => !f.is_dir && this.isVideoFile(f.name));
-            if (videos.length > 0) {
-                // 保存 items 以供后续处理使用，避免重复请求
-                result.push({ path, name: path.split('/').filter(Boolean).pop() || path, videos, items });
+
+            // 找出有效的子目录（排除干扰项）
+            const dirs = items.filter(f =>
+                f.is_dir &&
+                !EXCLUDE_FOLDERS.includes(f.name.toLowerCase()) &&
+                !f.name.startsWith('.')
+            );
+
+            // 核心逻辑改进：基于“末梢节点”判断
+            // 如果有视频且没有有效子目录 -> 这是一个完整的媒体节点（电影或剧集末级），停止在此分支递归
+            if (videos.length > 0 && dirs.length === 0) {
+                result.push({
+                    path,
+                    name: path.split('/').filter(Boolean).pop() || path,
+                    videos,
+                    items,
+                    isLeaf: true
+                });
+                return result;
             }
 
-            const dirs = items.filter(f => f.is_dir && !EXCLUDE_FOLDERS.includes(f.name.toLowerCase()));
-            // 并行执行子目录扫描
+            // 如果既有视频又有子目录 -> 记录当前目录并继续深搜（兼容带子目录的合集结构）
+            if (videos.length > 0) {
+                result.push({
+                    path,
+                    name: path.split('/').filter(Boolean).pop() || path,
+                    videos,
+                    items
+                });
+            }
+
+            // 并行递归子目录
             const subFoldersResults = await Promise.all(dirs.map(dir => {
                 const subPath = (path + '/' + dir.name).replace(/\/+/g, '/');
                 return this.findMediaFolders(client, subPath, maxDepth, currentDepth + 1);
@@ -263,8 +289,15 @@ class MediaScanService {
         }
 
         // 查找图片
+        // 1. 优先查找标准封面文件（poster, folder, cover）
         let posterFile = items.find(f => !f.is_dir && POSTER_FILES.includes(f.name.toLowerCase()));
         let fanartFile = items.find(f => !f.is_dir && FANART_FILES.includes(f.name.toLowerCase()));
+
+        // 2. 如果没找到标准封面，查找文件夹内任何图片文件（jpg, png, jpeg, webp）
+        if (!posterFile) {
+            const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+            posterFile = items.find(f => !f.is_dir && IMG_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
+        }
 
         // 如果没找到通用封面，尝试查找视频同名封面
         if (!posterFile && videoFiles.length > 0) {
@@ -292,7 +325,7 @@ class MediaScanService {
         let metadata = {
             title: this.parseTitle(folder.name),
             year: this.parseYear(folder.name),
-            media_type: 'movie',
+            media_type: videoFiles.length > 2 ? 'tvshow' : 'movie', // 初步判定分类
             nfo_parsed: 0,
             extra_metadata: {}
         };
