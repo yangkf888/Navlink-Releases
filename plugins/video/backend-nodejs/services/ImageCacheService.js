@@ -45,9 +45,27 @@ class ImageCacheService {
 
         // 3. 缓存未抢中，下载并处理
         try {
-            console.log(`[ImageCache] Cache miss: ${imageUrl.substring(0, 50)}...`);
+            // 安全编码：处理中文、空格、特殊字符 (# 等)
+            let safeUrl = imageUrl;
+            try {
+                let decoded = imageUrl;
+                for (let i = 0; i < 3; i++) {
+                    const temp = decodeURIComponent(decoded);
+                    if (temp === decoded) break;
+                    decoded = temp;
+                }
+
+                // 核心修复：把路径中的 # 替换为 %23，防止 new URL() 将其识别为 Fragment 而丢弃
+                const preparedUrl = decoded.replace(/#/g, '%23');
+                safeUrl = new URL(preparedUrl).href;
+            } catch (e) {
+                // 极端情况下的兜底，避免双重编码现有的百分号
+                safeUrl = imageUrl.indexOf('%') !== -1 ? imageUrl : encodeURI(imageUrl).replace(/#/g, '%23');
+            }
+
+            console.log(`[ImageCache] Cache miss: ${safeUrl.substring(0, 150)}...`);
             const response = await axios({
-                url: imageUrl,
+                url: safeUrl,
                 method: 'GET',
                 responseType: 'arraybuffer',
                 headers: {
@@ -62,17 +80,17 @@ class ImageCacheService {
             }
 
             // 4. 使用 Sharp 进行压缩与并转换为 WebP
-            // 设定最大宽度 320px，质量 75，足够清晰且文件极小
+            // 设定最大宽度 480px (兼容高分屏)，质量 85，平衡清晰度与体积
             const processedBuffer = await sharp(response.data)
-                .resize({ width: 320, withoutEnlargement: true })
-                .webp({ quality: 75 })
+                .resize({ width: 480, withoutEnlargement: true })
+                .webp({ quality: 85 })
                 .toBuffer();
 
             // 5. 写入磁盘
             fs.writeFileSync(cachePath, processedBuffer);
             return cachePath;
         } catch (err) {
-            console.error(`[ImageCache] Error processing ${imageUrl.substring(0, 30)}:`, err.message);
+            console.error(`[ImageCache] Error processing ${imageUrl.substring(0, 200)}:`, err.message);
             return null;
         }
     }

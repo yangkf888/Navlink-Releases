@@ -50,22 +50,25 @@ router.get('/image', async (req, res) => {
         const { url } = req.query;
         if (!url) return res.status(400).send('Missing url');
 
-        // URL解码处理：确保得到正确的目标URL
-        let targetUrl = url;
+        // URL 解码与重新编码控制（解决 400/500 错误的核心：防止 # 丢失与双重编码）
+        let safeUrl = url;
         try {
             let decoded = url;
             for (let i = 0; i < 3; i++) {
-                const next = decodeURIComponent(decoded);
-                if (next === decoded) break;
-                decoded = next;
+                const temp = decodeURIComponent(decoded);
+                if (temp === decoded) break;
+                decoded = temp;
             }
-            targetUrl = decoded;
+            // 核心修复：把路径中的 # 替换为 %23，防止 new URL() 将其识别为 Fragment 而丢弃
+            const preparedUrl = decoded.replace(/#/g, '%23');
+            safeUrl = new URL(preparedUrl).href;
         } catch (e) {
-            targetUrl = url;
+            // 极端情况下的兜底，如果已经有百分号编码则不轻易 encodeURI
+            safeUrl = url.indexOf('%') !== -1 ? url : encodeURI(url).replace(/#/g, '%23');
         }
 
         // 优先使用后端缓存与压缩服务
-        const cachePath = await ImageCacheService.getCachedImage(targetUrl);
+        const cachePath = await ImageCacheService.getCachedImage(safeUrl);
 
         if (cachePath && fs.existsSync(cachePath)) {
             res.setHeader('Content-Type', 'image/webp');
@@ -75,8 +78,8 @@ router.get('/image', async (req, res) => {
         }
 
         // 降级：直接 Fetch 
-        console.warn(`[ImageProxy] Cache failed for ${targetUrl.substring(0, 50)}, falling back to direct fetch.`);
-        const response = await fetch(targetUrl, {
+        console.warn(`[ImageProxy] Cache failed for ${safeUrl.substring(0, 200)}, falling back to direct fetch.`);
+        const response = await fetch(safeUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
             timeout: 10000
         });

@@ -52,3 +52,6 @@ tmp/
 temp/
 *.tmp
 dist-plugins/
+
+# Cache
+data/cache/
