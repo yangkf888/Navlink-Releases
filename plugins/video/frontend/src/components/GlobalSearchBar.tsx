@@ -423,7 +423,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
                             { key: 'tv', label: '电视', icon: 'fa-tv' },
                             { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
-                            { key: 'netdisk', label: '网盘', icon: 'fa-cloud' },
+                            { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
                         ].map(item => (
                             <button
                                 key={item.key}

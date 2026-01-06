@@ -264,7 +264,7 @@ export function Sidebar({
             {!isMobile && (
                 <SidebarItem
                     icon="fas fa-cloud"
-                    label="全部网盘"
+                    label="全部媒体"
                     isActive={activeView === 'netdisk' && !selectedNetdiskSourceId}
                     onClick={() => {
                         onNetdiskSourceChange?.(0);  // 清空选中的网盘源
@@ -504,7 +504,7 @@ export function Sidebar({
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
                             { key: 'tv', label: '电视', icon: 'fa-tv' },
                             { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
-                            { key: 'netdisk', label: '网盘', icon: 'fa-cloud' },
+                            { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
                         ].map(item => (
                             <SidebarItem
                                 key={item.key}

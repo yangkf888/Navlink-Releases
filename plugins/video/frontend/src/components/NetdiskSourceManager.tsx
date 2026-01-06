@@ -158,7 +158,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
     };
 
     const handleDelete = async (id: number, name: string) => {
-        if (!confirm(`确定要删除网盘源"${name}"吗？`)) return;
+        if (!confirm(`确定要删除媒体库"${name}"吗？`)) return;
 
         try {
             await apiDelete(`/netdisk/sources/${id}`);
@@ -215,7 +215,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
     const handleBatchDelete = async () => {
         if (selectedIds.length === 0) return;
-        if (!confirm(`确定要删除选中的 ${selectedIds.length} 个网盘源吗？`)) return;
+        if (!confirm(`确定要删除选中的 ${selectedIds.length} 个媒体库吗？`)) return;
 
         try {
             // 这里通常后端支持批量删除，如果不支持则循环。本项目后端目前需循环。
@@ -258,7 +258,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
     };
 
     const handleClearIndex = async (sourceId: number, path?: string) => {
-        if (!confirm(path ? `确定要清除目录 "${path}" 的媒体索引吗？` : '确定要清除该网盘的所有媒体索引吗？')) return;
+        if (!confirm(path ? `确定要清除目录 "${path}" 的媒体索引吗？` : '确定要清除该媒体库的所有索引吗？')) return;
         try {
             const res = await apiPost(`/netdisk/clear-index`, { sourceId, path });
             if (res.success) {
@@ -305,7 +305,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                     <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
                     <input
                         type="text"
-                        placeholder="搜索网盘源名称..."
+                        placeholder="搜索媒体库名称..."
                         value={searchKeyword}
                         onChange={e => setSearchKeyword(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
@@ -342,7 +342,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                  transition-colors flex items-center gap-2 text-sm"
                     >
                         <i className="fas fa-plus"></i>
-                        添加网盘源
+                        添加媒体库
                     </button>
                 </div>
             </div>
@@ -653,7 +653,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                 filteredSources.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                         <i className="fas fa-cloud text-4xl mb-4 opacity-50"></i>
-                        <p>暂无网盘源</p>
+                        <p>暂无媒体库</p>
                     </div>
                 )
             }
@@ -665,7 +665,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                         <div className="bg-gray-900 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-gray-800">
                             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                                 {editingSource ? <i className="fas fa-edit text-blue-500"></i> : <i className="fas fa-plus-circle text-blue-500"></i>}
-                                {editingSource ? '编辑网盘源' : '添加网盘源'}
+                                {editingSource ? '编辑媒体库' : '添加媒体库'}
                             </h2>
 
                             <div className="space-y-5">
@@ -676,7 +676,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                             type="text"
                                             value={formData.name}
                                             onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                            placeholder="我的网盘"
+                                            placeholder="我的媒体库"
                                             className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
                                                  border border-gray-700 focus:border-blue-500 focus:outline-none transition-all"
                                         />
@@ -765,7 +765,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                     <textarea
                                         value={formData.remark}
                                         onChange={e => setFormData(prev => ({ ...prev, remark: e.target.value }))}
-                                        placeholder="用于辨识网盘源..."
+                                        placeholder="用于辨识媒体库..."
                                         rows={2}
                                         className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
                                              border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"

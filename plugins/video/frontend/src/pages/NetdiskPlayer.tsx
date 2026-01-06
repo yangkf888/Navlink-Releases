@@ -374,7 +374,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     onClick={() => onNavigate('netdisk')}
                     className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
                 >
-                    返回网盘
+                    返回媒体库
                 </button>
             </div>
         );

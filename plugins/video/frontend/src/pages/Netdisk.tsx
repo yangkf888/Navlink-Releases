@@ -487,8 +487,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <i className="fas fa-cloud text-6xl mb-4 opacity-50"></i>
-                <p className="text-lg">暂无网盘源</p>
-                <p className="text-sm mt-2">请到后台管理添加网盘源</p>
+                <p className="text-lg">暂无媒体库</p>
+                <p className="text-sm mt-2">请到后台管理添加媒体库</p>
             </div>
         );
     }
@@ -517,7 +517,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {/* 当前位置标题 */}
                 <span className="text-white font-medium">
                     {currentLevel === 'all'
-                        ? '全部网盘'
+                        ? '全部媒体'
                         : currentLevel === 'source'
                             ? getCurrentSourceName()
                             : getCurrentDirectoryName()}
@@ -562,7 +562,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         <div className="text-center py-12 text-gray-500">
                             <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                             <p>暂无媒体内容</p>
-                            <p className="text-sm mt-2">请先在后台扫描网盘媒体库</p>
+                            <p className="text-sm mt-2">请先在后台扫描媒体库</p>
                         </div>
                     ) : (
                         sourceSections.map(section => (
@@ -593,7 +593,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         <div className="text-center py-12 text-gray-500">
                             <i className="fas fa-folder-open text-4xl mb-4 opacity-50"></i>
                             <p>暂无媒体内容</p>
-                            <p className="text-sm mt-2">请先在后台扫描此网盘源的媒体库</p>
+                            <p className="text-sm mt-2">请先在后台扫描此媒体库</p>
                         </div>
                     ) : (
                         <>

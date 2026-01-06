@@ -198,7 +198,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                             : 'text-gray-400 hover:text-white'
                         }`}
                 >
-                    网盘源管理
+                    媒体库管理
                 </button>
                 <button
                     onClick={() => setActiveTab('settings')}
