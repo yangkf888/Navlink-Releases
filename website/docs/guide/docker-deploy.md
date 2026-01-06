@@ -81,6 +81,8 @@ services:
       REDIS_ENABLED: ${REDIS_ENABLED}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
 
       # Backup Configuration
       BACKUP_ENABLED: ${BACKUP_ENABLED}
@@ -110,6 +112,73 @@ services:
 - 所有环境变量需在 `.env` 文件中定义
 :::
 
+## .env 文件示例
+
+在 `docker-compose.yml` 同级目录下创建 `.env` 文件，内容参考如下：
+
+```bash
+# 运行环境
+NODE_ENV=production
+# 容器内部服务端口
+PORT=3001
+
+# 安全密钥 (生产环境务必修改，建议 32 位随机字符)
+JWT_SECRET=your-super-secret-random-string
+SESSION_SECRET=your-session-secret-string
+ENCRYPTION_KEY=your-encryption-key-32-chars
+
+# Token 有效期
+JWT_EXPIRES_IN=24h
+
+# 初始管理员账号 (仅首次启动有效)
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=admin123
+
+# Redis 配置 (如不使用可设为 false)
+REDIS_ENABLED=false
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
+REDIS_DB=0
+
+# 自动备份配置
+BACKUP_ENABLED=true
+BACKUP_SCHEDULE="0 3 * * *"
+BACKUP_RETENTION_DAYS=7
+BACKUP_PATH=/app/data/backups
+```
+
+## Redis 配置场景指南
+
+根据您的需求选择最合适的 Redis 配置方式：
+
+### 场景 A：使用自带的 Redis 容器 (推荐)
+如果您没有现成的 Redis 服务，直接使用 `docker-compose.yml` 中定义的容器最为方便。
+
+*   **`.env` 配置**：
+    *   `REDIS_ENABLED=true`
+    *   `REDIS_HOST=redis` (匹配 compose 中的服务名)
+    *   `REDIS_PORT=6379`
+*   **注意**：请保持 `docker-compose.yml` 中的 `redis` 服务定义不被注释。
+
+### 场景 B：复用外部 Redis (如宿主机或其他容器)
+如果您已经有一个运行中的 Redis 服务，可以删除多余的容器以节省资源。
+
+*   **`.env` 配置**：
+    *   `REDIS_ENABLED=true`
+    *   `REDIS_HOST=192.168.1.100` (指向您的实际 Redis IP)
+    *   `REDIS_PORT=6379`
+    *   `REDIS_PASSWORD=your_password` (如有密码请务必填写)
+*   **清理步骤**：
+    1.  注释或删除 `docker-compose.yml` 中的 `redis` 服务代码块。
+    2.  注释或删除 `docker-compose.yml` 中的 `redis_data` 卷定义。
+
+### 场景 C：不使用 Redis
+NavLink 依然可以运行，但性能和响应速度会有轻微下降。
+
+*   **`.env` 配置**：`REDIS_ENABLED=false`
+*   **清理**：可安全删除 compose 文件中的所有 `redis` 相关部分。
+
 ## 环境变量说明
 
 以下变量需在 `.env` 文件中配置：
@@ -129,6 +198,8 @@ services:
 | `REDIS_ENABLED` | `false` | 是否启用 Redis 缓存 |
 | `REDIS_HOST` | `redis` | Redis 主机地址 |
 | `REDIS_PORT` | `6379` | Redis 端口 |
+| `REDIS_PASSWORD` | `your_password` | Redis 密码 (没有留空) |
+| `REDIS_DB` | `0` | Redis 数据库索引 (0-15) |
 | `BACKUP_ENABLED` | `true` | 是否启用自动备份 |
 | `BACKUP_SCHEDULE` | `0 3 * * *` | 备份 Cron 表达式 |
 | `BACKUP_RETENTION_DAYS` | `7` | 备份保留天数 |

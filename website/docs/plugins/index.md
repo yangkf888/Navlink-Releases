@@ -32,6 +32,7 @@ NavLink 采用插件架构，核心功能精简，扩展功能通过插件实现
 
 <div class="plugin-grid">
 
+
 <div class="plugin-card docker">
   <div class="plugin-header">
     <span class="plugin-icon">🐳</span>
@@ -96,6 +97,22 @@ NavLink 采用插件架构，核心功能精简，扩展功能通过插件实现
   <a href="/plugins/kbrag" class="plugin-link">查看详情 →</a>
 </div>
 
+<div class="plugin-card video">
+  <div class="plugin-header">
+    <span class="plugin-icon">🎬</span>
+    <span class="plugin-badge">官方</span>
+  </div>
+  <h3>视频管理</h3>
+  <p>全能视频/电视直播中心</p>
+  <ul>
+    <li>电视直播管理 (.m3u)</li>
+    <li>Alist/Openlist 视频播放</li>
+    <li>一键部署便携版 FFmpeg</li>
+    <li>硬件加速转码支持</li>
+  </ul>
+  <a href="/plugins/video" class="plugin-link">查看详情 →</a>
+</div>
+
 </div>
 
 <style>
@@ -131,6 +148,7 @@ NavLink 采用插件架构，核心功能精简，扩展功能通过插件实现
   height: 4px;
 }
 
+.plugin-card.video::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
 .plugin-card.docker::before { background: linear-gradient(90deg, #0ea5e9, #2563eb); }
 .plugin-card.vps::before { background: linear-gradient(90deg, #10b981, #059669); }
 .plugin-card.sub::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
@@ -209,6 +227,7 @@ NavLink 采用插件架构，核心功能精简，扩展功能通过插件实现
 
 ```
 data/
+├── video.db     # 视频插件
 ├── docker.db    # Docker 插件
 ├── vps.db       # VPS 插件
 ├── sub.db       # 订阅插件

@@ -17,7 +17,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     const [testingFfmpeg, setTestingFfmpeg] = useState(false);
     const [proxyTestResult, setProxyTestResult] = useState<{ valid: boolean; message: string } | null>(null);
     const [tmdbTestResult, setTmdbTestResult] = useState<{ valid: boolean; message: string } | null>(null);
-    const [ffmpegTestResult, setFfmpegTestResult] = useState<{ available: boolean; version: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } } | null>(null);
+    const [ffmpegTestResult, setFfmpegTestResult] = useState<{ available: boolean; version: string; platform?: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } } | null>(null);
     const [isInstallingFfmpeg, setIsInstallingFfmpeg] = useState(false);
     const [installProgress, setInstallProgress] = useState(0);
 
@@ -100,7 +100,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
         setTestingFfmpeg(true);
         setFfmpegTestResult(null);
 
-        const res = await apiGet<{ available: boolean; version: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } }>('/transcode/detect', {
+        const res = await apiGet<{ available: boolean; version: string; platform?: string; hwaccel?: { nvenc: boolean; qsv: boolean; vaapi: boolean } }>('/transcode/detect', {
             path: settings.ffmpeg_path || ''
         });
 
@@ -467,8 +467,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                                     : '未检测到 FFmpeg'}
                                             </div>
 
-                                            {/* 一键安装按钮 */}
-                                            {!ffmpegTestResult.available && !isInstallingFfmpeg && (
+                                            {/* 一键安装按钮 - 仅限 Linux */}
+                                            {!ffmpegTestResult.available && !isInstallingFfmpeg && ffmpegTestResult.platform === 'linux' && (
                                                 <button
                                                     onClick={handleInstallFfmpeg}
                                                     className="text-orange-400 hover:text-orange-300 underline text-xs ml-4"

@@ -61,6 +61,8 @@ export default defineConfig({
                             link: '/guide/docker-deploy',
                             items: [
                                 { text: '完整 docker-compose.yml', link: '/guide/docker-deploy#完整-docker-compose-yml' },
+                                { text: '.env 文件示例', link: '/guide/docker-deploy#env-文件示例' },
+                                { text: 'Redis 配置场景', link: '/guide/docker-deploy#redis-配置场景指南' },
                                 { text: '环境变量说明', link: '/guide/docker-deploy#环境变量说明' },
                                 { text: '数据目录说明', link: '/guide/docker-deploy#数据目录说明' },
                                 { text: '反向代理配置', link: '/guide/docker-deploy#反向代理配置' },
@@ -151,6 +153,16 @@ export default defineConfig({
                     text: '插件系统',
                     items: [
                         { text: '插件概述', link: '/plugins/' },
+                        {
+                            text: '视频管理 (Video)',
+                            link: '/plugins/video',
+                            items: [
+                                { text: '网络资源站', link: '/plugins/video#网络资源站-cms' },
+                                { text: '电视直播', link: '/plugins/video#电视直播' },
+                                { text: '云盘视频', link: '/plugins/video#云盘视频-alistopenlist' },
+                                { text: '实时转码', link: '/plugins/video#实时转码' }
+                            ]
+                        },
                         {
                             text: 'Docker 管理',
                             link: '/plugins/docker',

@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const transcodeService = require('../services/TranscodeService');
 const path = require('path');
+const os = require('os');
 const ffmpegInstaller = require('../services/FfmpegInstaller');
 
 /**
@@ -45,6 +46,9 @@ router.get('/detect', async (req, res) => {
             const hwaccel = await transcodeService.detectHwAccel();
             result.hwaccel = hwaccel;
         }
+
+        // 增加操作系统平台信息，方便前端判断是否显示安装按钮
+        result.platform = os.platform(); // 'linux', 'darwin', 'win32' 等
 
         res.json({ success: true, data: result });
     } catch (err) {
