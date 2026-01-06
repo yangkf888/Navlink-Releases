@@ -757,6 +757,10 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                  border border-gray-700 focus:border-blue-500 focus:outline-none"
                                         />
                                         <p className="mt-1 text-[10px] text-gray-500">后端可访问的绝对路径</p>
+                                        <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-[10px] text-orange-300/80">
+                                            <span className="font-bold"><i className="fas fa-docker mr-1"></i>Docker 部署提示：</span>
+                                            <span>需先在 docker-compose.yml 中映射宿主机目录，此处填写容器内的路径。</span>
+                                        </div>
                                     </div>
                                 )}
 
