@@ -710,6 +710,7 @@ router.post('/media/:id/play', async (req, res) => {
         let playUrl;
         let isStrm = false;
         let strmRawUrl = null;
+        let sessionId = null;
 
         // 如果是 .strm 格式 (文件名|URL)
         if (videoFile && videoFile.includes('|')) {
@@ -717,12 +718,12 @@ router.post('/media/:id/play', async (req, res) => {
             strmRawUrl = videoFile.split('|')[1];
 
             // 读取转码设置
-            const settings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_enabled'");
-            const modeSettings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_mode'");
-            const qualitySettings = db.get("SELECT value FROM video_settings WHERE key = 'ffmpeg_quality'");
-            const hwaccelSettings = db.get("SELECT value FROM video_settings WHERE key = 'ffmpeg_hwaccel'");
+            const transcodeSettingsRow = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
+            const modeSettings = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_mode'");
+            const qualitySettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_quality'");
+            const hwaccelSettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_hwaccel'");
 
-            const transcodeEnabled = settings?.value === 'true' || settings?.value === '1';
+            const transcodeEnabled = transcodeSettingsRow?.value === 'true' || transcodeSettingsRow?.value === '1';
             const transcodeMode = modeSettings?.value || 'auto';
             const quality = qualitySettings?.value || 'medium';
             const hwaccel = hwaccelSettings?.value || 'none';
@@ -730,10 +731,18 @@ router.post('/media/:id/play', async (req, res) => {
             if (transcodeEnabled && transcodeMode === 'force') {
                 // 强制模式：直接启动转码
                 try {
-                    console.log(`[Netdisk] Starting transcode for STRM: ${strmRawUrl.substring(0, 80)}...`);
-                    const result = await transcodeService.startTranscode(strmRawUrl, { quality, hwaccel });
+                    console.log(`[Netdisk] Starting transcode (force) for STRM: ${strmRawUrl.substring(0, 80)}...`);
+                    const transcodeHeaders = {
+                        'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0'
+                    };
+                    const result = await transcodeService.startTranscode(strmRawUrl, {
+                        quality,
+                        hwaccel,
+                        headers: transcodeHeaders
+                    });
                     playUrl = result.playlistUrl;
-                    console.log(`[Netdisk] Transcode started, playlist: ${playUrl}`);
+                    sessionId = result.sessionId;
+                    console.log(`[Netdisk] Transcode started, sessionId: ${sessionId}, playlist: ${playUrl}`);
                 } catch (err) {
                     console.error('[Netdisk] Transcode failed, fallback to proxy:', err.message);
                     // 转码失败时回退到直接代理
@@ -784,8 +793,8 @@ router.post('/media/:id/play', async (req, res) => {
         }
 
         // 获取转码设置状态（用于前端判断是否可请求转码）
-        const transcodeSettings = db.get("SELECT value FROM video_settings WHERE key = 'strm_transcode_enabled'");
-        const transcodeAvailable = isStrm && (transcodeSettings?.value === 'true' || transcodeSettings?.value === '1');
+        const transcodeSettingsCheck = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
+        const transcodeAvailable = isStrm && (transcodeSettingsCheck?.value === 'true' || transcodeSettingsCheck?.value === '1');
 
         res.json({
             success: true,
@@ -795,9 +804,11 @@ router.post('/media/:id/play', async (req, res) => {
                 videoFiles: media.video_files,
                 isStrm,
                 strmRawUrl: isStrm ? strmRawUrl : undefined,
-                transcodeAvailable
+                transcodeAvailable,
+                sessionId
             }
         });
+
 
     } catch (error) {
         console.error('[Netdisk] Failed to get play URL:', error);

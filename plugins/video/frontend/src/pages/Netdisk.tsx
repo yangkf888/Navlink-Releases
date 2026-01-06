@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { NetdiskSource } from '../types';
-import { apiGet, apiPost } from '../utils/api';
+import { apiGet } from '../utils/api';
 import { NetdiskFilter } from '../components/NetdiskFilter';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -391,16 +391,9 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         }
     };
 
-    const handlePlay = async (item: MediaItem, videoIndex: number = 0) => {
-        try {
-            const res = await apiPost<{ playUrl: string; fileName: string }>(`/netdisk/media/${item.id}/play`, { videoIndex });
-            if (res.success && res.data?.playUrl) {
-                if (onPlay) {
-                    onPlay(item.id, item.source_id, videoIndex);
-                }
-            }
-        } catch (err) {
-            console.error('Failed to get play URL:', err);
+    const handlePlay = (item: MediaItem, videoIndex: number = 0) => {
+        if (onPlay) {
+            onPlay(item.id, item.source_id, videoIndex);
         }
     };
 

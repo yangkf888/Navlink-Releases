@@ -78,6 +78,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const [error, setError] = useState<string | null>(null);
     const [playUrl, setPlayUrl] = useState<string | null>(null);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [transcodingSessionId, setTranscodingSessionId] = useState<string | null>(null);
+    const [isTranscoding, setIsTranscoding] = useState(false);
 
     const playerRef = useRef<HTMLDivElement>(null);
     const artPlayerRef = useRef<any>(null);
@@ -107,8 +109,31 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             if (progressTimerRef.current) {
                 clearInterval(progressTimerRef.current);
             }
+            // 不要在这里直接停止转码，因为切换 playUrl 会触发这个清理，
+            // 而新 session 可能还没建立。停止逻辑放在 getPlayUrl 中。
         };
     }, [playUrl]);
+
+    // 组件卸载或页面关闭时确保停止转码
+    useEffect(() => {
+        const stopTranscoding = () => {
+            if (transcodingSessionId) {
+                // 使用 sendBeacon 或同步 xhr 确保请求发出
+                const url = `/api/plugins/video/api/transcode/${transcodingSessionId}/stop`;
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(url, new Blob(['{}'], { type: 'application/json' }));
+                } else {
+                    apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', stopTranscoding);
+        return () => {
+            stopTranscoding();
+            window.removeEventListener('beforeunload', stopTranscoding);
+        };
+    }, [transcodingSessionId]);
 
     const loadMediaDetail = async () => {
         setLoading(true);
@@ -142,10 +167,27 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     };
 
     const getPlayUrl = async (index: number) => {
+        // 如果已有转码会话，先停止旧的
+        if (transcodingSessionId) {
+            apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
+            setTranscodingSessionId(null);
+        }
+
+        // 🚀 核心优化：如果媒体标题或文件名暗示是 STRM，先给个加载提示
+        if (media?.video_files?.[index]?.includes('|')) {
+            setIsTranscoding(true);
+        }
+
+        setPlayUrl(null);
+
         try {
-            const res = await apiPost<{ playUrl: string }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
+            const res = await apiPost<{ playUrl: string, isStrm?: boolean, transcodeAvailable?: boolean, sessionId?: string }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
             if (res.success && res.data) {
                 setPlayUrl(res.data.playUrl);
+                if (res.data.sessionId) {
+                    setTranscodingSessionId(res.data.sessionId);
+                    setIsTranscoding(true);
+                }
             }
         } catch (err) {
             console.error('Failed to get play URL:', err);
@@ -213,11 +255,48 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 playerConfig.customType = {
                     m3u8: function (video: any, url: any) {
                         if (Hls.isSupported()) {
-                            const hls = new Hls();
+                            const hls = new Hls({
+                                // 深度优化实时转码流参数
+                                maxBufferLength: 20,
+                                maxMaxBufferLength: 40,
+                                enableWorker: true,
+                                lowLatencyMode: true,
+                                fragLoadingMaxRetry: 10,
+                                manifestLoadingMaxRetry: 10,
+                                // 针对转码流，如果分片 404，可能是 FFmpeg 还没写完，增加重试
+                                fragLoadingRetryDelay: 1000,
+                            });
                             hls.loadSource(url);
                             hls.attachMedia(video);
+
+                            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                                setIsTranscoding(false);
+                                video.play().catch(() => { });
+                            });
+
+                            // 针对转码初期的 404 错误优化处理
+                            hls.on(Hls.Events.ERROR, (_, data) => {
+                                if (data.fatal) {
+                                    switch (data.type) {
+                                        case Hls.ErrorTypes.NETWORK_ERROR:
+                                            // 如果是网络错误且正在转码，说明文件还没写好，让他自动重试
+                                            console.warn('HLS Network Error, retrying...', data);
+                                            hls.startLoad();
+                                            break;
+                                        default:
+                                            setIsTranscoding(false);
+                                            console.error('HLS Fatal Error:', data);
+                                            hls.destroy();
+                                            initPlayer(); // 再次重试或回退
+                                            break;
+                                    }
+                                }
+                            });
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = url;
+                            video.addEventListener('loadedmetadata', () => {
+                                setIsTranscoding(false);
+                            });
                         }
                     }
                 };
@@ -225,6 +304,11 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
 
             const player = new Artplayer(playerConfig);
             artPlayerRef.current = player;
+
+            // 如果不是 M3U8，在播放开始时关闭加载提示
+            player.on('play', () => {
+                setIsTranscoding(false);
+            });
 
             // 定时保存进度 (每 30 秒)
             if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -238,6 +322,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
 
         } catch (err) {
             console.error('Failed to init Artplayer:', err);
+            setIsTranscoding(false);
         }
     };
 
@@ -388,6 +473,15 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 <div className="flex-1 min-w-0">
                     <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
                         <div className="w-full h-full" ref={playerRef}></div>
+
+                        {/* 转码加载层 */}
+                        {isTranscoding && (
+                            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10">
+                                <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="text-white font-medium">正在启动实时转码...</p>
+                                <p className="text-gray-400 text-sm mt-2">首次转码可能需要 5-10 秒，请稍候</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* 控制条 */}
