@@ -565,7 +565,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     return (
         <div className="min-h-full bg-secondary">
             {/* 顶部工具栏 - 使用 sticky 定位以保持原本的顶部停留效果，或者直接随页面滚动 */}
-            <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 border-b border-border-color bg-primary flex-wrap">
+            <div className="sticky top-0 z-20 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 py-2.5 lg:py-4 border-b border-border-color glass-effect backdrop-blur-md flex-wrap">
                 {/* 当前位置标题 */}
                 <span className="text-primary font-medium">
                     {currentLevel === 'all'
