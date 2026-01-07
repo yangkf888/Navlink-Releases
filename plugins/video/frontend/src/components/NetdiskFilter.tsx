@@ -102,7 +102,7 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
 
     if (loading) {
         return (
-            <div className="flex items-center gap-2 px-4 py-2 text-gray-400 text-sm">
+            <div className="flex items-center gap-2 px-4 py-2 text-secondary text-sm">
                 <i className="fas fa-spinner animate-spin"></i>
                 <span>加载筛选...</span>
             </div>
@@ -121,8 +121,8 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                 <button
                     onClick={() => setShowDrawer(true)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${getActiveFilterCount() > 0
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        ? 'bg-blue-600 text-primary'
+                        : 'bg-secondary text-primary hover:bg-gray-700'
                         }`}
                 >
                     <i className="fas fa-filter"></i>
@@ -142,24 +142,24 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
 
                         {/* 抽屉内容 */}
                         <div
-                            className="absolute bottom-0 left-0 right-0 bg-gray-900 rounded-t-2xl max-h-[70vh] overflow-y-auto"
+                            className="absolute bottom-0 left-0 right-0 bg-secondary rounded-t-2xl max-h-[70vh] overflow-y-auto"
                             onClick={e => e.stopPropagation()}
                         >
                             {/* 抽屉头部 */}
-                            <div className="sticky top-0 bg-gray-900 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-white">筛选</h3>
+                            <div className="sticky top-0 bg-secondary px-4 py-3 border-b border-border-color flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-primary">筛选</h3>
                                 <div className="flex items-center gap-2">
                                     {getActiveFilterCount() > 0 && (
                                         <button
                                             onClick={clearAllFilters}
-                                            className="text-sm text-gray-400 hover:text-white"
+                                            className="text-sm text-secondary hover:text-primary"
                                         >
                                             清空
                                         </button>
                                     )}
                                     <button
                                         onClick={() => setShowDrawer(false)}
-                                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white"
+                                        className="w-8 h-8 flex items-center justify-center text-secondary hover:text-primary"
                                     >
                                         <i className="fas fa-times"></i>
                                     </button>
@@ -174,7 +174,7 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
 
                                     return (
                                         <div key={cat.key}>
-                                            <h4 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                                            <h4 className="text-sm font-medium text-secondary mb-3 flex items-center gap-2">
                                                 <i className={cat.icon}></i>
                                                 {cat.label}
                                             </h4>
@@ -182,8 +182,8 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                                                 <button
                                                     onClick={() => handleFilterSelect(getFilterKey(cat.key), null)}
                                                     className={`px-3 py-1.5 rounded text-sm transition-colors ${!(activeFilters as any)[getFilterKey(cat.key)]
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'bg-gray-800 text-gray-300'
+                                                        ? 'bg-blue-600 text-primary'
+                                                        : 'bg-secondary text-primary'
                                                         }`}
                                                 >
                                                     全部
@@ -196,8 +196,8 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                                                             opt.value
                                                         )}
                                                         className={`px-3 py-1.5 rounded text-sm transition-colors ${(activeFilters as any)[getFilterKey(cat.key)] === opt.value
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                                                            ? 'bg-blue-600 text-primary'
+                                                            : 'bg-secondary text-primary hover:bg-gray-700'
                                                             }`}
                                                     >
                                                         {opt.value}
@@ -211,10 +211,10 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                             </div>
 
                             {/* 确定按钮 */}
-                            <div className="sticky bottom-0 bg-gray-900 px-4 py-3 border-t border-gray-800">
+                            <div className="sticky bottom-0 bg-secondary px-4 py-3 border-t border-border-color">
                                 <button
                                     onClick={() => setShowDrawer(false)}
-                                    className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium"
+                                    className="w-full py-2.5 bg-blue-600 text-primary rounded-lg font-medium"
                                 >
                                     确定
                                 </button>
@@ -243,8 +243,8 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                         <button
                             onClick={() => setExpandedCategory(isExpanded ? null : cat.key)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors ${activeValue
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                                ? 'bg-blue-600 text-primary'
+                                : 'bg-secondary text-primary hover:bg-gray-700'
                                 }`}
                         >
                             <i className={`${cat.icon} text-xs`}></i>
@@ -254,10 +254,10 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
 
                         {/* 选项下拉 */}
                         {isExpanded && (
-                            <div className="absolute top-full left-0 mt-1 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-20 min-w-[200px] max-h-[300px] overflow-y-auto">
+                            <div className="absolute top-full left-0 mt-1 bg-secondary rounded-lg shadow-xl border border-border-color z-20 min-w-[200px] max-h-[300px] overflow-y-auto">
                                 <button
                                     onClick={() => handleFilterSelect(filterKey, null)}
-                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!activeValue ? 'text-blue-400' : 'text-gray-300'
+                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!activeValue ? 'text-blue-400' : 'text-primary'
                                         }`}
                                 >
                                     全部
@@ -266,11 +266,11 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
                                     <button
                                         key={String(opt.value)}
                                         onClick={() => handleFilterSelect(filterKey, opt.value)}
-                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 flex items-center justify-between ${activeValue === opt.value ? 'text-blue-400' : 'text-gray-300'
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 flex items-center justify-between ${activeValue === opt.value ? 'text-blue-400' : 'text-primary'
                                             }`}
                                     >
                                         <span>{opt.value}</span>
-                                        <span className="text-xs text-gray-500">({opt.count})</span>
+                                        <span className="text-xs text-secondary">({opt.count})</span>
                                     </button>
                                 ))}
                             </div>
@@ -283,7 +283,7 @@ export function NetdiskFilter({ sourceId, onFilterChange, isMobile = false }: Ne
             {getActiveFilterCount() > 0 && (
                 <button
                     onClick={clearAllFilters}
-                    className="flex items-center gap-1 px-2 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 text-sm text-secondary hover:text-primary transition-colors"
                 >
                     <i className="fas fa-times-circle"></i>
                     清空筛选

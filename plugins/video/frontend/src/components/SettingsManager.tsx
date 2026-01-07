@@ -156,9 +156,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     if (loading) {
         return (
             <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-800 rounded w-full"></div>
+                <div className="h-10 bg-secondary rounded w-full"></div>
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                    <div key={i} className="h-16 bg-secondary rounded"></div>
                 ))}
             </div>
         );
@@ -167,15 +167,14 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     return (
         <div className="space-y-6">
             {/* 代理配置 */}
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
                 <h3
-                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
-                    style={{ color: '#fff' }}
+                    className="text-lg font-medium text-primary mb-4 flex items-center gap-2"
                 >
                     <i className="fas fa-network-wired text-blue-400"></i>
                     代理配置
                 </h3>
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-secondary text-sm mb-4">
                     配置网络代理服务器，用于访问外部采集站和资源
                 </p>
 
@@ -188,18 +187,18 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             onChange={e => setSettings(prev => ({ ...prev, proxy_enabled: e.target.checked }))}
                             className="w-5 h-5 rounded"
                         />
-                        <span className="text-gray-300">启用代理</span>
+                        <span className="text-primary">启用代理</span>
                     </label>
 
                     {settings.proxy_enabled && (
                         <>
                             {/* 代理类型 */}
                             <div className="max-w-xs">
-                                <label className="block text-gray-400 text-sm mb-2">代理类型</label>
+                                <label className="block text-secondary text-sm mb-2">代理类型</label>
                                 <select
                                     value={settings.proxy_type || 'http'}
                                     onChange={e => setSettings(prev => ({ ...prev, proxy_type: e.target.value as 'http' | 'socks5' }))}
-                                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-blue-500 focus:outline-none"
                                 >
                                     <option value="http">HTTP</option>
@@ -210,24 +209,24 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             {/* 服务器地址和端口 */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="md:col-span-3">
-                                    <label className="block text-gray-400 text-sm mb-2">服务器地址</label>
+                                    <label className="block text-secondary text-sm mb-2">服务器地址</label>
                                     <input
                                         type="text"
                                         value={settings.proxy_host || ''}
                                         onChange={e => setSettings(prev => ({ ...prev, proxy_host: e.target.value }))}
                                         placeholder="127.0.0.1"
-                                        className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                                  focus:border-blue-500 focus:outline-none"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-gray-400 text-sm mb-2">端口</label>
+                                    <label className="block text-secondary text-sm mb-2">端口</label>
                                     <input
                                         type="number"
                                         value={settings.proxy_port || ''}
                                         onChange={e => setSettings(prev => ({ ...prev, proxy_port: parseInt(e.target.value) || 0 }))}
                                         placeholder="7890"
-                                        className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                                  focus:border-blue-500 focus:outline-none"
                                     />
                                 </div>
@@ -241,28 +240,28 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                     onChange={e => setSettings(prev => ({ ...prev, proxy_auth_enabled: e.target.checked }))}
                                     className="w-4 h-4 rounded"
                                 />
-                                <span className="text-gray-400 text-sm">需要认证</span>
+                                <span className="text-secondary text-sm">需要认证</span>
                             </label>
 
                             {settings.proxy_auth_enabled && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-gray-400 text-sm mb-2">用户名</label>
+                                        <label className="block text-secondary text-sm mb-2">用户名</label>
                                         <input
                                             type="text"
                                             value={settings.proxy_username || ''}
                                             onChange={e => setSettings(prev => ({ ...prev, proxy_username: e.target.value }))}
-                                            className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                                      focus:border-blue-500 focus:outline-none"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-gray-400 text-sm mb-2">密码</label>
+                                        <label className="block text-secondary text-sm mb-2">密码</label>
                                         <input
                                             type="password"
                                             value={settings.proxy_password || ''}
                                             onChange={e => setSettings(prev => ({ ...prev, proxy_password: e.target.value }))}
-                                            className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                                      focus:border-blue-500 focus:outline-none"
                                         />
                                     </div>
@@ -276,7 +275,6 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                     disabled={testingProxy || !settings.proxy_host || !settings.proxy_port}
                                     className="px-4 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 
                                              transition-colors disabled:opacity-50 flex items-center gap-2"
-                                    style={{ color: '#fff' }}
                                 >
                                     {testingProxy ? (
                                         <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -297,15 +295,14 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             </div>
 
             {/* 安全设置 */}
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
                 <h3
-                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
-                    style={{ color: '#fff' }}
+                    className="text-lg font-medium text-primary mb-4 flex items-center gap-2"
                 >
                     <i className="fas fa-shield-alt text-green-400"></i>
                     安全设置
                 </h3>
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-secondary text-sm mb-4">
                     开启后访问后台需要输入密码，输入密码也可查看隐藏的视频源
                 </p>
 
@@ -318,30 +315,30 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             onChange={e => setSettings(prev => ({ ...prev, admin_password_enabled: e.target.checked }))}
                             className="w-5 h-5 rounded"
                         />
-                        <span className="text-gray-300">启用访问密码</span>
+                        <span className="text-primary">启用访问密码</span>
                     </label>
 
                     {settings.admin_password_enabled && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">设置密码</label>
+                                <label className="block text-secondary text-sm mb-2">设置密码</label>
                                 <input
                                     type="password"
                                     value={settings.admin_password || ''}
                                     onChange={e => setSettings(prev => ({ ...prev, admin_password: e.target.value }))}
                                     placeholder="输入访问密码"
-                                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-green-500 focus:outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">确认密码</label>
+                                <label className="block text-secondary text-sm mb-2">确认密码</label>
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     placeholder="再次输入密码"
-                                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-green-500 focus:outline-none"
                                 />
                             </div>
@@ -351,30 +348,29 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             </div>
 
             {/* TMDB API 设置 */}
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
                 <h3
-                    className="text-lg font-medium text-white mb-4 flex items-center gap-2"
-                    style={{ color: '#fff' }}
+                    className="text-lg font-medium text-primary mb-4 flex items-center gap-2"
                 >
                     <i className="fas fa-film text-purple-400"></i>
                     TMDB API 设置
                 </h3>
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-secondary text-sm mb-4">
                     API Key 用于获取电影、电视剧的详细信息、海报、演员等信息
                 </p>
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-gray-400 text-sm mb-2">API Key</label>
+                        <label className="block text-secondary text-sm mb-2">API Key</label>
                         <input
                             type="text"
                             value={settings.tmdb_api_key || ''}
                             onChange={e => setSettings(prev => ({ ...prev, tmdb_api_key: e.target.value }))}
                             placeholder="输入 TMDB API Key"
-                            className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                      focus:border-purple-500 focus:outline-none"
                         />
-                        <p className="text-gray-500 text-xs mt-1">
+                        <p className="text-secondary text-xs mt-1">
                             从 <a href="https://www.themoviedb.org/settings/api" target="_blank" className="text-purple-400 hover:underline">TMDB</a> 获取
                         </p>
                     </div>
@@ -385,7 +381,6 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             disabled={testingTmdb || !settings.tmdb_api_key}
                             className="px-4 py-2 bg-purple-500 rounded-lg hover:bg-purple-600 
                                      transition-colors disabled:opacity-50 flex items-center gap-2"
-                            style={{ color: '#fff' }}
                         >
                             {testingTmdb ? (
                                 <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -404,7 +399,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             </div>
 
             {/* STRM 转码设置 */}
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+            <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
                         <i className="fas fa-film text-orange-400"></i>
@@ -412,7 +407,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                     <h3 className="text-lg font-bold">STRM 转码设置</h3>
                 </div>
 
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-secondary text-sm mb-4">
                     当 STRM 链接的视频（如 HEVC 编码）无法直接播放时，使用 FFmpeg 转码为兼容格式
                 </p>
 
@@ -423,7 +418,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             type="checkbox"
                             checked={settings.strm_transcode_enabled || false}
                             onChange={e => setSettings(prev => ({ ...prev, strm_transcode_enabled: e.target.checked }))}
-                            className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-orange-500 
+                            className="w-5 h-5 rounded bg-secondary border-border-color text-orange-500 
                                      focus:ring-orange-500 focus:ring-offset-0"
                         />
                         <span>启用 STRM 转码</span>
@@ -433,14 +428,14 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                         <>
                             {/* FFmpeg 路径 */}
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">FFmpeg 路径</label>
+                                <label className="block text-secondary text-sm mb-2">FFmpeg 路径</label>
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
                                         value={settings.ffmpeg_path || ''}
                                         onChange={e => setSettings(prev => ({ ...prev, ffmpeg_path: e.target.value }))}
                                         placeholder="ffmpeg (留空使用系统默认)"
-                                        className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                        className="flex-1 px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                                  focus:border-orange-500 focus:outline-none"
                                     />
                                     <button
@@ -448,7 +443,6 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                         disabled={testingFfmpeg}
                                         className="px-4 py-2 bg-orange-500 rounded-lg hover:bg-orange-600 
                                                  transition-colors disabled:opacity-50 whitespace-nowrap"
-                                        style={{ color: '#fff' }}
                                     >
                                         {testingFfmpeg ? (
                                             <><i className="fas fa-spinner fa-spin"></i></>
@@ -480,22 +474,22 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
                                         {/* 安装进度条 */}
                                         {isInstallingFfmpeg && (
-                                            <div className="mt-2 w-full bg-gray-700 rounded-full h-2.5">
+                                            <div className="mt-2 w-full bg-secondary/80 rounded-full h-2.5">
                                                 <div
                                                     className="bg-orange-500 h-2.5 rounded-full transition-all duration-300"
                                                     style={{ width: `${installProgress}%` }}
                                                 ></div>
-                                                <p className="text-xs text-gray-400 mt-1 text-center">正在下载并安装... {installProgress}%</p>
+                                                <p className="text-xs text-secondary mt-1 text-center">正在下载并安装... {installProgress}%</p>
                                             </div>
                                         )}
 
                                         {ffmpegTestResult.hwaccel && (
-                                            <span className="ml-2 text-gray-400">
+                                            <span className="ml-2 text-secondary">
                                                 硬件加速:
                                                 {ffmpegTestResult.hwaccel.nvenc && <span className="text-green-400 ml-1">NVENC</span>}
                                                 {ffmpegTestResult.hwaccel.qsv && <span className="text-green-400 ml-1">QSV</span>}
                                                 {ffmpegTestResult.hwaccel.vaapi && <span className="text-green-400 ml-1">VA-API</span>}
-                                                {!ffmpegTestResult.hwaccel.nvenc && !ffmpegTestResult.hwaccel.qsv && !ffmpegTestResult.hwaccel.vaapi && <span className="text-gray-500 ml-1">无</span>}
+                                                {!ffmpegTestResult.hwaccel.nvenc && !ffmpegTestResult.hwaccel.qsv && !ffmpegTestResult.hwaccel.vaapi && <span className="text-secondary ml-1">无</span>}
                                             </span>
                                         )}
                                     </div>
@@ -504,7 +498,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
                             {/* 转码模式 */}
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">转码模式</label>
+                                <label className="block text-secondary text-sm mb-2">转码模式</label>
                                 <div className="flex gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -514,7 +508,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                             onChange={() => setSettings(prev => ({ ...prev, strm_transcode_mode: 'auto' }))}
                                             className="text-orange-500 focus:ring-orange-500"
                                         />
-                                        <span>自动 <span className="text-gray-500 text-sm">(播放失败时转码)</span></span>
+                                        <span>自动 <span className="text-secondary text-sm">(播放失败时转码)</span></span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -524,18 +518,18 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                             onChange={() => setSettings(prev => ({ ...prev, strm_transcode_mode: 'force' }))}
                                             className="text-orange-500 focus:ring-orange-500"
                                         />
-                                        <span>强制 <span className="text-gray-500 text-sm">(所有 STRM 都转码)</span></span>
+                                        <span>强制 <span className="text-secondary text-sm">(所有 STRM 都转码)</span></span>
                                     </label>
                                 </div>
                             </div>
 
                             {/* 硬件加速 */}
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">硬件加速</label>
+                                <label className="block text-secondary text-sm mb-2">硬件加速</label>
                                 <select
                                     value={settings.ffmpeg_hwaccel || 'none'}
                                     onChange={e => setSettings(prev => ({ ...prev, ffmpeg_hwaccel: e.target.value as Settings['ffmpeg_hwaccel'] }))}
-                                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-orange-500 focus:outline-none"
                                 >
                                     <option value="none">无 (CPU 软解)</option>
@@ -547,7 +541,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
                             {/* 输出质量 */}
                             <div>
-                                <label className="block text-gray-400 text-sm mb-2">输出质量</label>
+                                <label className="block text-secondary text-sm mb-2">输出质量</label>
                                 <div className="flex gap-4">
                                     {[
                                         { value: 'fast', label: '快速', desc: '速度优先' },
@@ -560,9 +554,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                                 name="ffmpeg_quality"
                                                 checked={(settings.ffmpeg_quality || 'medium') === opt.value}
                                                 onChange={() => setSettings(prev => ({ ...prev, ffmpeg_quality: opt.value as Settings['ffmpeg_quality'] }))}
-                                                className="text-orange-500 focus:ring-orange-500"
+                                                className="bg-secondary border-border-color text-orange-500 focus:ring-orange-500"
                                             />
-                                            <span>{opt.label} <span className="text-gray-500 text-sm">({opt.desc})</span></span>
+                                            <span>{opt.label} <span className="text-secondary text-sm">({opt.desc})</span></span>
                                         </label>
                                     ))}
                                 </div>
@@ -578,7 +572,6 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                 disabled={saving}
                 className="px-6 py-3 bg-red-500 rounded-lg hover:bg-red-600 
                          transition-colors disabled:opacity-50 font-medium"
-                style={{ color: '#fff' }}
             >
                 {saving ? (
                     <><i className="fas fa-spinner fa-spin mr-2"></i> 保存中...</>

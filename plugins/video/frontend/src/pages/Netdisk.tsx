@@ -431,11 +431,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         <div
             key={item.id}
             onClick={() => handlePlay(item)}
-            className="video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group"
         >
             {/* 封面部分 */}
             <div className="relative">
-                <div className="aspect-[2/3] overflow-hidden bg-gray-900">
+                <div className="aspect-[2/3] overflow-hidden bg-secondary">
                     {item.poster_url ? (
                         <img
                             src={item.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}` : item.poster_url}
@@ -454,17 +454,17 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     ) : null}
 
                     {/* 降级文字封面 (暂无图片时显示) */}
-                    <div className="poster-fallback w-full h-full flex flex-col items-center justify-center p-4 bg-gray-800"
+                    <div className="poster-fallback w-full h-full flex flex-col items-center justify-center p-4 bg-secondary"
                         style={{ display: item.poster_url ? 'none' : 'flex' }}>
                         <i className={`fas ${item.media_type === 'tvshow' ? 'fa-tv text-purple-400/60' : 'fa-film text-blue-400/60'} text-4xl mb-3`}></i>
-                        <p className="text-gray-500 text-[11px] text-center line-clamp-3 px-2 leading-relaxed">{item.title}</p>
+                        <p className="text-secondary text-[11px] text-center line-clamp-3 px-2 leading-relaxed">{item.title}</p>
                     </div>
                 </div>
 
                 {/* 悬停遮罩 */}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
                               transition-opacity flex items-center justify-center border-b-2 border-red-500">
-                    <i className="fas fa-play-circle text-4xl text-white"></i>
+                    <i className="fas fa-play-circle text-4xl text-primary"></i>
                 </div>
 
                 {/* 评分 (右上角) */}
@@ -479,7 +479,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {/* 年份/备注 (右下角) */}
                 {item.year && (
                     <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-500/90 
-                                   text-[10px] text-white rounded font-medium">
+                                   text-[10px] text-primary rounded font-medium">
                         {item.year}
                     </span>
                 )}
@@ -487,11 +487,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
 
             {/* 信息部分 (底部) */}
             <div className="p-3">
-                <h3 className="text-white text-sm font-medium truncate" title={item.title}>
+                <h3 className="text-primary text-sm font-medium truncate" title={item.title}>
                     {item.title}
                 </h3>
                 <div className="flex items-center justify-between mt-1">
-                    <span className="text-gray-500 text-[11px] truncate flex-1 mr-2" title={item.actor}>
+                    <span className="text-secondary text-[11px] truncate flex-1 mr-2" title={item.actor}>
                         {item.actor ? item.actor.split(/[,，/\s]/)[0].trim() : (item.media_type === 'tvshow' ? '剧集系列' : '电影视频')}
                     </span>
                     {item.video_files.length > 1 && (
@@ -510,8 +510,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             key={`load-more-${path}`}
             onClick={() => loadMoreForDirectory(path)}
             disabled={isLoading}
-            className="aspect-[2/3] bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-700 
-                     hover:border-red-500 hover:bg-gray-800 transition-all duration-300
+            className="aspect-[2/3] bg-secondary/50 rounded-lg border-2 border-dashed border-border-color 
+                     hover:border-red-500 hover:bg-secondary transition-all duration-300
                      flex flex-col items-center justify-center gap-3 group
                      disabled:opacity-50 disabled:cursor-wait"
         >
@@ -520,14 +520,14 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center">
                         <i className="fas fa-spinner fa-spin text-2xl text-red-400"></i>
                     </div>
-                    <span className="text-gray-400 text-sm font-medium">加载中...</span>
+                    <span className="text-secondary text-sm font-medium">加载中...</span>
                 </>
             ) : (
                 <>
                     <div className="w-14 h-14 rounded-full bg-gray-700 group-hover:bg-red-500/20 flex items-center justify-center transition-colors">
-                        <i className="fas fa-plus text-2xl text-gray-400 group-hover:text-red-400 transition-colors"></i>
+                        <i className="fas fa-plus text-2xl text-secondary group-hover:text-red-400 transition-colors"></i>
                     </div>
-                    <span className="text-gray-400 group-hover:text-white text-sm font-medium transition-colors">
+                    <span className="text-secondary group-hover:text-primary text-sm font-medium transition-colors">
                         加载更多
                     </span>
                 </>
@@ -537,7 +537,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
 
     if (sources.length === 0 && !loading && currentLevel === 'all') {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="flex flex-col items-center justify-center h-full text-secondary">
                 <i className="fas fa-cloud text-6xl mb-4 opacity-50"></i>
                 <p className="text-lg">暂无媒体库</p>
                 <p className="text-sm mt-2">请到后台管理添加媒体库</p>
@@ -550,10 +550,10 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             <div className="p-6 animate-pulse space-y-8">
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
-                        <div className="h-6 bg-gray-800 rounded w-32"></div>
+                        <div className="h-6 bg-secondary rounded w-32"></div>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                             {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 6)].map((_, j) => (
-                                <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                                <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
                     </div>
@@ -563,11 +563,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     }
 
     return (
-        <div className="min-h-full bg-gray-900">
+        <div className="min-h-full bg-secondary">
             {/* 顶部工具栏 - 使用 sticky 定位以保持原本的顶部停留效果，或者直接随页面滚动 */}
-            <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 border-b border-gray-800 bg-gray-950 flex-wrap">
+            <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 border-b border-border-color bg-primary flex-wrap">
                 {/* 当前位置标题 */}
-                <span className="text-white font-medium">
+                <span className="text-primary font-medium">
                     {currentLevel === 'all'
                         ? '全部媒体'
                         : currentLevel === 'source'
@@ -611,7 +611,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {currentLevel === 'all' ? (
                     /* 一级视图：全部网盘（类似 SourceOverview） */
                     sourceSections.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-secondary">
                             <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                             <p>暂无媒体内容</p>
                             <p className="text-sm mt-2">请先在后台扫描媒体库</p>
@@ -620,14 +620,14 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         sourceSections.map(section => (
                             <section key={section.sourceId}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <h2 className="text-lg font-bold text-primary flex items-center gap-2">
                                         <i className={`fas ${section.sourceType === 'local' ? 'fa-hdd text-green-400' : section.sourceType === 'webdav' ? 'fa-server text-orange-400' : 'fa-cloud text-blue-400'}`}></i>
                                         {section.sourceName}
-                                        <span className="text-sm font-normal text-gray-500">({section.total})</span>
+                                        <span className="text-sm font-normal text-secondary">({section.total})</span>
                                     </h2>
                                     <button
                                         onClick={() => navigateToSource(section.sourceId)}
-                                        className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                                        className="text-sm text-secondary hover:text-primary transition-colors flex items-center gap-1"
                                     >
                                         更多
                                         <i className="fas fa-chevron-right text-xs"></i>
@@ -642,7 +642,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 ) : currentLevel === 'source' ? (
                     /* 二级视图：网盘源的扫描目录（类似 Category 子分类概览） */
                     directorySections.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-secondary">
                             <i className="fas fa-folder-open text-4xl mb-4 opacity-50"></i>
                             <p>暂无媒体内容</p>
                             <p className="text-sm mt-2">请先在后台扫描此媒体库</p>
@@ -652,7 +652,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             {/* 网盘源标题 */}
                             <div className="flex items-center gap-2">
                                 <i className="fas fa-hdd text-blue-400"></i>
-                                <h1 className="text-xl font-bold text-white">{getCurrentSourceName()}</h1>
+                                <h1 className="text-xl font-bold text-primary">{getCurrentSourceName()}</h1>
                             </div>
 
                             {/* 扫描目录板块 */}
@@ -660,12 +660,12 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                 <section key={section.path}>
                                     <div className="flex items-center justify-between mb-4">
                                         <h2
-                                            className="text-lg font-bold text-white flex items-center gap-2 cursor-pointer hover:text-blue-400 transition-colors group"
+                                            className="text-lg font-bold text-primary flex items-center gap-2 cursor-pointer hover:text-blue-400 transition-colors group"
                                             onClick={() => navigateToDirectory(currentSourceId!, section.path)}
                                         >
                                             <i className="fas fa-folder text-yellow-400 group-hover:scale-110 transition-transform"></i>
                                             {section.name}
-                                            <span className="text-sm text-gray-500 font-normal">
+                                            <span className="text-sm text-secondary font-normal">
                                                 ({section.items.length}{section.hasMore ? '+' : ''})
                                             </span>
                                             <i className="fas fa-chevron-right text-xs opacity-0 group-hover:opacity-100 transition-opacity ml-1"></i>
@@ -673,7 +673,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                         {section.hasMore && (
                                             <button
                                                 onClick={() => navigateToDirectory(currentSourceId!, section.path)}
-                                                className="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+                                                className="text-xs text-secondary hover:text-blue-400 transition-colors"
                                             >
                                                 查看全部
                                             </button>
@@ -694,11 +694,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         {/* 目录标题 */}
                         <div className="flex items-center gap-2">
                             <i className="fas fa-folder text-yellow-400"></i>
-                            <h1 className="text-xl font-bold text-white">{getCurrentDirectoryName()}</h1>
+                            <h1 className="text-xl font-bold text-primary">{getCurrentDirectoryName()}</h1>
                         </div>
 
                         {media.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">
+                            <div className="text-center py-12 text-secondary">
                                 <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                                 <p>暂无媒体内容</p>
                                 <p className="text-sm mt-2">此目录下还没有扫描到影视内容</p>
@@ -712,7 +712,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                 {/* 无限滚动加载触发器 */}
                                 <div
                                     ref={loadMoreRef}
-                                    className="h-16 flex items-center justify-center mt-4 cursor-pointer hover:bg-gray-800/30 rounded-lg transition-colors"
+                                    className="h-16 flex items-center justify-center mt-4 cursor-pointer hover:bg-secondary/30 rounded-lg transition-colors"
                                     onClick={() => {
                                         if (hasMore && !loadingMore) {
                                             loadMoreMedia();
@@ -720,7 +720,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     }}
                                 >
                                     {(loadingMore || hasMore) && (
-                                        <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                        <div className="flex items-center gap-2 text-secondary text-sm">
                                             {loadingMore ? (
                                                 <>
                                                     <i className="fas fa-spinner animate-spin text-blue-400"></i>
@@ -728,14 +728,14 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <i className="fas fa-arrow-down animate-bounce text-gray-500"></i>
+                                                    <i className="fas fa-arrow-down animate-bounce text-secondary"></i>
                                                     <span>加载更多 (点击或滚动)</span>
                                                 </>
                                             )}
                                         </div>
                                     )}
                                     {!hasMore && media.length > 0 && (
-                                        <span className="text-gray-500 text-sm">已加载全部内容</span>
+                                        <span className="text-secondary text-sm">已加载全部内容</span>
                                     )}
                                 </div>
                             </>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Video, Category as CategoryType, Pagination } from '../types';
 import { apiGet } from '../utils/api';
-import { CategoryNav } from '../components/CategoryNav';
 import { VideoCard } from '../components/VideoCard';
 
 interface CategoryProps {
@@ -33,7 +32,7 @@ const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
 // 每次加载更多的数量：一页（12个）
 const LOAD_MORE_COUNT = 12;
 
-export function Category({ sourceId, categoryId, categoryName, subCategories, categories = [], onNavigate }: CategoryProps) {
+export function Category({ sourceId, categoryId, categoryName, subCategories, onNavigate }: CategoryProps) {
     const [videos, setVideos] = useState<Video[]>([]);
     const [sections, setSections] = useState<SubCategorySection[]>([]);
     const [loading, setLoading] = useState(true);
@@ -236,15 +235,6 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
 
     return (
         <>
-            {/* 顶部导航 */}
-            {sourceId && categories.length > 0 && (
-                <CategoryNav
-                    categories={categories}
-                    sourceId={sourceId}
-                    currentCategoryId={categoryId}
-                    onNavigate={onNavigate}
-                />
-            )}
 
             {loading ? (
                 <div className="p-6 animate-pulse space-y-8">
@@ -252,10 +242,10 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                         // 概览模式骨架
                         [...Array(3)].map((_, i) => (
                             <div key={i} className="space-y-4">
-                                <div className="h-6 bg-gray-800 rounded w-32"></div>
+                                <div className="h-6 bg-secondary rounded w-32"></div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                     {[...Array(INITIAL_COUNT + 1)].map((_, j) => (
-                                        <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                                        <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                                     ))}
                                 </div>
                             </div>
@@ -264,7 +254,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                         // 列表模式骨架
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                             {[...Array(18)].map((_, i) => (
-                                <div key={i} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                                <div key={i} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
                     )}
@@ -274,7 +264,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                 (() => {
                     if (sections.length === 0) {
                         return (
-                            <div className="p-6 text-center py-12 text-gray-500">
+                            <div className="p-6 text-center py-12 text-secondary">
                                 <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                                 <p>该分类暂无内容</p>
                             </div>
@@ -287,7 +277,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                             {categoryName && (
                                 <div className="flex items-center gap-2">
                                     <i className="fas fa-folder text-red-400"></i>
-                                    <h1 className="text-xl font-bold text-white">{categoryName}</h1>
+                                    <h1 className="text-xl font-bold text-primary">{categoryName}</h1>
                                 </div>
                             )}
 
@@ -295,10 +285,10 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                             {sections.map(section => (
                                 <section key={section.id}>
                                     <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                            <i className="fas fa-tag text-gray-400"></i>
+                                        <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+                                            <i className="fas fa-tag text-secondary"></i>
                                             {section.name}
-                                            <span className="text-sm text-gray-500 font-normal">
+                                            <span className="text-sm text-secondary font-normal">
                                                 ({section.videos.length}+)
                                             </span>
                                         </h2>
@@ -316,8 +306,8 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                                             <button
                                                 onClick={() => loadMoreForSection(section.id)}
                                                 disabled={section.loading}
-                                                className="aspect-[2/3] bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-700 
-                                                         hover:border-red-500 hover:bg-gray-800 transition-all duration-300
+                                                className="aspect-[2/3] bg-secondary/50 rounded-lg border-2 border-dashed border-border-color 
+                                                         hover:border-red-500 hover:bg-secondary transition-all duration-300
                                                          flex flex-col items-center justify-center gap-3 group
                                                          disabled:opacity-50 disabled:cursor-wait"
                                             >
@@ -327,7 +317,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                                                                       flex items-center justify-center">
                                                             <i className="fas fa-spinner fa-spin text-2xl text-red-400"></i>
                                                         </div>
-                                                        <span className="text-gray-400 text-sm font-medium">
+                                                        <span className="text-secondary text-sm font-medium">
                                                             加载中...
                                                         </span>
                                                     </>
@@ -335,9 +325,9 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                                                     <>
                                                         <div className="w-14 h-14 rounded-full bg-gray-700 group-hover:bg-red-500/20 
                                                                       flex items-center justify-center transition-colors">
-                                                            <i className="fas fa-plus text-2xl text-gray-400 group-hover:text-red-400 transition-colors"></i>
+                                                            <i className="fas fa-plus text-2xl text-secondary group-hover:text-red-400 transition-colors"></i>
                                                         </div>
-                                                        <span className="text-gray-400 group-hover:text-white text-sm font-medium transition-colors">
+                                                        <span className="text-secondary group-hover:text-primary text-sm font-medium transition-colors">
                                                             加载更多
                                                         </span>
                                                     </>
@@ -356,7 +346,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                 <div className="p-4 lg:p-6 space-y-4">
                     {/* 当前分类标题 */}
                     {categoryName && (
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                             <i className="fas fa-folder text-red-400"></i>
                             {categoryName}
                         </h2>
@@ -378,18 +368,18 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, ca
                             {/* 探针：用于触发无限滚动加载 */}
                             <div ref={loaderRef} className="h-10 flex items-center justify-center mt-4">
                                 {pagination && page < pagination.pagecount && (
-                                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                    <div className="flex items-center gap-2 text-secondary text-sm">
                                         <i className="fas fa-spinner fa-spin"></i>
                                         <span>正在加载更多内容... ({page} / {pagination.pagecount})</span>
                                     </div>
                                 )}
                                 {pagination && page >= pagination.pagecount && videos.length > 0 && (
-                                    <span className="text-gray-500 text-sm italic">已经到底啦 ~</span>
+                                    <span className="text-secondary text-sm italic">已经到底啦 ~</span>
                                 )}
                             </div>
                         </>
                     ) : (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-secondary">
                             <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                             <p>暂无视频</p>
                         </div>

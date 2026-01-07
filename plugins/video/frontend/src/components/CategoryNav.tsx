@@ -186,7 +186,7 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
     };
 
     return (
-        <div className="w-full bg-gray-900/80 border-b border-gray-800 backdrop-blur-md sticky top-0 z-10 transition-colors duration-300">
+        <div className="w-full glass-effect relative z-30 transition-all duration-300 border-b border-border-color">
             {/* Top Level Categories Row */}
             <div
                 ref={containerRef}
@@ -205,13 +205,13 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
                                 key={cat.type_id}
                                 onClick={() => handleTopLevelClick(cat)}
                                 className={`
-                                    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200
+                                    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300
                                     ${isActive
-                                        ? 'bg-blue-600/90 text-white shadow-md shadow-blue-500/20 scale-105'
-                                        : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'}
+                                        ? 'active-brand-item shadow-lg shadow-blue-500/30 scale-105'
+                                        : 'bg-secondary/40 text-secondary hover:bg-secondary/80 hover:text-primary'}
                                 `}
                             >
-                                <i className={icon}></i>
+                                <i className={`${icon} ${isActive ? 'scale-110' : 'text-secondary/70'}`}></i>
                                 {cat.name}
                             </button>
                         );
@@ -229,22 +229,22 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
                             setIsExpanded(!isExpanded);
                         }}
                         className={`
-                            w-8 h-4 flex items-center justify-center bg-gray-800/30 hover:bg-gray-700/50 rounded-b-lg transition-all
-                            ${isExpanded ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500'}
-                        `}
+                                w-10 h-5 flex items-center justify-center bg-secondary/50 hover:bg-secondary/80 rounded-b-xl transition-all border-x border-b border-border-color
+                                ${isExpanded ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' : 'text-secondary/60'}
+                            `}
                     >
-                        <i className={`fas fa-chevron-down text-[10px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}></i>
+                        <i className={`fas fa-chevron-down text-[9px] transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`}></i>
                     </button>
                 </div>
             )}
 
             {/* Sub Categories Row (Visible if Active Top Level has subs) */}
             {activeSubCats.length > 0 && (
-                <div className="flex flex-wrap items-center px-4 py-2 border-t border-gray-800/50 bg-gray-950/30 gap-2 transition-colors duration-300">
-                    <span className="flex items-center text-sm text-gray-500 font-bold px-2 uppercase tracking-wider shrink-0 mr-1 select-none">
+                <div className="flex flex-wrap items-center px-4 py-2 bg-secondary/20 backdrop-blur-sm gap-2 transition-all duration-300 border-t border-border-color">
+                    <span className="flex items-center text-[11px] text-secondary font-bold px-2 uppercase tracking-tight shrink-0 mr-1 select-none opacity-60">
                         {topLevelCats.find(c => c.type_id === activeTopLevelId)?.name}
                     </span>
-                    <div className="h-4 w-px bg-gray-700 mx-1 shrink-0"></div>
+                    <div className="h-3 w-px bg-white/10 mx-1 shrink-0"></div>
                     {activeSubCats.map(sub => {
                         const isSubActive = currentCategoryId === sub.type_id;
 
@@ -253,10 +253,10 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
                                 key={sub.type_id}
                                 onClick={() => handleSubLevelClick(sub)}
                                 className={`
-                                    px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-all duration-200
+                                    px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-300
                                     ${isSubActive
-                                        ? 'bg-gray-800 text-white font-bold'
-                                        : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}
+                                        ? 'bg-tertiary text-primary shadow-sm ring-1 ring-white/10'
+                                        : 'text-secondary hover:text-primary hover:bg-white/5'}
                                 `}
                             >
                                 {sub.name}

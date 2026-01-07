@@ -169,7 +169,7 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
     // 获取延迟显示样式
     const getLatencyStyle = (result: LatencyResult | undefined) => {
         if (!result) {
-            return { color: 'text-gray-500', icon: 'fa-question-circle', text: '未测试' };
+            return { color: 'text-secondary', icon: 'fa-question-circle', text: '未测试' };
         }
         if (result.loading) {
             return { color: 'text-yellow-400', icon: 'fa-spinner fa-spin', text: '测速中...' };
@@ -202,15 +202,14 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
     return (
         <div className="space-y-6">
             {/* 头部说明 */}
-            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+            <div className="bg-secondary/50 border border-border-color rounded-lg p-4">
                 <h3
-                    className="text-lg font-semibold text-white mb-2 flex items-center gap-2"
-                    style={{ color: '#fff' }}
+                    className="text-lg font-semibold text-primary mb-2 flex items-center gap-2"
                 >
                     <i className="fas fa-home text-blue-400"></i>
                     首页聚合资源站
                 </h3>
-                <p className="text-gray-400 text-sm">
+                <p className="text-secondary text-sm">
                     选择参与首页内容聚合的资源站。建议选择响应速度快（绿色）的站点，以加快首页加载速度。
                 </p>
             </div>
@@ -218,16 +217,15 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
             {/* 操作栏 */}
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm">
-                        已选择 <span className="text-blue-400 font-medium">{selectedCount}</span> / {totalCount} 个资源站
+                    <span className="text-secondary text-sm">
+                        已选择 <span className="text-blue-500 font-medium">{selectedCount}</span> / {totalCount} 个资源站
                     </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={testAllLatency}
                         disabled={testingAll}
-                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1.5 text-sm bg-secondary hover:bg-secondary/80 text-primary border border-border-color rounded-lg transition-colors disabled:opacity-50"
                     >
                         {testingAll ? (
                             <><i className="fas fa-spinner fa-spin mr-1"></i> 测速中...</>
@@ -237,31 +235,27 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
                     </button>
                     <button
                         onClick={handleSelectAll}
-                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1.5 text-sm bg-secondary hover:bg-secondary/80 text-primary border border-border-color rounded-lg transition-colors"
                     >
                         全选
                     </button>
                     <button
                         onClick={handleSelectNone}
-                        className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1.5 text-sm bg-secondary hover:bg-secondary/80 text-primary border border-border-color rounded-lg transition-colors"
                     >
                         清空
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50"
-                        style={{ color: '#fff' }}
+                        className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
                     >
                         {saving ? '保存中...' : '保存设置'}
                     </button>
                     <button
                         onClick={handleRefreshHome}
                         disabled={refreshing}
-                        className="px-4 py-1.5 text-sm bg-green-600 hover:bg-green-500 rounded-lg transition-colors disabled:opacity-50"
-                        style={{ color: '#fff' }}
+                        className="px-4 py-1.5 text-sm bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50"
                     >
                         {refreshing ? '刷新中...' : '刷新首页'}
                     </button>
@@ -283,7 +277,7 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
                                 relative p-4 rounded-lg border cursor-pointer transition-all
                                 ${isSelected
                                     ? 'bg-blue-600/20 border-blue-500'
-                                    : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                                    : 'bg-secondary/50 border-border-color hover:border-blue-400/50'
                                 }
                             `}
                         >
@@ -296,12 +290,12 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
                                     }
                                 `}>
                                     {isSelected && (
-                                        <i className="fas fa-check text-white text-xs"></i>
+                                        <i className="fas fa-check text-primary text-xs"></i>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2">
-                                        <div className="text-white font-medium truncate">
+                                        <div className="text-primary font-medium truncate">
                                             {source.name}
                                         </div>
                                         {/* 延迟显示 */}
@@ -311,7 +305,7 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
                                         </div>
                                     </div>
                                     {source.tags && (
-                                        <div className="text-gray-500 text-xs truncate mt-0.5">
+                                        <div className="text-secondary text-xs truncate mt-0.5">
                                             {source.tags}
                                         </div>
                                     )}
@@ -323,7 +317,7 @@ export function HomeManager({ sources, onRefresh, onSourcesChange }: HomeManager
             </div>
 
             {enabledSources.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-secondary">
                     <i className="fas fa-database text-4xl mb-4"></i>
                     <p>暂无启用的资源站</p>
                 </div>

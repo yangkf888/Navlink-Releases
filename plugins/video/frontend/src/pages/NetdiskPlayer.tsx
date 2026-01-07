@@ -80,7 +80,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const [isTranscoding, setIsTranscoding] = useState(false);
     const [metaData, setMetaData] = useState<{ vCodec?: string, duration?: number }>({});
 
-    // 💡 状态追踪 (使用 useRef 避免闭包陷阱!!)
     const maxCompletedIdxRef = useRef<number>(-1);
     const lastValidTimeRef = useRef<number>(0);
 
@@ -97,7 +96,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         loadMediaDetail();
         checkFavoriteStatus();
         return () => {
-            // 💡 关键修复：组件卸载（如点击返回按钮）时，通知后端停止转码
             if (transcodingSessionIdRef.current) {
                 apiPost(`/transcode/${transcodingSessionIdRef.current}/stop`, {}).catch(() => { });
                 transcodingSessionIdRef.current = null;
@@ -143,7 +141,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         }
     }, [playUrl, playMethod]);
 
-    // 💡 每秒获取一次转码进度 (增加频率，让体验更实时)
     useEffect(() => {
         if (isTranscoding && transcodingSessionIdRef.current && playMethod === 'hls') {
             const poll = async () => {
@@ -151,7 +148,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     const res = await apiGet<{ maxContinuousSegment: number }>(`/transcode/${transcodingSessionIdRef.current}/status`);
                     if (res.success && res.data) {
                         maxCompletedIdxRef.current = res.data.maxContinuousSegment;
-                        console.log(`[Transcode Poll] maxCompletedIdx updated to: ${res.data.maxContinuousSegment}`);
                     }
                 } catch (e) { }
             };
@@ -205,9 +201,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             if (res.success && res.data) {
                 setIsFavorite(res.data.isFavorite);
             }
-        } catch (err) {
-            console.error('Failed to check favorite status:', err);
-        }
+        } catch (err) { }
     };
 
     const getPlayUrl = async (index: number) => {
@@ -244,7 +238,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 setError(res.error || '无法获取播放地址');
             }
         } catch (err) {
-            console.error('Failed to get play URL:', err);
             setIsTranscoding(false);
             setError('获取播放地址网络请求失败');
         }
@@ -268,9 +261,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 progress: currentTime,
                 duration: duration
             });
-        } catch (err) {
-            console.error('Failed to save history:', err);
-        }
+        } catch (err) { }
     };
 
     const initPlayer = async () => {
@@ -296,7 +287,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 playbackRate: true,
                 aspectRatio: true,
                 pip: true,
-                theme: '#ef4444',
+                theme: '#3b82f6',
                 moreVideoAttr: {
                     crossOrigin: 'anonymous',
                     playsInline: true,
@@ -314,17 +305,16 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     m3u8: function (video: any, url: any) {
                         if (Hls.isSupported()) {
                             const hls = new Hls({
-                                maxBufferLength: 60,  // 增加缓冲区
+                                maxBufferLength: 60,
                                 maxMaxBufferLength: 120,
                                 enableWorker: true,
-                                fragLoadingMaxRetry: 10,  // 增加重试次数
-                                fragLoadingRetryDelay: 2000,  // 增加重试延迟
-                                fragLoadingMaxRetryTimeout: 60000,  // 最大重试超时
+                                fragLoadingMaxRetry: 10,
+                                fragLoadingRetryDelay: 2000,
+                                fragLoadingMaxRetryTimeout: 60000,
                                 manifestLoadingMaxRetry: 5,
                                 levelLoadingMaxRetry: 5,
                                 startLevel: 0,
-                                // 💡 关键：增加分片加载超时，适应慢速转码
-                                fragLoadingTimeOut: 60000,  // 60 秒超时
+                                fragLoadingTimeOut: 60000,
                                 levelLoadingTimeOut: 30000,
                             });
                             hlsRef.current = hls;
@@ -336,8 +326,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                     setIsTranscoding(false);
                                 }
                             });
-                            // 注意：不再在 FRAG_LOADING 阶段拦截，因为会干扰正常的预加载
-                            // 只通过 Artplayer 的 seek 事件拦截用户主动的拖动操作
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = url;
                         }
@@ -348,13 +336,11 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             const player = new Artplayer(playerConfig);
             artPlayerRef.current = player;
 
-            // 💡 监听播放进度，记录有效时间
             player.on('video:timeupdate', () => {
                 const currentTime = player.currentTime;
                 const targetIdx = Math.floor(currentTime / 10);
                 const maxIdx = maxCompletedIdxRef.current;
 
-                // 只有在已转码范围内，才更新有效位置
                 if (maxIdx === -1) {
                     if (targetIdx === 0) lastValidTimeRef.current = currentTime;
                 } else if (targetIdx <= maxIdx) {
@@ -362,14 +348,11 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 }
             });
 
-            // 💡 简化策略：只在用户拖动到未转码区域时显示提示，不主动回弹
-            // 让 HLS.js 自然处理（等待分片或超时），避免误触发导致的异常行为
             player.on('seeking', () => {
                 if (playMethod === 'hls' && transcodingSessionIdRef.current) {
                     const currentTime = player.currentTime;
                     const targetIdx = Math.floor(currentTime / 10);
                     const maxIdx = maxCompletedIdxRef.current;
-                    // 只显示提示，不回弹
                     if (maxIdx !== -1 && targetIdx > maxIdx + 2) {
                         player.notice.show = `⏳ 正在等待转码... (已就绪: ${(maxIdx + 1) * 10}s)`;
                     }
@@ -398,7 +381,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             });
 
         } catch (err) {
-            console.error('Failed to init Artplayer:', err);
             setIsTranscoding(false);
         }
     };
@@ -424,9 +406,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 });
                 if (res.success) setIsFavorite(true);
             }
-        } catch (err) {
-            console.error('Failed to toggle favorite:', err);
-        }
+        } catch (err) { }
     };
 
     const renderMetadataRows = () => {
@@ -460,78 +440,106 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         });
         return rows.map((row, idx) => (
             <div key={idx} className="flex items-start gap-2">
-                <span className="text-gray-500 w-20 flex-shrink-0">{row.label}:</span>
-                <div className="text-gray-300 break-words flex-1 min-w-0">{row.value}</div>
+                <span className="text-secondary/50 w-20 flex-shrink-0 text-[11px] font-bold uppercase tracking-wider">{row.label}</span>
+                <div className="text-primary break-words flex-1 min-w-0 text-sm font-medium">{row.value}</div>
             </div>
         ));
     };
 
-    if (loading) return <div className="p-6 text-white text-center">加载中...</div>;
+    if (loading) return <div className="p-6 text-primary text-center">加载中...</div>;
     if (error || !media) return (
         <div className="p-6 text-red-500 text-center space-y-4">
             <p>{error || '加载失败'}</p>
-            <button onClick={() => onNavigate('netdisk')} className="px-4 py-2 bg-gray-800 text-white rounded-lg">
+            <button onClick={() => onNavigate('netdisk')} className="px-6 py-2 bg-secondary text-primary rounded-xl">
                 返回
             </button>
         </div>
     );
 
     return (
-        <div className="p-4 lg:p-6 space-y-4 bg-gray-950 min-h-full overflow-y-auto custom-scrollbar">
-            <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1 min-w-0">
-                    <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-                        <div className="w-full h-full" ref={playerRef}></div>
-                        {/* 💡 转码进度可视化 - 由于使用 ref，需要单独状态驱动 UI */}
-                        {isTranscoding && (
-                            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
-                                <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                                <p className="text-white font-medium">正在建立智能极速播放链路...</p>
-                                <p className="text-gray-400 text-sm mt-2">
-                                    {playMethod === 'hls' ? '服务器正在准备转推流数据' : '正在解析远程加速地址'}
-                                </p>
-                            </div>
-                        )}
-                    </div>
+        <div className="relative h-full overflow-hidden bg-primary">
+            {/* 氛围感背景层 */}
+            {media.poster_url && (
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-40">
+                    <img
+                        src={media.poster_url}
+                        className="w-full h-full object-cover blur-[100px] scale-125 transition-opacity duration-1000"
+                        alt="bg"
+                    />
                 </div>
-                <div className="lg:w-72 xl:w-80 flex-shrink-0">
-                    <div className="bg-gray-800/50 rounded-xl p-4 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+60px)] flex flex-col border border-white/5 overflow-y-auto">
-                        <h3 className="text-white font-medium mb-3">选集 ({media.video_files.length})</h3>
-                        <div className="grid grid-cols-1 gap-2">
-                            {media.video_files.map((file, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => {
-                                        setSelectedVideoIndex(idx);
-                                        setIsTranscoding(true);
-                                    }}
-                                    className={`px-3 py-2 text-left rounded-lg text-sm transition-all ${selectedVideoIndex === idx ? 'bg-red-500 text-white shadow-lg' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                                        }`}
-                                >
-                                    P{idx + 1}: {file.split('|')[0]}
-                                </button>
-                            ))}
+            )}
+
+            <div className="relative z-10 p-4 lg:p-6 h-full overflow-y-auto custom-scrollbar space-y-6">
+                <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="flex-1 min-w-0">
+                        <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 group">
+                            <div className="w-full h-full" ref={playerRef}></div>
+                            {isTranscoding && (
+                                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+                                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                    <p className="text-primary font-medium">正在建立智能极速播放链路...</p>
+                                    <p className="text-secondary text-sm mt-2 opacity-60">
+                                        {playMethod === 'hls' ? '服务器正在准备转推流数据' : '正在解析远程加速地址'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="lg:w-80 xl:w-96 flex-shrink-0">
+                        <div className="bg-secondary/40 backdrop-blur-xl rounded-2xl p-5 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+80px)] flex flex-col border border-border-color shadow-xl transition-all duration-300">
+                            <h3 className="text-primary font-bold mb-4 flex items-center gap-2">
+                                <i className="fas fa-list-ul text-blue-400 text-sm"></i>
+                                选集 ({media.video_files.length})
+                            </h3>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                                <div className="grid grid-cols-1 gap-2.5">
+                                    {media.video_files.map((file, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => {
+                                                setSelectedVideoIndex(idx);
+                                                setIsTranscoding(true);
+                                            }}
+                                            className={`px-4 py-4 text-left rounded-xl text-xs font-semibold transition-all duration-300 ${selectedVideoIndex === idx
+                                                    ? 'bg-blue-600 text-primary shadow-lg shadow-blue-500/30 ring-1 ring-white/20'
+                                                    : 'bg-white/5 text-secondary hover:bg-white/10 hover:text-primary border border-border-color'
+                                                }`}
+                                        >
+                                            <span className="opacity-40 mr-3 text-[10px]">P{idx + 1}</span>
+                                            {file.split('|')[0]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => onGoBack ? onGoBack() : onNavigate('netdisk')} className="p-2 text-gray-400 hover:text-white">
-                            <i className="fas fa-arrow-left"></i>
+
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-border-color">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => onGoBack ? onGoBack() : onNavigate('netdisk')} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full text-secondary hover:text-primary transition-all border border-border-color">
+                                <i className="fas fa-arrow-left"></i>
+                            </button>
+                            <h1 className="text-2xl font-bold text-primary tracking-tight">{media.title}</h1>
+                        </div>
+                        <button onClick={toggleFavorite} className={`w-10 h-10 flex items-center justify-center rounded-full transition-all border ${isFavorite ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-white/5 border-border-color text-secondary hover:text-primary'}`}>
+                            <i className={`${isFavorite ? 'fas' : 'far'} fa-heart text-sm`}></i>
                         </button>
-                        <h1 className="text-2xl font-bold text-white">{media.title}</h1>
                     </div>
-                    <button onClick={toggleFavorite} className={`p-2 rounded-full transition-colors ${isFavorite ? 'text-red-500' : 'text-gray-500'}`}>
-                        <i className={`fas fa-heart ${isFavorite ? 'fas' : 'far'}`}></i>
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    {renderMetadataRows()}
-                </div>
-                <div className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
-                    {media.overview}
+
+                    <div className="bg-secondary/30 backdrop-blur-md rounded-2xl p-6 border border-border-color shadow-lg space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-6">
+                            {renderMetadataRows()}
+                        </div>
+                        {media.overview && (
+                            <div className="pt-6 border-t border-border-color">
+                                <p className="opacity-40 font-bold text-[11px] uppercase tracking-wider mb-2">简介</p>
+                                <p className="text-secondary text-sm leading-relaxed font-medium opacity-80">{media.overview}</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

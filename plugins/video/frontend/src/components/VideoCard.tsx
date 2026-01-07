@@ -14,64 +14,66 @@ export function VideoCard({ video, onClick, showSource = false, sourceName }: Vi
     return (
         <div
             onClick={onClick}
-            className="video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+            className="video-card group relative bg-secondary rounded-xl overflow-hidden cursor-pointer transition-all duration-300"
         >
+            <div className="video-card-inner absolute inset-0 border border-transparent rounded-xl transition-colors duration-300 pointer-events-none z-10"></div>
+
             {/* 封面 */}
-            <div className="relative">
+            <div className="relative overflow-hidden">
                 <img
                     src={video.vod_pic}
                     alt={video.vod_name}
-                    className="video-cover w-full"
+                    className="video-cover w-full group-hover:scale-110 transition-transform duration-500 ease-out"
                     loading="lazy"
                     onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150"%3E%3Crect fill="%23374151" width="100" height="150"/%3E%3Ctext x="50" y="75" text-anchor="middle" dy=".3em" fill="%239CA3AF" font-size="12"%3E暂无图片%3C/text%3E%3C/svg%3E';
+                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150"%3E%3Crect fill="%2323272f" width="100" height="150"/%3E%3Ctext x="50" y="75" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="12"%3E暂无图片%3C/text%3E%3C/svg%3E';
                     }}
                 />
 
                 {/* 悬停遮罩 */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
-                              transition-opacity flex items-center justify-center">
-                    <i className="fas fa-play-circle text-4xl text-white"></i>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+                               transition-opacity flex items-center justify-center z-20">
+                    <i className="fas fa-play-circle text-4xl text-primary/90 drop-shadow-lg"></i>
                 </div>
 
                 {/* 更新状态 */}
                 {video.vod_remarks && (
-                    <span className="absolute bottom-2 right-2 px-2 py-0.5 bg-red-500 
-                                   text-xs text-white rounded">
+                    <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-500/90 
+                                   text-[10px] font-bold text-primary rounded-md backdrop-blur-sm z-20">
                         {video.vod_remarks}
                     </span>
                 )}
 
                 {/* 评分 */}
                 {video.vod_score && parseFloat(video.vod_score) > 0 && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 
-                                   text-xs text-yellow-400 rounded flex items-center gap-1">
-                        <i className="fas fa-star"></i>
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/40 
+                                   text-[10px] font-bold text-yellow-400 rounded-md backdrop-blur-md border border-border-color flex items-center gap-1 z-20">
+                        <i className="fas fa-star text-[8px]"></i>
                         {video.vod_score}
                     </span>
                 )}
 
                 {/* 视频源标签 */}
                 {showSource && displaySourceName && (
-                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-blue-500/80 
-                                   text-xs text-white rounded">
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500/80 
+                                   text-[10px] text-primary rounded-md backdrop-blur-sm z-20">
                         {displaySourceName}
                     </span>
                 )}
             </div>
 
             {/* 信息 */}
-            <div className="p-3">
-                <h3 className="text-white text-sm font-medium line-clamp-1" title={video.vod_name}>
+            <div className="p-3 bg-secondary/30 backdrop-blur-sm relative z-20">
+                <h3 className="text-primary text-sm font-semibold line-clamp-1 group-hover:text-blue-400 transition-colors" title={video.vod_name}>
                     {video.vod_name}
                 </h3>
-                <div className="flex items-center justify-between mt-1">
-                    <span className="text-gray-500 text-xs">
+                <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-secondary text-[11px] font-medium opacity-80">
                         {video.vod_year || video.type_name}
                     </span>
                     {video.vod_area && (
-                        <span className="text-gray-500 text-xs">
+                        <span className="text-secondary text-[10px] px-1.5 py-0.5 bg-tertiary rounded-md border border-border-color">
                             {video.vod_area}
                         </span>
                     )}

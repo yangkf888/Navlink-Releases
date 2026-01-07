@@ -122,7 +122,7 @@ export function TvPlayer({ tvSourceId, channelUrl, onNavigate }: TvPlayerProps) 
 
     if (!channelUrl) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-secondary">
                 <i className="fas fa-tv text-6xl mb-4 opacity-30"></i>
                 <p>请从左侧选择频道开始观看</p>
                 {tvSourceId && <p className="text-xs mt-2 opacity-50">当前源ID: {tvSourceId}</p>}
@@ -136,7 +136,7 @@ export function TvPlayer({ tvSourceId, channelUrl, onNavigate }: TvPlayerProps) 
             <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent z-[100] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex justify-between items-center">
                 <button
                     onClick={() => onNavigate('home')}
-                    className="pointer-events-auto text-white/80 hover:text-white flex items-center gap-2"
+                    className="pointer-events-auto text-primary/80 hover:text-primary flex items-center gap-2"
                 >
                     <i className="fas fa-arrow-left"></i>
                     <span>返回</span>
@@ -150,7 +150,7 @@ export function TvPlayer({ tvSourceId, channelUrl, onNavigate }: TvPlayerProps) 
                         className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5
                             ${useProxy
                                 ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                : 'bg-white/10 border-white/20 text-gray-300 hover:text-white'
+                                : 'bg-white/10 border-white/20 text-primary hover:text-primary'
                             }`}
                         title={useProxy ? "当前使用代理播放 (解决跨域)" : "直接播放 (速度更快)"}
                     >
@@ -160,7 +160,7 @@ export function TvPlayer({ tvSourceId, channelUrl, onNavigate }: TvPlayerProps) 
                     {error && (
                         <button
                             onClick={() => window.location.reload()}
-                            className="bg-red-500/80 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-full"
+                            className="bg-red-500/80 hover:bg-red-500 text-primary text-xs px-3 py-1.5 rounded-full"
                         >
                             <i className="fas fa-redo mr-1"></i>重试
                         </button>
@@ -175,7 +175,7 @@ export function TvPlayer({ tvSourceId, channelUrl, onNavigate }: TvPlayerProps) 
                     <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
                         <div className="text-center">
                             <i className="fas fa-exclamation-circle text-red-500 text-3xl mb-2"></i>
-                            <p className="text-white">{error}</p>
+                            <p className="text-primary">{error}</p>
                         </div>
                     </div>
                 )}

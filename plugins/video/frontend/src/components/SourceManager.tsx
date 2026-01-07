@@ -378,9 +378,9 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
     if (loading) {
         return (
             <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-800 rounded w-full"></div>
+                <div className="h-10 bg-secondary rounded w-full"></div>
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                    <div key={i} className="h-16 bg-secondary rounded"></div>
                 ))}
             </div>
         );
@@ -392,13 +392,13 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
             <div className="flex flex-wrap gap-3 items-center">
                 {/* 搜索 */}
                 <div className="relative flex-1 min-w-[200px]">
-                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-secondary"></i>
                     <input
                         type="text"
                         placeholder="搜索站点名称..."
                         value={searchKeyword}
                         onChange={e => setSearchKeyword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                        className="w-full pl-10 pr-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                  focus:border-red-500 focus:outline-none"
                     />
                 </div>
@@ -407,7 +407,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                 <select
                     value={statusFilter}
                     onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                    className="px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                              focus:border-red-500 focus:outline-none"
                 >
                     <option value="all">全部状态</option>
@@ -428,7 +428,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 
+                    className="px-4 py-2 bg-secondary rounded-lg hover:bg-slate-600 
                              transition-colors flex items-center gap-2"
                     style={{ color: '#fff' }}
                 >
@@ -445,7 +445,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
                 <button
                     onClick={handleExport}
-                    className="px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 
+                    className="px-4 py-2 bg-secondary rounded-lg hover:bg-slate-600 
                              transition-colors flex items-center gap-2"
                     style={{ color: '#fff' }}
                 >
@@ -456,46 +456,46 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
             {/* 批量操作栏 */}
             {selectedIds.length > 0 && (
-                <div className="flex flex-wrap gap-2 items-center p-3 bg-gray-800/50 rounded-lg">
-                    <span className="text-gray-400">已选择 {selectedIds.length} 项</span>
+                <div className="flex flex-wrap gap-2 items-center p-3 bg-secondary/50 rounded-lg border border-border-color">
+                    <span className="text-secondary">已选择 {selectedIds.length} 项</span>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: true })}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
+                        className="px-3 py-1 bg-green-600 text-primary rounded hover:bg-green-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: false })}
-                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
+                        className="px-3 py-1 bg-orange-600 text-primary rounded hover:bg-orange-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: true })}
-                        className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 text-sm"
+                        className="px-3 py-1 bg-gray-600 text-primary rounded hover:bg-gray-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量隐藏
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: false })}
-                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                        className="px-3 py-1 bg-blue-600 text-primary rounded hover:bg-blue-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量显示
                     </button>
                     <button
                         onClick={handleBatchTest}
-                        className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm"
+                        className="px-3 py-1 bg-cyan-600 text-primary rounded hover:bg-cyan-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量测试
                     </button>
                     <button
                         onClick={handleBatchDelete}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
+                        className="px-3 py-1 bg-red-600 text-primary rounded hover:bg-red-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量删除
@@ -507,7 +507,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="text-left text-gray-400 border-b border-gray-700">
+                        <tr className="text-left text-secondary border-b border-border-color">
                             <th className="p-3 w-10">
                                 <input
                                     type="checkbox"
@@ -531,7 +531,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                         {filteredSources.map(source => (
                             <tr
                                 key={source.id}
-                                className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors
+                                className={`border-b border-border-color hover:bg-secondary/50 transition-colors
                                           ${!source.enabled ? 'opacity-50' : ''}`}
                             >
                                 <td className="p-3">
@@ -543,7 +543,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     />
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-white font-medium">{source.name}</span>
+                                    <span className="text-primary font-medium">{source.name}</span>
                                 </td>
                                 <td className="p-3">
                                     <span
@@ -579,7 +579,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     </span>
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-gray-400 text-xs truncate block max-w-xs" title={source.url}>
+                                    <span className="text-secondary text-xs truncate block max-w-xs" title={source.url}>
                                         {source.url}
                                     </span>
                                 </td>
@@ -587,7 +587,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     {source.tags && (
                                         <div className="flex flex-wrap gap-1">
                                             {source.tags.split(',').filter(Boolean).map((tag, i) => (
-                                                <span key={i} className="px-1.5 py-0.5 bg-gray-700 text-gray-300 rounded text-xs">
+                                                <span key={i} className="px-1.5 py-0.5 bg-secondary text-primary rounded text-xs border border-border-color">
                                                     {tag.trim()}
                                                 </span>
                                             ))}
@@ -595,7 +595,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                     )}
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-gray-500 text-xs">{source.remark}</span>
+                                    <span className="text-secondary text-xs">{source.remark}</span>
                                 </td>
                                 <td className="p-3">
                                     <div className="flex flex-col gap-1">
@@ -611,7 +611,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                                     {source.response_time}ms
                                                 </span>
                                             ) : (
-                                                <span className="text-gray-500 text-xs">-</span>
+                                                <span className="text-secondary text-xs">-</span>
                                             )}
 
                                             {/* 健康状态标识 */}
@@ -632,7 +632,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                             )}
                                         </div>
                                         {source.status_message && (
-                                            <span className="text-[10px] text-gray-500 truncate max-w-[100px]" title={source.status_message}>
+                                            <span className="text-[10px] text-secondary truncate max-w-[100px]" title={source.status_message}>
                                                 {source.status_message}
                                             </span>
                                         )}
@@ -643,7 +643,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         <button
                                             onClick={() => handleTest(source)}
                                             disabled={testingIds.includes(source.id)}
-                                            className="p-1.5 text-gray-400 hover:text-purple-400 transition-colors disabled:opacity-50"
+                                            className="p-1.5 text-secondary hover:text-purple-400 transition-colors disabled:opacity-50"
                                             title="测速"
                                         >
                                             <i className="fas fa-tachometer-alt"></i>
@@ -651,17 +651,17 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         <button
                                             onClick={() => handleSync(source)}
                                             disabled={syncingIds.includes(source.id)}
-                                            className="p-1.5 text-gray-400 hover:text-cyan-400 transition-colors disabled:opacity-50 relative group/sync"
+                                            className="p-1.5 text-secondary hover:text-cyan-400 transition-colors disabled:opacity-50 relative group/sync"
                                             title="同步分类"
                                         >
                                             <i className={`fas fa-sync ${syncingIds.includes(source.id) ? 'fa-spin text-cyan-400' : ''}`}></i>
                                             {syncingIds.includes(source.id) && syncStatus[source.id] && (
                                                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] z-[60] 
-                                                              bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-2xl pointer-events-none">
-                                                    <div className="text-xs text-gray-300 mb-2 truncate">
+                                                              bg-secondary border border-border-color rounded-lg p-3 shadow-2xl pointer-events-none">
+                                                    <div className="text-xs text-primary mb-2 truncate">
                                                         {syncStatus[source.id].message}
                                                     </div>
-                                                    <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
                                                         <div
                                                             className="bg-cyan-500 h-full transition-all duration-300"
                                                             style={{
@@ -669,7 +669,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                                             }}
                                                         ></div>
                                                     </div>
-                                                    <div className="text-[10px] text-gray-500 mt-1 text-right">
+                                                    <div className="text-[10px] text-secondary mt-1 text-right">
                                                         {syncStatus[source.id].current} / {syncStatus[source.id].total}
                                                     </div>
                                                 </div>
@@ -677,7 +677,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         </button>
                                         <button
                                             onClick={() => handleToggleEnabled(source)}
-                                            className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'
+                                            className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-secondary hover:text-secondary'
                                                 }`}
                                             title={source.enabled ? '禁用' : '启用'}
                                         >
@@ -685,7 +685,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         </button>
                                         <button
                                             onClick={() => handleToggleHidden(source)}
-                                            className={`p-1.5 transition-colors ${source.hidden ? 'text-orange-400 hover:text-orange-300' : 'text-gray-500 hover:text-gray-400'
+                                            className={`p-1.5 transition-colors ${source.hidden ? 'text-orange-400 hover:text-orange-300' : 'text-secondary hover:text-secondary'
                                                 }`}
                                             title={source.hidden ? '显示' : '隐藏'}
                                         >
@@ -693,14 +693,14 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         </button>
                                         <button
                                             onClick={() => handleEdit(source)}
-                                            className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                                            className="p-1.5 text-secondary hover:text-primary transition-colors"
                                             title="编辑"
                                         >
                                             <i className="fas fa-edit"></i>
                                         </button>
                                         <button
                                             onClick={() => handleDelete(source.id, source.name)}
-                                            className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                                            className="p-1.5 text-secondary hover:text-red-400 transition-colors"
                                             title="删除"
                                         >
                                             <i className="fas fa-trash"></i>
@@ -715,7 +715,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
             {
                 filteredSources.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-secondary">
                         <i className="fas fa-database text-4xl mb-4 opacity-50"></i>
                         <p>暂无视频源</p>
                     </div>
@@ -726,63 +726,63 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
             {
                 showForm && (
                     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                        <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md">
-                            <h2 className="text-xl font-bold text-white mb-4">
+                        <div className="bg-secondary rounded-xl p-6 w-full max-w-md">
+                            <h2 className="text-xl font-bold text-primary mb-4">
                                 {editingSource ? '编辑视频源' : '添加视频源'}
                             </h2>
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-gray-300 mb-2">名称 *</label>
+                                    <label className="block text-primary mb-2">名称 *</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                         placeholder="如：非凡资源"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg 
-                                             border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg 
+                                             border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">API 地址 *</label>
+                                    <label className="block text-primary mb-2">API 地址 *</label>
                                     <input
                                         type="url"
                                         value={formData.url}
                                         onChange={e => setFormData(prev => ({ ...prev, url: e.target.value }))}
                                         placeholder="如：https://ffzy5.tv/api.php/provide/vod"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg 
-                                             border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg 
+                                             border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
 
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">标签</label>
+                                    <label className="block text-primary mb-2">标签</label>
                                     <input
                                         type="text"
                                         value={formData.tags}
                                         onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
                                         placeholder="逗号分隔，如：高速,稳定"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg 
-                                             border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg 
+                                             border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">备注</label>
+                                    <label className="block text-primary mb-2">备注</label>
                                     <textarea
                                         value={formData.remark}
                                         onChange={e => setFormData(prev => ({ ...prev, remark: e.target.value }))}
                                         placeholder="备注信息..."
                                         rows={2}
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg 
-                                             border border-gray-700 focus:border-red-500 focus:outline-none resize-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg 
+                                             border border-border-color focus:border-red-500 focus:outline-none resize-none"
                                     />
                                 </div>
 
                                 <div className="flex items-center gap-6">
-                                    <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-primary cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={formData.enabled}
@@ -791,7 +791,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         />
                                         启用
                                     </label>
-                                    <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-primary cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={formData.hidden}
@@ -800,7 +800,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                         />
                                         隐藏
                                     </label>
-                                    <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-primary cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={formData.proxy_enabled}
@@ -815,7 +815,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                             <div className="flex gap-3 mt-6">
                                 <button
                                     onClick={() => setShowForm(false)}
-                                    className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-secondary text-primary rounded-lg 
                                          hover:bg-gray-700 transition-colors"
                                 >
                                     取消
@@ -823,7 +823,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                 <button
                                     onClick={handleSave}
                                     disabled={saving || !formData.name || !formData.url}
-                                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-red-500 text-primary rounded-lg 
                                          hover:bg-red-600 transition-colors disabled:opacity-50"
                                 >
                                     {saving ? '保存中...' : '保存'}
@@ -838,21 +838,21 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
             {
                 showImportModal && (
                     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                        <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md">
-                            <h2 className="text-xl font-bold text-white mb-4">导入视频源</h2>
-                            <p className="text-gray-400 mb-4">请选择导入方式：</p>
+                        <div className="bg-secondary rounded-xl p-6 w-full max-w-md">
+                            <h2 className="text-xl font-bold text-primary mb-4">导入视频源</h2>
+                            <p className="text-secondary mb-4">请选择导入方式：</p>
 
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => handleImportConfirm('append')}
-                                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-blue-500 text-primary rounded-lg 
                                          hover:bg-blue-600 transition-colors"
                                 >
                                     追加导入
                                 </button>
                                 <button
                                     onClick={() => handleImportConfirm('replace')}
-                                    className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-orange-500 text-primary rounded-lg 
                                          hover:bg-orange-600 transition-colors"
                                 >
                                     替换导入
@@ -860,7 +860,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                             </div>
                             <button
                                 onClick={() => { setShowImportModal(false); setImportData(''); }}
-                                className="w-full mt-3 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg 
+                                className="w-full mt-3 px-4 py-2 bg-secondary text-primary rounded-lg 
                                      hover:bg-gray-700 transition-colors"
                             >
                                 取消

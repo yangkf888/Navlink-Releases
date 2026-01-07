@@ -41,7 +41,7 @@ export function Banner({ videos, onClick }: BannerProps) {
     const currentVideo = videos[currentIndex];
 
     return (
-        <div className="banner-container relative aspect-[21/9] lg:aspect-[3/1] bg-gray-800 group">
+        <div className="banner-container relative aspect-[21/9] lg:aspect-[3/1] bg-secondary group">
             {/* 背景图 */}
             <div className="absolute inset-0">
                 <img
@@ -58,10 +58,10 @@ export function Banner({ videos, onClick }: BannerProps) {
             {/* 内容 */}
             <div className="absolute inset-0 flex items-center">
                 <div className="p-6 lg:p-10 max-w-xl">
-                    <h2 className="text-2xl lg:text-4xl font-bold text-white mb-2 line-clamp-2">
+                    <h2 className="text-2xl lg:text-4xl font-bold text-primary mb-2 line-clamp-2">
                         {currentVideo.vod_name}
                     </h2>
-                    <div className="flex items-center gap-3 text-sm text-gray-300 mb-4">
+                    <div className="flex items-center gap-3 text-sm text-primary mb-4">
                         {currentVideo.vod_year && <span>{currentVideo.vod_year}</span>}
                         {currentVideo.vod_area && <span>{currentVideo.vod_area}</span>}
                         {currentVideo.vod_class && <span>{currentVideo.vod_class}</span>}
@@ -74,7 +74,7 @@ export function Banner({ videos, onClick }: BannerProps) {
                     </div>
                     <button
                         onClick={() => onClick(currentVideo)}
-                        className="px-6 py-3 bg-red-500 text-white rounded-lg font-medium
+                        className="px-6 py-3 bg-red-500 text-primary rounded-lg font-medium
                                  hover:bg-red-600 transition-colors flex items-center gap-2"
                     >
                         <i className="fas fa-play"></i>
@@ -89,7 +89,7 @@ export function Banner({ videos, onClick }: BannerProps) {
                     <button
                         onClick={goPrev}
                         className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 
-                                 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100
+                                 bg-black/50 text-primary rounded-full opacity-0 group-hover:opacity-100
                                  transition-opacity flex items-center justify-center hover:bg-black/70"
                     >
                         <i className="fas fa-chevron-left"></i>
@@ -97,7 +97,7 @@ export function Banner({ videos, onClick }: BannerProps) {
                     <button
                         onClick={goNext}
                         className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 
-                                 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100
+                                 bg-black/50 text-primary rounded-full opacity-0 group-hover:opacity-100
                                  transition-opacity flex items-center justify-center hover:bg-black/70"
                     >
                         <i className="fas fa-chevron-right"></i>

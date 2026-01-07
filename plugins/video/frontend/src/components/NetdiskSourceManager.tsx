@@ -377,9 +377,9 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
     if (loading) {
         return (
             <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-800 rounded w-full"></div>
+                <div className="h-10 bg-secondary rounded w-full"></div>
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                    <div key={i} className="h-16 bg-secondary rounded"></div>
                 ))}
             </div>
         );
@@ -390,13 +390,13 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             {/* 工具栏 */}
             <div className="flex flex-wrap gap-3 items-center">
                 <div className="relative flex-1 min-w-[200px]">
-                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-secondary"></i>
                     <input
                         type="text"
                         placeholder="搜索媒体库名称..."
                         value={searchKeyword}
                         onChange={e => setSearchKeyword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                        className="w-full pl-10 pr-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                  focus:border-red-500 focus:outline-none"
                     />
                 </div>
@@ -443,13 +443,13 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="text-left text-gray-400 border-b border-gray-700">
+                        <tr className="text-left text-secondary border-b border-border-color">
                             <th className="p-3 w-10">
                                 <input
                                     type="checkbox"
                                     checked={selectedIds.length === filteredSources.length && filteredSources.length > 0}
                                     onChange={handleSelectAll}
-                                    className="rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-blue-500"
+                                    className="rounded border-border-color bg-secondary text-blue-600 focus:ring-blue-500"
                                 />
                             </th>
                             <th className="p-3 w-10"></th>
@@ -467,7 +467,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                         {filteredSources.map(source => (
                             <React.Fragment key={source.id}>
                                 <tr
-                                    className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors
+                                    className={`border-b border-border-color hover:bg-secondary/50 transition-colors
                                           ${!source.enabled ? 'opacity-50' : ''}
                                           ${selectedIds.includes(source.id) ? 'bg-blue-600/10' : ''}`}
                                 >
@@ -476,19 +476,19 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                             type="checkbox"
                                             checked={selectedIds.includes(source.id)}
                                             onChange={() => handleSelect(source.id)}
-                                            className="rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-blue-500"
+                                            className="rounded border-border-color bg-secondary text-blue-600 focus:ring-blue-500"
                                         />
                                     </td>
                                     <td className="p-3">
                                         <button
                                             onClick={() => handleToggleExpand(source.id)}
-                                            className={`p-1 text-gray-400 hover:text-white transition-transform ${expandedIds.includes(source.id) ? 'rotate-90' : ''}`}
+                                            className={`p-1 text-secondary hover:text-primary transition-transform ${expandedIds.includes(source.id) ? 'rotate-90' : ''}`}
                                         >
                                             <i className="fas fa-chevron-right text-xs"></i>
                                         </button>
                                     </td>
                                     <td className="p-3">
-                                        <span className="text-white font-medium">{source.name}</span>
+                                        <span className="text-primary font-medium">{source.name}</span>
                                     </td>
                                     <td className="p-3">
                                         <span
@@ -526,37 +526,37 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                         </span>
                                     </td>
                                     <td className="p-3">
-                                        <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
+                                        <span className="px-2 py-1 bg-secondary text-primary rounded text-xs border border-border-color">
                                             {source.type === 'alist' ? 'Alist' : (source.type === 'webdav' ? 'WebDAV' : '本地目录')}
                                         </span>
                                     </td>
                                     <td className="p-3">
-                                        <span className="text-gray-400 text-xs truncate block max-w-xs" title={source.type === 'local' ? source.root_path : source.url}>
+                                        <span className="text-secondary text-xs truncate block max-w-xs" title={source.type === 'local' ? source.root_path : source.url}>
                                             {source.type === 'local' ? source.root_path : source.url}
                                         </span>
                                     </td>
                                     <td className="p-3">
-                                        <span className="text-gray-500 text-xs">{source.remark || '-'}</span>
+                                        <span className="text-secondary text-xs">{source.remark || '-'}</span>
                                     </td>
                                     <td className="p-3">
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => handleScan(source.id)}
-                                                className="p-1.5 text-gray-400 hover:text-green-400 transition-colors"
+                                                className="p-1.5 text-secondary hover:text-green-400 transition-colors"
                                                 title="立即全量扫描"
                                             >
                                                 <i className="fas fa-sync-alt"></i>
                                             </button>
                                             <button
                                                 onClick={() => handleTest(source)}
-                                                className="p-1.5 text-gray-400 hover:text-blue-400 transition-colors"
+                                                className="p-1.5 text-secondary hover:text-blue-400 transition-colors"
                                                 title="测试连接"
                                             >
                                                 <i className="fas fa-plug"></i>
                                             </button>
                                             <button
                                                 onClick={() => handleToggleEnabled(source)}
-                                                className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'
+                                                className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-secondary hover:text-secondary'
                                                     }`}
                                                 title={source.enabled ? '禁用' : '启用'}
                                             >
@@ -564,14 +564,14 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                             </button>
                                             <button
                                                 onClick={() => handleEdit(source)}
-                                                className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                                                className="p-1.5 text-secondary hover:text-primary transition-colors"
                                                 title="编辑"
                                             >
                                                 <i className="fas fa-edit"></i>
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(source.id, source.name)}
-                                                className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                                                className="p-1.5 text-secondary hover:text-red-400 transition-colors"
                                                 title="删除"
                                             >
                                                 <i className="fas fa-trash"></i>
@@ -581,11 +581,11 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                 </tr>
                                 {
                                     expandedIds.includes(source.id) && (
-                                        <tr className="bg-gray-800/30 border-b border-gray-800">
+                                        <tr className="bg-secondary/30 border-b border-border-color">
                                             <td colSpan={10} className="p-4">
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                                        <h4 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-2">
                                                             扫描目录管理
                                                             <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-full text-[10px] lowercase normal-case flex items-center gap-1">
                                                                 <i className="fas fa-info-circle"></i> 建议按分类添加目录
@@ -617,14 +617,14 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                     <div className="grid grid-cols-1 gap-2">
                                                         {/* 表头 */}
                                                         {(Array.isArray(source.scan_paths) ? source.scan_paths : []).length > 0 && (
-                                                            <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                                            <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-secondary uppercase tracking-wider">
                                                                 <div className="w-[calc(33.333%-10px)] ml-1">媒体库名称</div>
                                                                 <div className="flex-1">媒体库路径</div>
                                                                 <div className="w-[200px] text-right pr-12">操作</div>
                                                             </div>
                                                         )}
                                                         {(Array.isArray(source.scan_paths) ? source.scan_paths : []).map((pathObj: any, idx: number) => (
-                                                            <div key={idx} className="flex flex-wrap items-center gap-2 bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                                                            <div key={idx} className="flex flex-wrap items-center gap-2 bg-secondary/50 p-3 rounded-lg border border-border-color">
                                                                 <div className="flex-1 flex items-center gap-2 min-w-[300px]">
                                                                     <input
                                                                         type="text"
@@ -635,7 +635,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                             handleUpdateScanPaths(source, next);
                                                                         }}
                                                                         placeholder="媒体库名称 (如: 电影、剧集)"
-                                                                        className="w-1/3 px-2 py-1.5 bg-gray-800 text-white border border-gray-700 rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
+                                                                        className="w-1/3 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
                                                                         title="显示在前端侧边栏的名称"
                                                                     />
                                                                     <input
@@ -647,7 +647,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                             handleUpdateScanPaths(source, next);
                                                                         }}
                                                                         placeholder="媒体库路径 (网盘中的目录路径)"
-                                                                        className="flex-1 px-2 py-1.5 bg-gray-800 text-white border border-gray-700 rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
+                                                                        className="flex-1 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
                                                                         title="网盘中实际存放媒体的目录路径"
                                                                     />
                                                                     <button
@@ -657,14 +657,14 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                             setPickerEditIndex(idx);
                                                                             setPickerOpen(true);
                                                                         }}
-                                                                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300 transition-colors"
+                                                                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-primary transition-colors"
                                                                         title="浏览选择"
                                                                     >
                                                                         <i className="fas fa-folder-open"></i>
                                                                     </button>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
-                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-[10px] text-gray-400 cursor-pointer hover:bg-gray-700 transition-colors" title="启用后，若缺少本地 NFO 或封面，将通过 TMDB 补全数据">
+                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors" title="启用后，若缺少本地 NFO 或封面，将通过 TMDB 补全数据">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={pathObj.tmdb_enabled !== false}
@@ -673,11 +673,11 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                                 next[idx] = { ...next[idx], tmdb_enabled: e.target.checked };
                                                                                 handleUpdateScanPaths(source, next);
                                                                             }}
-                                                                            className="w-3 h-3 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-0"
+                                                                            className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
                                                                         />
                                                                         TMDB
                                                                     </label>
-                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-[10px] text-gray-400 cursor-pointer hover:bg-gray-700 transition-colors">
+                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={!!pathObj.hidden}
@@ -686,14 +686,14 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                                 next[idx] = { ...next[idx], hidden: e.target.checked };
                                                                                 handleUpdateScanPaths(source, next);
                                                                             }}
-                                                                            className="w-3 h-3 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-0"
+                                                                            className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
                                                                         />
                                                                         隐藏
                                                                     </label>
                                                                     <button
                                                                         onClick={() => handleScan(source.id, pathObj.path)}
                                                                         className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${scanningStatuses[source.id]?.paths?.[pathObj.path]?.scanning
-                                                                            ? 'bg-blue-600 text-white animate-pulse'
+                                                                            ? 'bg-blue-600 text-primary animate-pulse'
                                                                             : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
                                                                             }`}
                                                                     >
@@ -716,7 +716,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                             const next = (source.scan_paths as any[]).filter((_, i) => i !== idx);
                                                                             handleUpdateScanPaths(source, next);
                                                                         }}
-                                                                        className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                                                                        className="p-1.5 text-secondary hover:text-red-400 transition-colors"
                                                                         title="删除目录"
                                                                     >
                                                                         <i className="fas fa-times"></i>
@@ -731,7 +731,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                         )}
                                                     </div>
 
-                                                    <div className="pt-2 border-t border-gray-700/50 flex gap-4">
+                                                    <div className="pt-2 border-t border-border-color/50 flex gap-4">
                                                         <button
                                                             onClick={() => handleClearIndex(source.id)}
                                                             className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
@@ -752,7 +752,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
             {
                 filteredSources.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-secondary">
                         <i className="fas fa-cloud text-4xl mb-4 opacity-50"></i>
                         <p>暂无媒体库</p>
                     </div>
@@ -763,8 +763,8 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             {
                 showForm && (
                     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
-                        <div className="bg-gray-900 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-gray-800">
-                            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                        <div className="bg-secondary rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-border-color">
+                            <h2 className="text-xl font-bold text-primary mb-6 flex items-center gap-3">
                                 {editingSource ? <i className="fas fa-edit text-blue-500"></i> : <i className="fas fa-plus-circle text-blue-500"></i>}
                                 {editingSource ? '编辑媒体库' : '添加媒体库'}
                             </h2>
@@ -772,18 +772,18 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                             <div className="space-y-5">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">名称 *</label>
+                                        <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">名称 *</label>
                                         <input
                                             type="text"
                                             value={formData.name}
                                             onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                             placeholder="我的媒体库"
-                                            className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                 border border-gray-700 focus:border-blue-500 focus:outline-none transition-all"
+                                            className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                 border border-border-color focus:border-blue-500 focus:outline-none transition-all"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">存储类型 *</label>
+                                        <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">存储类型 *</label>
                                         <select
                                             value={formData.type}
                                             onChange={e => {
@@ -795,8 +795,8 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                     proxy_enabled: newType === 'webdav' ? true : (newType === 'local' ? false : prev.proxy_enabled)
                                                 }));
                                             }}
-                                            className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                 border border-gray-700 focus:border-blue-500 focus:outline-none transition-all"
+                                            className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                 border border-border-color focus:border-blue-500 focus:outline-none transition-all"
                                         >
                                             <option value="alist">Alist / OpenList</option>
                                             <option value="webdav">WebDAV</option>
@@ -808,38 +808,38 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                 {formData.type !== 'local' && (
                                     <>
                                         <div>
-                                            <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">地址 *</label>
+                                            <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">地址 *</label>
                                             <input
                                                 type="url"
                                                 value={formData.url}
                                                 onChange={e => setFormData(prev => ({ ...prev, url: e.target.value }))}
                                                 placeholder="http://192.168.1.100:5244"
-                                                className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                     border border-gray-700 focus:border-blue-500 focus:outline-none transition-all"
+                                                className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                     border border-border-color focus:border-blue-500 focus:outline-none transition-all"
                                             />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">用户名 (可选)</label>
+                                                <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">用户名 (可选)</label>
                                                 <input
                                                     type="text"
                                                     value={formData.username}
                                                     onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
                                                     placeholder="admin"
-                                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                         border border-gray-700 focus:border-blue-500 focus:outline-none"
+                                                    className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                         border border-border-color focus:border-blue-500 focus:outline-none"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">密码 (可选)</label>
+                                                <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">密码 (可选)</label>
                                                 <input
                                                     type="password"
                                                     value={formData.password}
                                                     onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                                     placeholder={editingSource ? '留空保持不变' : '密码'}
-                                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                         border border-gray-700 focus:border-blue-500 focus:outline-none"
+                                                    className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                         border border-border-color focus:border-blue-500 focus:outline-none"
                                                 />
                                             </div>
                                         </div>
@@ -848,16 +848,16 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
                                 {formData.type === 'local' && (
                                     <div>
-                                        <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">本地根路径 *</label>
+                                        <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">本地根路径 *</label>
                                         <input
                                             type="text"
                                             value={formData.root_path}
                                             onChange={e => setFormData(prev => ({ ...prev, root_path: e.target.value }))}
                                             placeholder="/home/media"
-                                            className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                                 border border-gray-700 focus:border-blue-500 focus:outline-none"
+                                            className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                                 border border-border-color focus:border-blue-500 focus:outline-none"
                                         />
-                                        <p className="mt-1 text-[10px] text-gray-500">后端可访问的绝对路径</p>
+                                        <p className="mt-1 text-[10px] text-secondary">后端可访问的绝对路径</p>
                                         <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-[10px] text-orange-300/80">
                                             <span className="font-bold"><i className="fas fa-docker mr-1"></i>Docker 部署提示：</span>
                                             <span>需先在 docker-compose.yml 中映射宿主机目录，此处填写容器内的路径。</span>
@@ -866,43 +866,43 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                 )}
 
                                 <div>
-                                    <label className="block text-gray-400 mb-2 text-xs uppercase tracking-wider">备注</label>
+                                    <label className="block text-secondary mb-2 text-xs uppercase tracking-wider">备注</label>
                                     <textarea
                                         value={formData.remark}
                                         onChange={e => setFormData(prev => ({ ...prev, remark: e.target.value }))}
                                         placeholder="用于辨识媒体库..."
                                         rows={2}
-                                        className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg 
-                                             border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
+                                        className="w-full px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                             border border-border-color focus:border-blue-500 focus:outline-none resize-none"
                                     />
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-6 pt-2">
-                                    <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
+                                    <label className="flex items-center gap-2 text-sm text-primary cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             checked={formData.enabled}
                                             onChange={e => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
-                                            className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                                            className="w-4 h-4 rounded border-border-color bg-secondary text-blue-500 focus:ring-0 focus:ring-offset-0"
                                         />
                                         启用源
                                     </label>
-                                    <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
+                                    <label className="flex items-center gap-2 text-sm text-primary cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             checked={formData.hidden}
                                             onChange={e => setFormData(prev => ({ ...prev, hidden: e.target.checked }))}
-                                            className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                                            className="w-4 h-4 rounded border-border-color bg-secondary text-blue-500 focus:ring-0 focus:ring-offset-0"
                                         />
                                         未登录隐藏
                                     </label>
                                     {formData.type !== 'local' && (
-                                        <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
+                                        <label className="flex items-center gap-2 text-sm text-primary cursor-pointer group">
                                             <input
                                                 type="checkbox"
                                                 checked={formData.proxy_enabled}
                                                 onChange={e => setFormData(prev => ({ ...prev, proxy_enabled: e.target.checked }))}
-                                                className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                                                className="w-4 h-4 rounded border-border-color bg-secondary text-blue-500 focus:ring-0 focus:ring-offset-0"
                                             />
                                             启用图片/流代理
                                         </label>
@@ -913,15 +913,15 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                             <div className="flex gap-4 mt-8">
                                 <button
                                     onClick={() => setShowForm(false)}
-                                    className="flex-1 px-4 py-2.5 bg-gray-800 text-gray-300 rounded-lg 
-                                         hover:bg-gray-700 transition-colors border border-gray-700"
+                                    className="flex-1 px-4 py-2.5 bg-secondary text-primary rounded-lg 
+                                         hover:bg-gray-700 transition-colors border border-border-color"
                                 >
                                     取消
                                 </button>
                                 <button
                                     onClick={handleSave}
                                     disabled={saving || !isFormValid()}
-                                    className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg 
+                                    className="flex-1 px-4 py-2.5 bg-blue-600 text-primary rounded-lg 
                                          hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-lg shadow-blue-900/20"
                                 >
                                     {saving ? '正在保存...' : '确认保存'}

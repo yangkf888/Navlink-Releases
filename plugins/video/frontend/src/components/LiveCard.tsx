@@ -36,11 +36,11 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
 
     return (
         <div
-            className="relative rounded-lg overflow-hidden bg-gray-800 hover:scale-105 transition-all duration-200 cursor-pointer group"
+            className="relative rounded-lg overflow-hidden bg-secondary hover:scale-105 transition-all duration-200 cursor-pointer group"
             onClick={onClick}
         >
             {/* 封面 */}
-            <div className="relative w-full aspect-[4/3] bg-gray-900">
+            <div className="relative w-full aspect-[4/3] bg-secondary">
                 {(status?.cover_url || source.cover_url) ? (
                     <img
                         src={status?.cover_url || source.cover_url}
@@ -59,7 +59,7 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
 
                 {/* 直播中标签 */}
                 {isLive && (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-white text-xs rounded-md flex items-center gap-1">
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-primary text-xs rounded-md flex items-center gap-1">
                         <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                         直播中
                     </div>
@@ -67,7 +67,7 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
 
                 {/* 观看人数 */}
                 {isLive && status.viewer_count && status.viewer_count > 0 && (
-                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 text-white text-xs rounded-md flex items-center gap-1">
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 text-primary text-xs rounded-md flex items-center gap-1">
                         <i className="fas fa-eye"></i>
                         {formatViewerCount(status.viewer_count)}
                     </div>
@@ -86,31 +86,31 @@ export function LiveCard({ source, status, onClick }: LiveCardProps) {
                             <img src={status.avatar_url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                                <i className="fas fa-user text-xs text-gray-500"></i>
+                                <i className="fas fa-user text-xs text-secondary"></i>
                             </div>
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate text-sm leading-tight">
+                        <h3 className="text-primary font-medium truncate text-sm leading-tight">
                             {source.streamer_name || source.name}
                         </h3>
                     </div>
                 </div>
 
                 {isLive && status.title && (
-                    <p className="text-gray-400 text-xs truncate mb-2 leading-tight opacity-80">
+                    <p className="text-secondary text-xs truncate mb-2 leading-tight opacity-80">
                         {status.title}
                     </p>
                 )}
 
                 <div className="flex items-center justify-between mt-auto">
-                    <span className={`inline-block px-1.5 py-0.5 text-[10px] rounded leading-none ${PLATFORM_COLORS[source.platform] || 'bg-gray-700/50 text-gray-400'
+                    <span className={`inline-block px-1.5 py-0.5 text-[10px] rounded leading-none ${PLATFORM_COLORS[source.platform] || 'bg-gray-700/50 text-secondary'
                         }`}>
                         {PLATFORM_NAMES[source.platform] || source.platform}
                     </span>
 
                     {source.category && (
-                        <span className="text-gray-500 text-[10px] truncate max-w-[60px]">{source.category}</span>
+                        <span className="text-secondary text-[10px] truncate max-w-[60px]">{source.category}</span>
                     )}
                 </div>
             </div>

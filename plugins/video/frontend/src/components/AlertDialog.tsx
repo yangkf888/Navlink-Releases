@@ -69,7 +69,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
 
             {/* 对话框 */}
             <div
-                className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                className="relative bg-secondary border border-border-color rounded-2xl p-6 max-w-md w-full shadow-2xl"
                 style={{ animation: 'scaleIn 0.2s ease-out' }}
             >
                 {/* 标题 */}
@@ -78,12 +78,12 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
                         <i className={`fas ${config.icon} text-xl`} />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">{title}</h3>
+                        <h3 className="text-lg font-bold text-primary">{title}</h3>
                     </div>
                 </div>
 
                 {/* 消息内容 */}
-                <p className="text-gray-300 mb-6 whitespace-pre-line leading-relaxed pl-13">
+                <p className="text-primary mb-6 whitespace-pre-line leading-relaxed pl-13">
                     {message}
                 </p>
 
@@ -91,7 +91,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
                 <div className="flex justify-end">
                     <button
                         onClick={onClose}
-                        className={`px-5 py-2.5 rounded-lg transition-colors font-medium text-white ${config.buttonColor}`}
+                        className={`px-5 py-2.5 rounded-lg transition-colors font-medium text-primary ${config.buttonColor}`}
                     >
                         {buttonText}
                     </button>

@@ -85,11 +85,11 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
     // 加载中
     if (loading) {
         return (
-            <div className="p-6 animate-pulse">
-                <div className="h-10 bg-gray-800 rounded w-48 mb-6"></div>
+            <div className="p-6 animate-pulse space-y-8">
+                <div className="h-10 bg-secondary/30 rounded-2xl w-48"></div>
                 <div className="space-y-4">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="h-24 bg-secondary/20 rounded-2xl border border-border-color"></div>
                     ))}
                 </div>
             </div>
@@ -99,13 +99,21 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
     // 需要密码但未验证
     if (passwordRequired && !isAuthenticated) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center p-4">
-                <div className="bg-gray-800/50 rounded-xl p-8 w-full max-w-sm text-center">
-                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <i className="fas fa-lock text-red-400 text-2xl"></i>
+            <div className="min-h-[70vh] flex items-center justify-center p-6 relative overflow-hidden">
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 blur-[120px] rounded-full"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 blur-[120px] rounded-full"></div>
+                </div>
+
+                <div className="glass-effect relative z-10 p-10 w-full max-w-md text-center rounded-3xl border border-border-color shadow-2xl space-y-8">
+                    <div className="w-20 h-20 mx-auto rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center">
+                        <i className="fas fa-fingerprint text-blue-500 text-3xl animate-pulse"></i>
                     </div>
-                    <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
-                    <p className="text-gray-400 text-sm mb-6">请输入管理密码以访问后台</p>
+
+                    <div>
+                        <h2 className="text-2xl font-bold text-primary mb-2">安全验证</h2>
+                        <p className="text-secondary text-xs opacity-60">此区域受管理密码保护，请输入密码以继续</p>
+                    </div>
 
                     <div className="space-y-4">
                         <input
@@ -113,29 +121,31 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="输入密码"
-                            className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 
-                                     focus:border-red-500 focus:outline-none text-center"
+                            placeholder="管理密码"
+                            className="w-full px-5 py-4 bg-white/5 text-primary rounded-2xl border border-border-color 
+                                     focus:border-blue-500/50 focus:bg-white/10 focus:outline-none text-center transition-all placeholder:opacity-30"
                             autoFocus
                         />
 
                         {error && (
-                            <p className="text-red-400 text-sm">
-                                <i className="fas fa-exclamation-circle mr-1"></i>
-                                {error}
-                            </p>
+                            <div className="py-2 px-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                <p className="text-red-400 text-xs font-semibold">
+                                    <i className="fas fa-exclamation-circle mr-2"></i>
+                                    {error}
+                                </p>
+                            </div>
                         )}
 
                         <button
                             onClick={handleVerifyPassword}
                             disabled={verifying}
-                            className="w-full py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 
-                                     transition-colors disabled:opacity-50 font-medium"
+                            className="w-full py-4 bg-blue-600 text-primary rounded-2xl hover:bg-blue-500 
+                                     shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50 font-bold text-sm"
                         >
                             {verifying ? (
-                                <><i className="fas fa-spinner fa-spin mr-2"></i> 验证中...</>
+                                <><i className="fas fa-circle-notch fa-spin mr-2"></i> 正在验证身份...</>
                             ) : (
-                                <><i className="fas fa-unlock mr-2"></i> 解锁</>
+                                <><i className="fas fa-shield-alt mr-2"></i> 确认并解锁</>
                             )}
                         </button>
                     </div>
@@ -145,77 +155,35 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
     }
 
     return (
-        <div className="p-4 lg:p-6 space-y-6">
-            <h1 className="text-2xl font-bold dark:text-white text-gray-900">管理设置</h1>
+        <div className="p-4 lg:p-8 space-y-8 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-black text-primary tracking-tight">管理中心</h1>
+            </div>
 
             {/* 标签页 */}
-            <div className="flex gap-2 border-b border-gray-700 pb-2">
-                <button
-                    onClick={() => setActiveTab('home')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'home'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'home' ? { color: '#fff' } : undefined}
-                >
-                    首页管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('sources')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'sources'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'sources' ? { color: '#fff' } : undefined}
-                >
-                    视频源管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('tv_sources')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'tv_sources'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'tv_sources' ? { color: '#fff' } : undefined}
-                >
-                    电视源管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('live_sources')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'live_sources'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'live_sources' ? { color: '#fff' } : undefined}
-                >
-                    直播源管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('netdisk_sources')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'netdisk_sources'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'netdisk_sources' ? { color: '#fff' } : undefined}
-                >
-                    媒体库管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('settings')}
-                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors
-                        ${activeTab === 'settings'
-                            ? 'bg-blue-600'
-                            : 'text-gray-400 hover:text-white bg-gray-800/10 dark:bg-gray-800/30'
-                        }`}
-                    style={activeTab === 'settings' ? { color: '#fff' } : undefined}
-                >
-                    系统设置
-                </button>
+            <div className="flex flex-wrap gap-2.5 p-1.5 bg-secondary/30 backdrop-blur-md border border-border-color rounded-2xl w-fit">
+                {[
+                    { id: 'home', label: '首页配置', icon: 'fa-home' },
+                    { id: 'sources', label: '视频站源', icon: 'fa-database' },
+                    { id: 'tv_sources', label: '电视直播', icon: 'fa-tv' },
+                    { id: 'live_sources', label: '热门直播', icon: 'fa-broadcast-tower' },
+                    { id: 'netdisk_sources', label: '私有媒体', icon: 'fa-cloud' },
+                    { id: 'settings', label: '系统设置', icon: 'fa-cog' }
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as TabType)}
+                        className={`
+                            flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300
+                            ${activeTab === tab.id
+                                ? 'active-brand-item shadow-lg shadow-blue-500/40'
+                                : 'text-secondary hover:bg-secondary/80 hover:text-primary'}
+                        `}
+                    >
+                        <i className={`fas ${tab.icon} ${activeTab === tab.id ? 'scale-110' : 'opacity-70'}`}></i>
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {/* 首页管理 */}

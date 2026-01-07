@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react';
 import { Video, Category } from '../types';
 import { apiGet } from '../utils/api';
 import { VideoCard } from '../components/VideoCard';
-import { CategoryNav } from '../components/CategoryNav';
 
 
 interface SourceOverviewProps {
@@ -170,7 +169,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
             purple: { icon: 'text-purple-400' },
             yellow: { icon: 'text-yellow-400' },
             orange: { icon: 'text-orange-400' },
-            gray: { icon: 'text-gray-400' },
+            gray: { icon: 'text-secondary' },
         };
         return colors[color] || colors.gray;
     };
@@ -180,10 +179,10 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
             <div className="p-6 animate-pulse space-y-8">
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
-                        <div className="h-6 bg-gray-800 rounded w-32"></div>
+                        <div className="h-6 bg-secondary rounded w-32"></div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                             {[...Array(6)].map((_, j) => (
-                                <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                                <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
                     </div>
@@ -196,7 +195,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
         return (
             <div className="flex flex-col h-full">
                 <div className="flex-1 w-full min-w-0">
-                    <div className="p-4 lg:p-6 space-y-8 text-center py-12 text-gray-500">
+                    <div className="p-4 lg:p-6 space-y-8 text-center py-12 text-secondary">
                         <i className="fas fa-film text-4xl mb-4 opacity-50"></i>
                         <p>该视频源暂无内容</p>
                     </div>
@@ -207,21 +206,13 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
 
     return (
         <div className="flex flex-col h-full">
-            {/* 顶部导航 */}
-            {sourceId && categories.length > 0 && (
-                <CategoryNav
-                    categories={categories}
-                    sourceId={sourceId}
-                    onNavigate={onNavigate}
-                />
-            )}
 
             <div className="flex-1 p-4 lg:p-6 space-y-8">
                 {/* 视频源标题 */}
                 {sourceName && (
                     <div className="flex items-center gap-2">
                         <i className="fas fa-database text-blue-400"></i>
-                        <h1 className="text-xl font-bold text-white">{sourceName}</h1>
+                        <h1 className="text-xl font-bold text-primary">{sourceName}</h1>
                     </div>
                 )}
 
@@ -232,13 +223,13 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                     return (
                         <section key={section.id}>
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <h2 className="text-lg font-bold text-primary flex items-center gap-2">
                                     <i className={`${section.icon} ${colorClasses.icon}`}></i>
                                     {section.name}
                                 </h2>
                                 <button
                                     onClick={() => handleViewMore(section.id, section.name)}
-                                    className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                                    className="text-sm text-secondary hover:text-primary transition-colors flex items-center gap-1"
                                 >
                                     更多
                                     <i className="fas fa-chevron-right text-xs"></i>

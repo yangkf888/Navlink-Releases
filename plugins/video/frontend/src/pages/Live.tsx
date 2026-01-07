@@ -120,10 +120,10 @@ export function Live({ platform, onPlay }: LiveProps) {
         return (
             <div className="p-6 space-y-4">
                 <div className="animate-pulse space-y-4">
-                    <div className="h-10 bg-gray-800 rounded w-64"></div>
+                    <div className="h-10 bg-secondary rounded w-64"></div>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {[...Array(12)].map((_, i) => (
-                            <div key={i} className="h-48 bg-gray-800 rounded"></div>
+                            <div key={i} className="h-48 bg-secondary rounded"></div>
                         ))}
                     </div>
                 </div>
@@ -135,19 +135,19 @@ export function Live({ platform, onPlay }: LiveProps) {
         <div className="p-6 space-y-6">
             {/* 筛选栏 */}
             <div className="flex flex-wrap gap-3 items-center">
-                <h1 className="text-2xl font-bold text-white">直播</h1>
+                <h1 className="text-2xl font-bold text-primary">直播</h1>
 
                 <select
                     value={selectedPlatform}
                     onChange={e => setSelectedPlatform(e.target.value)}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                    className="px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                 >
                     {PLATFORMS.map(p => (
                         <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
                 </select>
 
-                <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-primary cursor-pointer">
                     <input
                         type="checkbox"
                         checked={showLiveOnly}
@@ -160,7 +160,7 @@ export function Live({ platform, onPlay }: LiveProps) {
                 <button
                     onClick={() => loadData(true)}
                     disabled={loading}
-                    className="ml-auto px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="ml-auto px-4 py-2 bg-secondary text-primary rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                     <i className={`fas fa-sync-alt ${loading ? 'animate-spin' : ''}`}></i>
                     {loading ? '刷新中...' : '刷新'}
@@ -172,9 +172,9 @@ export function Live({ platform, onPlay }: LiveProps) {
                 <div className="space-y-8">
                     {Object.entries(groupedByPlatform).map(([platform, data]) => (
                         <section key={platform}>
-                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                                 <span>{data.label}</span>
-                                <span className="text-sm text-gray-500">({data.sources.length})</span>
+                                <span className="text-sm text-secondary">({data.sources.length})</span>
                             </h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                                 {data.sources.map(source => (
@@ -203,7 +203,7 @@ export function Live({ platform, onPlay }: LiveProps) {
             )}
 
             {filteredSources.length === 0 && (
-                <div className="text-center py-16 text-gray-500">
+                <div className="text-center py-16 text-secondary">
                     <i className="fas fa-broadcast-tower text-6xl mb-4 opacity-50"></i>
                     <p className="text-lg">暂无直播源</p>
                     <p className="text-sm mt-2">请到后台管理添加直播源</p>

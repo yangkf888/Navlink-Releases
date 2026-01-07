@@ -108,10 +108,8 @@ export function Sidebar({
                 });
                 setGroupedChannels(groups);
 
-                // 默认展开所有电视分组
-                const initExpanded: Record<string, boolean> = {};
-                Object.keys(groups).forEach(g => initExpanded[g] = true);
-                setExpandedGroups(initExpanded);
+                // 默认收起所有电视分组
+                setExpandedGroups({});
             }
         } catch (e) {
             console.error('Failed to load TV channels', e);
@@ -126,7 +124,15 @@ export function Sidebar({
         if (id === 'home' && activeView === 'home') return true;
         if (id.startsWith('source-')) {
             const sid = parseInt(id.split('-')[1]);
-            return sid === selectedSourceId && activeView !== 'category';
+            return activeView !== 'home' && sid === selectedSourceId && activeView !== 'category';
+        }
+        if (id.startsWith('netdisk-source-')) {
+            const sid = parseInt(id.split('-')[1]);
+            return activeView !== 'home' && sid === selectedNetdiskSourceId;
+        }
+        if (id.startsWith('live-play-')) {
+            const sid = parseInt(id.split('-')[1]);
+            return activeView !== 'home' && sid === navParams.liveSourceId;
         }
         if (id === activeView) return true;
         return false;
@@ -139,33 +145,29 @@ export function Sidebar({
 
     // 渲染 Logo/Header
     const renderHeader = () => {
-        const borderColor = theme === 'dark' ? 'border-gray-800' : 'border-gray-200';
-        const titleColor = theme === 'dark' ? 'text-white' : 'text-gray-900';
+        const borderColor = theme === 'dark' ? 'border-border-color' : 'border-slate-200';
+        const titleColor = theme === 'dark' ? 'text-slate-100' : 'text-slate-900';
 
         if (collapsed) {
             return (
-                <div className={`h-16 flex items-center justify-center border-b ${borderColor}`}>
-                    <i className="fas fa-play-circle text-blue-500 text-xl"></i>
+                <div className={`h-16 flex items-center justify-center border-b ${borderColor} bg-white/5`}>
+                    <i className="fas fa-play-circle text-blue-500 text-xl shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
                 </div>
             );
         }
         return (
-            <div className={`p-4 h-16 border-b ${borderColor} flex items-center justify-between`}>
-                <div>
-                    <h1 className={`text-xl font-bold ${titleColor} flex items-center gap-2`}>
-                        <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-blue-500`}></i>
+            <div className={`p-4 h-16 border-b ${borderColor} flex items-center justify-between bg-white/5 backdrop-blur-sm`}>
+                <div className="flex flex-col">
+                    <h1 className={`text-lg font-bold ${titleColor} flex items-center gap-2 tracking-tight`}>
+                        <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-primary text-sm`}></i>
+                        </div>
                         {activeModule === 'tv' ? '电视直播' : '视频中心'}
                     </h1>
-                    <p className="text-xs text-gray-500 mt-1 truncate">
-                        {activeModule === 'tv'
-                            ? (tvSources.find(s => s.id === selectedTvSourceId)?.name || '直播源')
-                            : (sources.find(s => s.id === selectedSourceId)?.name || '多源视频聚合')
-                        }
-                    </p>
                 </div>
                 {/* 移动端关闭按钮 */}
                 {isMobile && onCloseMobile && (
-                    <button onClick={onCloseMobile} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'} lg:hidden`}>
+                    <button onClick={onCloseMobile} className={`${theme === 'dark' ? 'text-secondary hover:text-primary' : 'text-secondary hover:text-slate-900'} lg:hidden transition-colors`}>
                         <i className="fas fa-times text-lg"></i>
                     </button>
                 )}
@@ -289,7 +291,7 @@ export function Sidebar({
                         <SidebarItem
                             icon="fas fa-hdd"
                             label={source.name}
-                            isActive={selectedNetdiskSourceId === source.id && !navParams.keyword}
+                            isActive={isActive(`netdisk-source-${source.id}`) && !navParams.keyword}
                             onClick={() => {
                                 if (!collapsed && scanPaths.length > 0) {
                                     toggleGroup(`netdisk-${source.id}`);
@@ -342,14 +344,14 @@ export function Sidebar({
             <div className="w-full mt-2">
                 {!collapsed ? (
                     <div
-                        className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-pointer hover:text-black dark:hover:text-white transition-colors"
+                        className="w-full flex items-center px-4 py-3 text-sm font-medium text-secondary dark:text-secondary cursor-pointer hover:text-black dark:hover:text-primary transition-colors"
                         onClick={() => setIsSourcesOpen(!isSourcesOpen)}
                     >
                         <i className={`fas fa-chevron-right text-[10px] w-4 transition-transform ${isSourcesOpen ? 'rotate-90' : ''}`}></i>
                         <span className="flex-1 ml-1">视频源站</span>
                     </div>
                 ) : (
-                    <div className="flex justify-center py-2 text-gray-400 border-t border-gray-800 dark:border-gray-800/50 mt-2 pt-4">
+                    <div className="flex justify-center py-2 text-secondary border-t border-border-color dark:border-border-color/50 mt-2 pt-4">
                         <i className="fas fa-server text-xs" title="视频源"></i>
                     </div>
                 )}
@@ -361,7 +363,7 @@ export function Sidebar({
                                 key={source.id}
                                 icon="fas fa-server"
                                 label={source.name}
-                                isActive={source.id === selectedSourceId}
+                                isActive={isActive(`source-${source.id}`)}
                                 onClick={() => {
                                     onSourceChange(source.id);
                                     // 触发后台异步同步分类（不阻塞UI）
@@ -418,14 +420,14 @@ export function Sidebar({
                         type="text"
                         className={`w-full text-xs rounded-full border py-1.5 pl-8 pr-3 focus:outline-none focus:border-blue-500
                             ${theme === 'dark'
-                                ? 'bg-gray-800 text-gray-200 border-gray-700'
+                                ? 'bg-secondary text-gray-200 border-border-color'
                                 : 'bg-gray-100 text-gray-800 border-gray-200'}
                         `}
                         placeholder="搜索频道..."
                         value={tvSearch}
                         onChange={(e) => setTvSearch(e.target.value)}
                     />
-                    <i className="fas fa-search absolute left-3 top-2 text-gray-500 text-xs"></i>
+                    <i className="fas fa-search absolute left-3 top-2 text-secondary text-xs"></i>
                 </div>
             </div>
         );
@@ -488,7 +490,7 @@ export function Sidebar({
                             ) : (
                                 // Collapsed view (just icons or skipped)
                                 <div className="flex justify-center py-2 relative group" title={group}>
-                                    <span className="text-[10px] text-gray-500 font-mono border border-gray-700/50 rounded px-1">{group.substring(0, 2)}</span>
+                                    <span className="text-[10px] text-secondary font-mono border border-border-color/50 rounded px-1">{group.substring(0, 2)}</span>
                                 </div>
                             )}
                         </div>
@@ -499,16 +501,16 @@ export function Sidebar({
     };
 
     return (
-        <div className={`flex flex-col h-full w-full select-none pb-safe transition-colors duration-300
-            ${theme === 'dark' ? 'bg-gray-950 text-gray-300' : 'bg-white text-gray-600'}
+        <div className={`flex flex-col h-full w-full select-none pb-safe transition-all duration-500 border-r glass-effect
+            ${theme === 'dark' ? 'text-slate-300 border-border-color shadow-2xl' : 'text-slate-600 border-slate-200 shadow-xl'}
         `}>
             {renderHeader()}
 
-            <div className={`flex-1 w-full min-w-full sidebar-scrollbar scrollbar-overlay space-y-0.5 ${collapsed ? 'py-4' : 'py-2'}`}>
+            <div className={`flex-1 w-full min-w-full overflow-y-auto overflow-x-hidden sidebar-scrollbar scrollbar-overlay space-y-0.5 ${collapsed ? 'py-4' : 'py-2'}`}>
                 {/* 移动端导航菜单 */}
                 {isMobile && onModuleChange && (
-                    <div className={`px-1 pb-3 mb-2 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
-                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">导航</div>
+                    <div className={`px-1 pb-3 mb-2 border-b ${theme === 'dark' ? 'border-border-color' : 'border-gray-200'}`}>
+                        <div className="text-[10px] font-bold text-secondary uppercase tracking-wider px-3 mb-2">导航</div>
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
@@ -540,7 +542,7 @@ export function Sidebar({
             </div>
 
             {/* 底部功能按钮 */}
-            <div className={`p-3 border-t space-y-1 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`p-3 border-t space-y-1 ${theme === 'dark' ? 'border-border-color' : 'border-gray-200'}`}>
 
                 {!isMobile && onToggleCollapse && (
                     <button
@@ -549,8 +551,8 @@ export function Sidebar({
                             flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors
                             ${collapsed ? 'justify-center' : 'justify-start'}
                             ${theme === 'dark'
-                                ? 'text-gray-500 hover:text-white hover:bg-white/5'
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-black/5'}
+                                ? 'text-secondary hover:text-primary hover:bg-white/5'
+                                : 'text-secondary hover:text-gray-900 hover:bg-black/5'}
                         `}
                         title={collapsed ? "展开" : "收起"}
                     >
@@ -598,12 +600,15 @@ function SidebarItem({
     return (
         <div
             className={`
-                group w-full flex items-center transition-all duration-200 text-sm cursor-pointer relative min-h-[44px]
-                ${collapsed ? 'justify-center py-3 px-0' : `${isLevel1 ? 'pl-9 pr-4' : 'px-4'} py-2.5`}
+                group w-full flex items-center transition-all duration-300 text-sm cursor-pointer relative min-h-[46px] my-0.5
+                ${collapsed ? 'justify-center py-3 px-0' : `${isLevel1 ? 'pl-10 pr-4' : 'px-4'} py-2.5`}
                 ${isActive
-                    ? 'bg-blue-600/10 text-blue-500 dark:text-blue-400 font-semibold border-l-[3px] border-blue-600 dark:border-blue-500'
-                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/5 border-l-[3px] border-transparent'
+                    ? 'active-brand-item text-white font-bold shadow-lg shadow-blue-500/30 z-10'
+                    : `text-secondary dark:text-secondary hover:text-slate-900 dark:hover:text-slate-100 
+                       hover:bg-slate-100 dark:hover:bg-white/5`
                 }
+                ${!collapsed && isActive ? 'rounded-xl mx-2 w-[calc(100%-16px)]' : ''}
+                ${collapsed && isActive ? 'rounded-lg mx-1 w-[calc(100%-8px)]' : ''}
             `}
             onClick={onClick}
             title={collapsed ? label : ''}
@@ -619,7 +624,7 @@ function SidebarItem({
                 ) : dot ? (
                     <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-500' : 'bg-gray-500 opacity-60'}`}></div>
                 ) : (
-                    <i className={`${icon} ${collapsed ? 'text-lg' : 'text-sm opacity-80 group-hover:opacity-100'}`}></i>
+                    <i className={`${icon} ${collapsed ? 'text-lg' : 'text-sm opacity-80 group-hover:opacity-100'} ${isActive ? 'text-white' : ''}`}></i>
                 )}
             </div>
 
@@ -640,9 +645,9 @@ function SidebarItem({
                 </>
             )}
 
-            {/* 选中时的右侧装饰（可选） */}
+            {/* 选中时的光晕（仅在非激活态 hover 时可选） */}
             {isActive && !collapsed && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500/20 rounded-l-full"></div>
+                <div className="absolute inset-0 bg-blue-400/10 blur-xl -z-10 rounded-full"></div>
             )}
         </div>
     );

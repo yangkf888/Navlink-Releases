@@ -259,9 +259,9 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
     if (loading) {
         return (
             <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-800 rounded w-full"></div>
+                <div className="h-10 bg-secondary rounded w-full"></div>
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                    <div key={i} className="h-16 bg-secondary rounded"></div>
                 ))}
             </div>
         );
@@ -273,13 +273,13 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
             <div className="flex flex-wrap gap-3 items-center">
                 {/* 搜索 */}
                 <div className="relative flex-1 min-w-[200px]">
-                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-secondary"></i>
                     <input
                         type="text"
                         placeholder="搜索直播源或主播..."
                         value={searchKeyword}
                         onChange={e => setSearchKeyword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                        className="w-full pl-10 pr-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                  focus:border-red-500 focus:outline-none"
                     />
                 </div>
@@ -288,7 +288,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                 <select
                     value={platformFilter}
                     onChange={e => setPlatformFilter(e.target.value as PlatformFilter)}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                    className="px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                              focus:border-red-500 focus:outline-none"
                 >
                     <option value="all">全部平台</option>
@@ -301,7 +301,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                 <select
                     value={statusFilter}
                     onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 
+                    className="px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                              focus:border-red-500 focus:outline-none"
                 >
                     <option value="all">全部状态</option>
@@ -323,25 +323,25 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
 
             {/* 批量操作栏 */}
             {selectedIds.length > 0 && (
-                <div className="flex flex-wrap gap-2 items-center p-3 bg-gray-800/50 rounded-lg">
-                    <span className="text-gray-400">已选择 {selectedIds.length} 项</span>
+                <div className="flex flex-wrap gap-2 items-center p-3 bg-secondary/50 rounded-lg border border-border-color">
+                    <span className="text-secondary">已选择 {selectedIds.length} 项</span>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 1 })}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
+                        className="px-3 py-1 bg-green-600 text-primary rounded hover:bg-green-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 0 })}
-                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
+                        className="px-3 py-1 bg-orange-600 text-primary rounded hover:bg-orange-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={handleBatchDelete}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
+                        className="px-3 py-1 bg-red-600 text-primary rounded hover:bg-red-500 text-sm"
                         style={{ color: '#fff' }}
                     >
                         批量删除
@@ -353,7 +353,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="text-left text-gray-400 border-b border-gray-700">
+                        <tr className="text-left text-secondary border-b border-border-color">
                             <th className="p-3 w-10">
                                 <input
                                     type="checkbox"
@@ -376,7 +376,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                         {filteredSources.map(source => (
                             <tr
                                 key={source.id}
-                                className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors
+                                className={`border-b border-border-color hover:bg-secondary/50 transition-colors
                                           ${!source.enabled ? 'opacity-50' : ''}`}
                             >
                                 <td className="p-3">
@@ -388,10 +388,10 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                     />
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-white font-medium">{source.name}</span>
+                                    <span className="text-primary font-medium">{source.name}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-gray-400 text-sm">{source.streamer_name || '-'}</span>
+                                    <span className="text-secondary text-sm">{source.streamer_name || '-'}</span>
                                 </td>
                                 <td className="p-3">
                                     <span
@@ -402,10 +402,10 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                     </span>
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-gray-400 text-xs">{source.channel_id}</span>
+                                    <span className="text-secondary text-xs">{source.channel_id}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className="text-gray-400 text-sm">{source.category || '-'}</span>
+                                    <span className="text-secondary text-sm">{source.category || '-'}</span>
                                 </td>
                                 <td className="p-3">
                                     <span
@@ -418,19 +418,19 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
                                 </td>
-                                <td className="p-3 text-gray-400">{source.sort_order}</td>
+                                <td className="p-3 text-secondary">{source.sort_order}</td>
                                 <td className="p-3">
                                     <div className="flex items-center gap-1">
                                         <button
                                             onClick={() => handleRefresh(source.id)}
-                                            className="p-1.5 text-gray-400 hover:text-cyan-400 transition-colors"
+                                            className="p-1.5 text-secondary hover:text-cyan-400 transition-colors"
                                             title="检查直播状态"
                                         >
                                             <i className="fas fa-sync-alt"></i>
                                         </button>
                                         <button
                                             onClick={() => handleToggleEnabled(source)}
-                                            className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'
+                                            className={`p-1.5 transition-colors ${source.enabled ? 'text-green-400 hover:text-green-300' : 'text-secondary hover:text-secondary'
                                                 }`}
                                             title={source.enabled ? '禁用' : '启用'}
                                         >
@@ -438,14 +438,14 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                         </button>
                                         <button
                                             onClick={() => handleEdit(source)}
-                                            className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                                            className="p-1.5 text-secondary hover:text-primary transition-colors"
                                             title="编辑"
                                         >
                                             <i className="fas fa-edit"></i>
                                         </button>
                                         <button
                                             onClick={() => handleDelete(source.id, source.name)}
-                                            className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                                            className="p-1.5 text-secondary hover:text-red-400 transition-colors"
                                             title="删除"
                                         >
                                             <i className="fas fa-trash"></i>
@@ -459,7 +459,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
             </div>
 
             {filteredSources.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-secondary">
                     <i className="fas fa-broadcast-tower text-4xl mb-4 opacity-50"></i>
                     <p>暂无直播源</p>
                 </div>
@@ -468,43 +468,43 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
             {/* 表单弹窗 */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-900 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold text-white mb-4">
+                    <div className="bg-secondary rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-xl font-bold text-primary mb-4">
                             {editingSource ? '编辑直播源' : '添加直播源'}
                         </h2>
 
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-gray-300 mb-2">直播源名称 *</label>
+                                    <label className="block text-primary mb-2">直播源名称 *</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                         placeholder="如：某某直播间"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">主播名称</label>
+                                    <label className="block text-primary mb-2">主播名称</label>
                                     <input
                                         type="text"
                                         value={formData.streamer_name}
                                         onChange={e => setFormData(prev => ({ ...prev, streamer_name: e.target.value }))}
                                         placeholder="主播昵称"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-gray-300 mb-2">平台 *</label>
+                                    <label className="block text-primary mb-2">平台 *</label>
                                     <select
                                         value={formData.platform}
                                         onChange={e => setFormData(prev => ({ ...prev, platform: e.target.value }))}
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     >
                                         {PLATFORMS.map(p => (
                                             <option key={p.value} value={p.value}>{p.label}</option>
@@ -513,74 +513,74 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                                 </div>
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">频道ID/房间号 *</label>
+                                    <label className="block text-primary mb-2">频道ID/房间号 *</label>
                                     <input
                                         type="text"
                                         value={formData.channel_id}
                                         onChange={e => setFormData(prev => ({ ...prev, channel_id: e.target.value }))}
                                         placeholder="如：123456"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-gray-300 mb-2">封面图 URL</label>
+                                <label className="block text-primary mb-2">封面图 URL</label>
                                 <input
                                     type="url"
                                     value={formData.cover_url}
                                     onChange={e => setFormData(prev => ({ ...prev, cover_url: e.target.value }))}
                                     placeholder="https://example.com/cover.jpg"
-                                    className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-gray-300 mb-2">分类</label>
+                                    <label className="block text-primary mb-2">分类</label>
                                     <input
                                         type="text"
                                         value={formData.category}
                                         onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
                                         placeholder="如：游戏、娱乐"
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-gray-300 mb-2">排序</label>
+                                    <label className="block text-primary mb-2">排序</label>
                                     <input
                                         type="number"
                                         value={formData.sort_order}
                                         onChange={e => setFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
-                                        className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                        className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-gray-300 mb-2">标签（逗号分隔）</label>
+                                <label className="block text-primary mb-2">标签（逗号分隔）</label>
                                 <input
                                     type="text"
                                     value={formData.tags}
                                     onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
                                     placeholder="如：热门,推荐"
-                                    className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-gray-300 mb-2">备注</label>
+                                <label className="block text-primary mb-2">备注</label>
                                 <textarea
                                     value={formData.remark}
                                     onChange={e => setFormData(prev => ({ ...prev, remark: e.target.value }))}
                                     rows={3}
-                                    className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
+                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color focus:border-red-500 focus:outline-none"
                                 />
                             </div>
 
                             <div className="flex items-center gap-6">
-                                <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
+                                <label className="flex items-center gap-2 text-primary cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={formData.enabled === 1}
@@ -595,14 +595,14 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                         <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setShowForm(false)}
-                                className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                                className="flex-1 px-4 py-2 bg-secondary text-primary rounded-lg hover:bg-gray-700 transition-colors"
                             >
                                 取消
                             </button>
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !formData.name || !formData.platform || !formData.channel_id}
-                                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                className="flex-1 px-4 py-2 bg-red-500 text-primary rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                             >
                                 {saving ? '保存中...' : '保存'}
                             </button>

@@ -2,6 +2,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { GlobalSearchBar } from './GlobalSearchBar';
+import { CategoryNav } from './CategoryNav';
 import { VideoSource, TvSource, LiveSource, NetdiskSource, TvChannel, Category } from '../types';
 import { AppModule } from '../App';
 
@@ -69,17 +70,14 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
 
     return (
         <div className={`flex h-screen overflow-hidden relative transition-colors duration-300
-            ${sidebarProps.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}
+            ${sidebarProps.theme === 'dark' ? 'bg-primary' : 'bg-gray-50'}
         `}>
 
             {/* 桌面端 Sidebar */}
             <div
                 className={`
-                    hidden lg:flex flex-shrink-0 border-r h-full overflow-hidden transition-all duration-300
+                    hidden lg:flex flex-shrink-0 h-full overflow-hidden transition-all duration-300
                     ${isCollapsed ? 'w-16' : 'w-72'}
-                    ${sidebarProps.theme === 'dark'
-                        ? 'bg-gray-950 border-gray-800'
-                        : 'bg-white border-gray-200'}
                 `}
             >
                 <Sidebar
@@ -99,8 +97,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                     ></div>
                     {/* 侧边栏内容 */}
                     <div className={`
-                        absolute left-0 top-0 bottom-0 w-64 shadow-2xl animate-slide-right
-                        ${sidebarProps.theme === 'dark' ? 'bg-gray-950' : 'bg-white'}
+                        absolute left-0 top-0 bottom-0 w-64 shadow-2xl animate-slide-right border-r
+                        ${sidebarProps.theme === 'dark' ? 'bg-primary border-border-color' : 'bg-white border-gray-100'}
                     `}>
                         <Sidebar
                             {...sidebarProps}
@@ -130,6 +128,16 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                     onToggleTheme={sidebarProps.onToggleTheme}
                     isAdminPasswordEnabled={sidebarProps.isAdminPasswordEnabled}
                 />
+
+                {/* 全局分类导航 (提升至此处以强制对齐搜索栏) */}
+                {(sidebarProps.activeView === 'source' || sidebarProps.activeView === 'category') && sidebarProps.selectedSourceId && (
+                    <CategoryNav
+                        categories={sidebarProps.categoriesMap[sidebarProps.selectedSourceId] || []}
+                        sourceId={sidebarProps.selectedSourceId}
+                        currentCategoryId={sidebarProps.navParams.categoryId}
+                        onNavigate={sidebarProps.onNavigate}
+                    />
+                )}
 
                 {/* 内容区域 */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">

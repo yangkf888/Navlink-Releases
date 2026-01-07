@@ -289,10 +289,10 @@ export function Home() {
                 {/* 骨架屏 */}
                 {[...Array(3)].map((_, i) => (
                     <div key={i}>
-                        <div className="h-6 w-32 bg-gray-800 rounded mb-4"></div>
+                        <div className="h-6 w-32 bg-secondary rounded mb-4"></div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                             {[...Array(6)].map((__, j) => (
-                                <div key={j} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                                <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
                     </div>
@@ -303,7 +303,7 @@ export function Home() {
 
     if (!data) {
         return (
-            <div className="text-center py-20 text-gray-500">
+            <div className="text-center py-20 text-secondary">
                 <p>暂无数据，后台可能正在初始化...</p>
                 <button onClick={() => loadData()} className="mt-4 text-blue-400 hover:underline">刷新重试</button>
             </div>
@@ -311,12 +311,12 @@ export function Home() {
     }
 
     return (
-        <div className="p-4 lg:p-6 space-y-10 pb-20">
+        <div className="pt-0 px-4 lg:px-6 space-y-10 pb-20">
 
             {/* 1. 正在热映 (Fixed Section) */}
             <section>
                 <div className="flex items-center justify-between mb-4 px-1">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                         <i className="fas fa-fire text-orange-500"></i>
                         正在热映
                         {updating && (
@@ -329,7 +329,7 @@ export function Home() {
                     <button
                         onClick={() => refreshSingleSection('hot')}
                         disabled={refreshingSection === 'hot'}
-                        className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                        className="text-secondary hover:text-primary transition-colors disabled:opacity-50"
                         title="刷新正在热映"
                     >
                         <i className={`fas fa-sync-alt ${refreshingSection === 'hot' ? 'fa-spin' : ''}`}></i>
@@ -361,14 +361,14 @@ export function Home() {
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 px-1">
                             {/* 标题 */}
                             <div className="flex items-center gap-2">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2 shrink-0">
+                                <h2 className="text-xl font-bold text-primary flex items-center gap-2 shrink-0">
                                     <i className={`${section.icon} ${colorClasses.icon}`}></i>
                                     {section.title}
                                 </h2>
                                 <button
                                     onClick={() => refreshSingleSection(section.id)}
                                     disabled={refreshingSection === section.id}
-                                    className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                                    className="text-secondary hover:text-primary transition-colors disabled:opacity-50"
                                     title={`刷新${section.title}`}
                                 >
                                     <i className={`fas fa-sync-alt ${refreshingSection === section.id ? 'fa-spin' : ''}`}></i>
@@ -383,8 +383,8 @@ export function Home() {
                                         onClick={() => handleTabChange(section.id, tab.key)}
                                         className={`px-3 py-1 text-sm rounded-full transition-all whitespace-nowrap
                                             ${currentTab === tab.key
-                                                ? `${colorClasses.activeTab} text-white shadow-md`
-                                                : `text-gray-400 hover:text-white hover:bg-white/10`
+                                                ? `${colorClasses.activeTab} text-primary shadow-md`
+                                                : `text-secondary hover:text-primary hover:bg-white/10`
                                             }`}
                                     >
                                         {tab.label}
@@ -405,7 +405,7 @@ export function Home() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-10 text-gray-600 bg-gray-900/30 rounded-lg">
+                            <div className="text-center py-10 text-gray-600 bg-secondary/30 rounded-lg">
                                 <i className="fas fa-inbox text-3xl mb-2 opacity-50"></i>
                                 <p className="text-sm">暂无该分类数据</p>
                             </div>

@@ -9,14 +9,12 @@
 
 /* Base styles are now inherited from /public/shared/plugin-standard.css via Auto-Injection */
 
-/* 视频卡片悬停效果 */
-.video-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.video-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+/* 磨砂玻璃材质 - 引入 CSS 变量控制 */
+.glass-effect {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background-color: var(--glass-bg, rgba(15, 23, 42, 0.7));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
 }
 
 /* 视频封面 */
@@ -25,284 +23,74 @@
     object-fit: cover;
 }
 
-/* 骨架屏动画 */
-@keyframes shimmer {
-    0% {
-        background-position: -1000px 0;
-    }
+/* ======================= */
+/* 主题切换核心逻辑 */
+/* ======================= */
 
-    100% {
-        background-position: 1000px 0;
-    }
+:root {
+    /* 默认暗黑主题 */
+    --bg-primary: #0b0e14;
+    --bg-secondary: #1a1d24;
+    --bg-tertiary: #23272f;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-main: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(7, 9, 14, 0.9);
+    --brand-blue: #3b82f6;
 }
 
-.skeleton {
-    animation: shimmer 2s infinite linear;
-    background: linear-gradient(to right,
-            #f0f0f0 4%,
-            #e0e0e0 25%,
-            #f0f0f0 36%);
-    background-size: 1000px 100%;
+[data-theme="light"] {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --border-main: #e2e8f0;
+    --glass-bg: rgba(255, 255, 255, 0.8);
 }
 
-.dark .skeleton {
-    background: linear-gradient(to right,
-            #2a2a2a 4%,
-            #3a3a3a 25%,
-            #2a2a2a 36%);
-    background-size: 1000px 100%;
+/* 强制选中态颜色锁定 - 绝不随主题变动 */
+.active-brand-item {
+    background-color: var(--brand-blue) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
 }
 
-/* Banner 轮播 */
-.banner-container {
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
+/* 主题平滑过渡 */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.banner-slide {
-    transition: transform 0.5s ease-in-out;
+/* 列表与卡片背景适配 */
+.bg-secondary {
+    background-color: var(--bg-secondary);
 }
 
-/* 分类标签 */
-.category-tag {
-    @apply px-3 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer;
+.text-primary {
+    color: var(--text-primary);
 }
 
-.category-tag:hover {
-    @apply bg-primary-500 text-white;
+.text-secondary {
+    color: var(--text-secondary);
 }
 
-.category-tag.active {
-    @apply bg-primary-500 text-white;
+/* 强制边框颜色工具类 */
+.border-border-color {
+    border-color: var(--border-main) !important;
 }
 
-/* 播放器容器 */
-.player-container {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
+/* 修复 CategoryNav 悬停效果 */
+[data-theme="light"] .hover\:bg-secondary:hover {
+    background-color: #e2e8f0 !important;
 }
 
-/* 确保 ArtPlayer 填充整个容器 */
-.player-container .art-video-player {
-    width: 100% !important;
-    height: 100% !important;
-}
-
-.player-container video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain;
-}
-
-/* 侧边栏专用滚动条 - 默认隐藏，悬停显示 */
-/* 侧边栏专用滚动条 - 隐藏以实现全宽效果 */
+/* 隐藏滚动条 */
 .sidebar-scrollbar::-webkit-scrollbar {
-    width: 0px;
-    background: transparent;
     display: none;
-    /* 强制隐藏 */
 }
 
 .sidebar-scrollbar {
     scrollbar-width: none;
-    /* Firefox */
-    -ms-overflow-style: none;
-    /* IE/Edge */
-}
-
-.sidebar-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sidebar-scrollbar::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 2px;
-}
-
-.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 100, 0.4);
-}
-
-/* 尝试使用 overlay 滚动条模式 */
-.scrollbar-overlay {
-    overflow-y: auto;
-}
-
-@supports (overflow-y: overlay) {
-    .scrollbar-overlay {
-        overflow-y: overlay;
-    }
-}
-
-/* ======================= */
-/* 主题切换样式 */
-/* ======================= */
-
-/* 暗黑主题（默认） */
-body.dark-theme,
-[data-theme="dark"] {
-    --bg-primary: #111827;
-    --bg-secondary: #1f2937;
-    --bg-tertiary: #374151;
-    --text-primary: #ffffff;
-    --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
-    --border-color: #374151;
-}
-
-/* 明亮主题 */
-body.light-theme,
-[data-theme="light"] {
-    --bg-primary: #f9fafb;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f3f4f6;
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #9ca3af;
-    --border-color: #e5e7eb;
-}
-
-/* 明亮主题下的整体样式覆盖 */
-[data-theme="light"] .bg-gray-900 {
-    background-color: #f9fafb !important;
-}
-
-[data-theme="light"] .bg-gray-950 {
-    background-color: #ffffff !important;
-}
-
-[data-theme="light"] .bg-gray-800 {
-    background-color: #f3f4f6 !important;
-}
-
-[data-theme="light"] .bg-gray-800\/50 {
-    background-color: rgba(243, 244, 246, 0.5) !important;
-}
-
-[data-theme="light"] .bg-gray-700 {
-    background-color: #e5e7eb !important;
-}
-
-[data-theme="light"] .text-white {
-    color: #111827 !important;
-}
-
-[data-theme="light"] .text-gray-100 {
-    color: #1f2937 !important;
-}
-
-[data-theme="light"] .text-gray-200 {
-    color: #374151 !important;
-}
-
-[data-theme="light"] .text-gray-300 {
-    color: #6b7280 !important;
-    /* 原为 400 的值 */
-}
-
-[data-theme="light"] .text-gray-400 {
-    color: #4b5563 !important;
-    /* 原为 300 的值 */
-}
-
-[data-theme="light"] .text-gray-500 {
-    color: #374151 !important;
-    /* 修正为更深的灰色 */
-}
-
-[data-theme="light"] .border-gray-700,
-[data-theme="light"] .border-gray-800 {
-    border-color: #e5e7eb !important;
-}
-
-/* 明亮主题下的侧边栏 */
-[data-theme="light"] .border-r.border-gray-800 {
-    border-color: #e5e7eb !important;
-}
-
-/* 明亮主题下的卡片阴影 */
-[data-theme="light"] .video-card:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-}
-
-/* 明亮主题下的滚动条 */
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 100, 0.3);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 100, 100, 0.5);
-}
-
-/* 明亮主题下的骨架屏 */
-[data-theme="light"] .skeleton {
-    background: linear-gradient(to right,
-            #e5e7eb 4%,
-            #d1d5db 25%,
-            #e5e7eb 36%);
-    background-size: 1000px 100%;
-}
-
-/* 明亮主题下的播放器容器背景 */
-[data-theme="light"] .player-container {
-    background: #1f2937;
-}
-
-/* 明亮主题下的输入框 */
-[data-theme="light"] input::placeholder {
-    color: #9ca3af;
-}
-
-/* 确保主题过渡平滑 */
-body,
-.bg-gray-900,
-.bg-gray-950,
-.bg-gray-800,
-.bg-gray-700,
-.text-white,
-.text-gray-100,
-.text-gray-200,
-.text-gray-300,
-.text-gray-400,
-.text-gray-500 {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-/* CategoryNav Light Mode Overrides */
-[data-theme="light"] .bg-gray-900\/80 {
-    background-color: rgba(255, 255, 255, 0.9) !important;
-}
-
-[data-theme="light"] .bg-gray-950\/30 {
-    background-color: rgba(243, 244, 246, 0.8) !important;
-    /* gray-100/80 */
-    border-color: rgba(229, 231, 235, 0.5) !important;
-    /* border-gray-200/50 */
-}
-
-[data-theme="light"] .border-gray-800\/50 {
-    border-color: rgba(229, 231, 235, 1) !important;
-    /* border-gray-200 */
-}
-
-[data-theme="light"] .hover\:bg-gray-800:hover {
-    background-color: #e5e7eb !important;
-    /* hover:bg-gray-200 */
-    color: #111827 !important;
-    /* hover:text-gray-900 */
-}
-
-[data-theme="light"] .hover\:bg-gray-800\/50:hover {
-    background-color: rgba(229, 231, 235, 0.5) !important;
-    /* hover:bg-gray-200/50 */
-}
-
-[data-theme="light"] .hover\:text-white:hover {
-    color: #111827 !important;
-    /* hover:text-gray-900 */
 }

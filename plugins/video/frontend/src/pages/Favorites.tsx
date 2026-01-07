@@ -68,10 +68,10 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
     if (loading) {
         return (
             <div className="p-6 animate-pulse">
-                <div className="h-8 bg-gray-800 rounded w-32 mb-6"></div>
+                <div className="h-8 bg-secondary rounded w-32 mb-6"></div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {[...Array(12)].map((_, i) => (
-                        <div key={i} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                        <div key={i} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                     ))}
                 </div>
             </div>
@@ -81,15 +81,15 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
     // 未登录硬拦截（如果产品决定直接拦截页面）
     if (!isAuthenticated) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6">
+            <div className="flex flex-col items-center justify-center py-20 text-secondary">
+                <div className="w-20 h-20 bg-secondary/50 rounded-full flex items-center justify-center mb-6">
                     <i className="fas fa-lock text-3xl"></i>
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
+                <h2 className="text-xl font-bold text-primary mb-2">访问受限</h2>
                 <p className="mb-6">请先登录管理员账号以查看收藏记录</p>
                 <button
                     onClick={() => onNavigate('home')}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-blue-600 text-primary rounded-lg hover:bg-blue-700 transition-colors"
                 >
                     返回首页
                 </button>
@@ -99,14 +99,14 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
 
     return (
         <div className="p-4 lg:p-6 space-y-6">
-            <h1 className="text-2xl font-bold text-white">我的收藏</h1>
+            <h1 className="text-2xl font-bold text-primary">我的收藏</h1>
 
             {filteredFavorites.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {filteredFavorites.map(fav => (
                         <div
                             key={fav.id}
-                            className="video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+                            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group"
                         >
                             <div
                                 className="relative"
@@ -123,27 +123,27 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
                                 />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
                                               transition-opacity flex items-center justify-center">
-                                    <i className="fas fa-play text-3xl text-white"></i>
+                                    <i className="fas fa-play text-3xl text-primary"></i>
                                 </div>
                                 {fav.source_name && (
                                     <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 
-                                                   text-xs text-white rounded">
+                                                   text-xs text-primary rounded">
                                         {fav.source_name}
                                     </span>
                                 )}
                             </div>
                             <div className="p-3">
-                                <h3 className="text-white text-sm font-medium line-clamp-1">
+                                <h3 className="text-primary text-sm font-medium line-clamp-1">
                                     {fav.title}
                                 </h3>
                                 <div className="flex items-center justify-between mt-2">
-                                    <span className="text-gray-500 text-xs">{fav.year}</span>
+                                    <span className="text-secondary text-xs">{fav.year}</span>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleRemove(fav.id);
                                         }}
-                                        className="text-gray-500 hover:text-red-400 transition-colors"
+                                        className="text-secondary hover:text-red-400 transition-colors"
                                     >
                                         <i className="fas fa-trash text-sm"></i>
                                     </button>
@@ -153,7 +153,7 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-secondary">
                     <i className="fas fa-heart text-4xl mb-4 opacity-50"></i>
                     <p>暂无收藏</p>
                     <p className="text-sm mt-2">浏览视频时点击爱心图标添加收藏</p>

@@ -50,8 +50,8 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
 
     return ReactDOM.createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-sm shadow-2xl border border-gray-700">
-                <h3 className="text-xl font-bold text-white mb-4 text-center">管理员登录</h3>
+            <div className="bg-secondary rounded-xl p-6 w-full max-w-sm shadow-2xl border border-border-color">
+                <h3 className="text-xl font-bold text-primary mb-4 text-center">管理员登录</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <input
@@ -59,7 +59,7 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="输入管理密码"
-                            className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none text-center"
+                            className="w-full px-4 py-2.5 bg-gray-700 text-primary rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none text-center"
                             autoFocus
                         />
                         {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
@@ -68,14 +68,14 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+                            className="flex-1 px-4 py-2 bg-gray-700 text-primary rounded-lg hover:bg-gray-600 transition-colors"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-2 bg-red-500 text-primary rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                         >
                             {loading ? '验证中...' : '登录'}
                         </button>
@@ -150,10 +150,10 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const buttonClass = (isActive: boolean) => `
         p-2.5 rounded-lg transition-colors text-sm
         ${isActive
-            ? 'bg-blue-500'
+            ? 'bg-blue-600 text-primary shadow-md shadow-blue-500/20'
             : theme === 'dark'
-                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                ? 'text-secondary hover:text-primary hover:bg-white/10'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
         }
     `;
 
@@ -164,7 +164,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
             {/* 移动端导航栏 - 简洁版 */}
             <div className={`lg:hidden sticky top-0 z-20 border-b px-3 py-2 transition-colors
                 ${theme === 'dark'
-                    ? 'bg-gray-900/95 border-gray-800 backdrop-blur-lg'
+                    ? 'bg-secondary/95 border-border-color backdrop-blur-lg'
                     : 'bg-white/95 border-gray-200 backdrop-blur-lg'
                 }`}
             >
@@ -176,14 +176,14 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 onClick={onToggleSidebar}
                                 className={`p-2 rounded-lg transition-colors
                                     ${theme === 'dark'
-                                        ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                        ? 'text-secondary hover:text-primary hover:bg-white/10'
+                                        : 'text-secondary hover:text-slate-900 hover:bg-black/5'
                                     }`}
                             >
                                 <i className="fas fa-bars text-lg"></i>
                             </button>
                         )}
-                        <h1 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        <h1 className={`text-lg font-bold ${theme === 'dark' ? 'text-primary' : 'text-gray-900'}`}>
                             视频中心
                         </h1>
                     </div>
@@ -195,7 +195,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             onClick={() => setIsMobileSearchOpen(true)}
                             className={`p-2 rounded-lg transition-colors
                                 ${theme === 'dark'
-                                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                    ? 'text-secondary hover:text-primary hover:bg-secondary'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                                 }`}
                         >
@@ -207,7 +207,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             onClick={onToggleTheme}
                             className={`p-2 rounded-lg transition-colors
                                 ${theme === 'dark'
-                                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                    ? 'text-secondary hover:text-primary hover:bg-secondary'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                                 }`}
                         >
@@ -222,8 +222,8 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     ${isAuthenticated
                                         ? 'text-green-400'
                                         : theme === 'dark'
-                                            ? 'text-gray-500 hover:text-gray-300'
-                                            : 'text-gray-400 hover:text-gray-600'
+                                            ? 'text-secondary hover:text-primary'
+                                            : 'text-secondary hover:text-gray-600'
                                     }`}
                             >
                                 <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
@@ -235,15 +235,15 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
             {/* 移动端搜索弹出层 */}
             {isMobileSearchOpen && (
-                <div className={`lg:hidden fixed inset-0 z-50 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+                <div className={`lg:hidden fixed inset-0 z-50 ${theme === 'dark' ? 'bg-secondary' : 'bg-white'}`}>
                     <div className="flex flex-col h-full">
                         {/* 搜索标题栏 */}
-                        <div className={`flex items-center gap-3 px-3 py-3 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+                        <div className={`flex items-center gap-3 px-3 py-3 border-b ${theme === 'dark' ? 'border-border-color' : 'border-gray-200'}`}>
                             <button
                                 onClick={() => setIsMobileSearchOpen(false)}
                                 className={`p-2 rounded-lg transition-colors
                                     ${theme === 'dark'
-                                        ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                        ? 'text-secondary hover:text-primary hover:bg-secondary'
                                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                                     }`}
                             >
@@ -264,12 +264,12 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     autoFocus
                                     className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
                                         ${theme === 'dark'
-                                            ? 'bg-gray-800 text-white border-gray-700 focus:border-red-500 placeholder-gray-500'
+                                            ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
                                             : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
                                         }`}
                                 />
                                 <i className={`fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm
-                                    ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}></i>
+                                    ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
                             </div>
                             <button
                                 onClick={() => {
@@ -279,7 +279,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     }
                                 }}
                                 disabled={!keyword.trim()}
-                                className="px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                                className="px-4 py-2.5 bg-red-500 text-primary rounded-lg hover:bg-red-600 
                                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                             >
                                 搜索
@@ -288,7 +288,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
                         {/* 搜索提示 */}
                         <div className="flex-1 p-4">
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}>
                                 <i className="fas fa-lightbulb mr-2 text-yellow-500"></i>
                                 输入关键词后点击搜索或按回车键
                             </p>
@@ -298,9 +298,9 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
             )}
 
             {/* 桌面端导航栏 (原有布局) */}
-            <div className={`hidden lg:block sticky top-0 z-20 border-b px-4 py-3 transition-colors
+            <div className={`hidden lg:block sticky top-0 z-20 border-b px-4 py-3 h-16 transition-colors
                 ${theme === 'dark'
-                    ? 'bg-gray-900/80 border-gray-800 backdrop-blur-lg'
+                    ? 'bg-secondary/80 border-border-color backdrop-blur-lg'
                     : 'bg-white/80 border-gray-200 backdrop-blur-lg'
                 }`}
             >
@@ -314,7 +314,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                 className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg text-sm transition-colors min-w-[100px]
                                 ${theme === 'dark'
-                                        ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-750'
+                                        ? 'bg-secondary border-border-color text-primary hover:bg-gray-750'
                                         : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
@@ -331,7 +331,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     ></div>
                                     <div className={`absolute top-full left-0 mt-1 w-48 border rounded-lg shadow-xl z-20 py-1 max-h-64 overflow-y-auto
                                     ${theme === 'dark'
-                                            ? 'bg-gray-800 border-gray-700'
+                                            ? 'bg-secondary border-border-color'
                                             : 'bg-white border-gray-200'
                                         }`}
                                     >
@@ -344,7 +344,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                             className={`w-full text-left px-3 py-2 text-sm transition-colors
                                             ${selectedSourceId === null
                                                     ? theme === 'dark' ? 'text-blue-400 bg-gray-700/50' : 'text-blue-600 bg-blue-100'
-                                                    : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                                    : theme === 'dark' ? 'text-primary hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
                                                 }`}
                                         >
                                             <i className="fas fa-globe mr-2 opacity-70"></i>
@@ -361,7 +361,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                 className={`w-full text-left px-3 py-2 text-sm transition-colors
                                                 ${selectedSourceId === source.id
                                                         ? theme === 'dark' ? 'text-blue-400 bg-gray-700/50' : 'text-blue-600 bg-blue-100'
-                                                        : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                                        : theme === 'dark' ? 'text-primary hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
                                                     }`}
                                             >
                                                 <i className="fas fa-database mr-2 opacity-70"></i>
@@ -384,18 +384,18 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     placeholder="搜索电影、电视剧、动漫..."
                                     className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
                                     ${theme === 'dark'
-                                            ? 'bg-gray-800 text-white border-gray-700 focus:border-red-500 placeholder-gray-500'
+                                            ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
                                             : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
                                         }`}
                                 />
                                 <i className={`fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm
-                                ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}></i>
+                                ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
                                 {keyword && (
                                     <button
                                         type="button"
                                         onClick={() => setKeyword('')}
                                         className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors
-                                        ${theme === 'dark' ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                                        ${theme === 'dark' ? 'text-secondary hover:text-primary' : 'text-secondary hover:text-gray-600'}`}
                                     >
                                         <i className="fas fa-times text-xs"></i>
                                     </button>
@@ -406,8 +406,9 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             <button
                                 type="submit"
                                 disabled={!keyword.trim()}
-                                className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
-                                     transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                className="px-5 py-2.5 bg-blue-600 text-primary rounded-lg hover:bg-blue-700 
+                                     transition-all duration-300 shadow-lg shadow-blue-500/20 
+                                     disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                             >
                                 <i className="fas fa-search"></i>
                             </button>
@@ -430,7 +431,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 ${activeModule === item.key
                                         ? 'bg-blue-500'
                                         : theme === 'dark'
-                                            ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                            ? 'text-secondary hover:text-primary hover:bg-secondary'
                                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                                     }`}
                                 style={activeModule === item.key ? { color: '#fff' } : undefined}
@@ -509,7 +510,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     onClick={handleUserIconClick}
                                     className={`p-2.5 rounded-lg text-sm transition-colors ${isAuthenticated
                                         ? 'text-green-400 hover:bg-gray-700/50'
-                                        : theme === 'dark' ? 'text-gray-600 hover:text-gray-300 hover:bg-gray-700/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
+                                        : theme === 'dark' ? 'text-gray-600 hover:text-primary hover:bg-gray-700/50' : 'text-secondary hover:text-gray-600 hover:bg-gray-200'
                                         }`}
                                     title={isAuthenticated ? '已认证 (点击管理)' : '未认证 (点击登录)'}
                                 >
@@ -525,7 +526,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                         ></div>
                                         <div className={`absolute right-0 top-full mt-2 w-32 py-1 rounded-lg shadow-xl z-50
                                         ${theme === 'dark'
-                                                ? 'bg-gray-800 border border-gray-700'
+                                                ? 'bg-secondary border border-border-color'
                                                 : 'bg-white border border-gray-200'
                                             }`}
                                         >

@@ -104,8 +104,8 @@ export function CategoryList({ sources, onSelect, activeSourceId, activeCategory
                         {sources.length > 1 && (
                             <button
                                 onClick={() => toggleExpand(sourceKey)}
-                                className="w-full flex items-center justify-between px-4 py-2 text-gray-400 
-                                         hover:text-white text-sm font-medium"
+                                className="w-full flex items-center justify-between px-4 py-2 text-secondary 
+                                         hover:text-primary text-sm font-medium"
                             >
                                 <span className="flex items-center gap-2">
                                     <i className="fas fa-database text-xs"></i>
@@ -130,7 +130,7 @@ export function CategoryList({ sources, onSelect, activeSourceId, activeCategory
                                                       ${sources.length > 1 ? 'ml-6' : ''}
                                                       ${isActive
                                                     ? 'bg-red-500/20 text-red-400'
-                                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                                    : 'text-primary hover:bg-secondary hover:text-primary'
                                                 }`}
                                         >
                                             <i className={`${getCategoryIcon(cat.name)} w-4 text-center`}></i>
@@ -145,7 +145,7 @@ export function CategoryList({ sources, onSelect, activeSourceId, activeCategory
             })}
 
             {sources.length === 0 && (
-                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                <div className="px-4 py-8 text-center text-secondary text-sm">
                     <i className="fas fa-folder-open text-2xl mb-2 opacity-50"></i>
                     <p>暂无分类</p>
                 </div>

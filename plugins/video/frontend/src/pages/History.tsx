@@ -109,14 +109,14 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
     if (loading) {
         return (
             <div className="p-6 animate-pulse">
-                <div className="h-8 bg-gray-800 rounded w-32 mb-6"></div>
+                <div className="h-8 bg-secondary rounded w-32 mb-6"></div>
                 <div className="space-y-4">
                     {[...Array(8)].map((_, i) => (
                         <div key={i} className="flex gap-4">
-                            <div className="w-32 h-20 bg-gray-800 rounded"></div>
+                            <div className="w-32 h-20 bg-secondary rounded"></div>
                             <div className="flex-1 space-y-2">
-                                <div className="h-5 bg-gray-800 rounded w-1/3"></div>
-                                <div className="h-4 bg-gray-800 rounded w-1/4"></div>
+                                <div className="h-5 bg-secondary rounded w-1/3"></div>
+                                <div className="h-4 bg-secondary rounded w-1/4"></div>
                             </div>
                         </div>
                     ))}
@@ -128,15 +128,15 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
     // 未登录硬拦截
     if (!isAuthenticated) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6">
+            <div className="flex flex-col items-center justify-center py-20 text-secondary">
+                <div className="w-20 h-20 bg-secondary/50 rounded-full flex items-center justify-center mb-6">
                     <i className="fas fa-lock text-3xl"></i>
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
+                <h2 className="text-xl font-bold text-primary mb-2">访问受限</h2>
                 <p className="mb-6">请先登录管理员账号以查看播放记录</p>
                 <button
                     onClick={() => onNavigate('home')}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-blue-600 text-primary rounded-lg hover:bg-blue-700 transition-colors"
                 >
                     返回首页
                 </button>
@@ -147,11 +147,11 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
     return (
         <div className="p-4 lg:p-6 space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-white">播放历史</h1>
+                <h1 className="text-2xl font-bold text-primary">播放历史</h1>
                 {filteredHistory.length > 0 && (
                     <button
                         onClick={clearAll}
-                        className="text-gray-400 hover:text-red-400 text-sm"
+                        className="text-secondary hover:text-red-400 text-sm"
                     >
                         <i className="fas fa-trash mr-1"></i>
                         清空全部
@@ -165,8 +165,8 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
                         <div
                             key={item.id}
                             onClick={() => handleClick(item)}
-                            className="flex gap-4 p-3 bg-gray-800/50 rounded-lg cursor-pointer 
-                                     hover:bg-gray-800 transition-colors"
+                            className="flex gap-4 p-3 bg-secondary/50 rounded-lg cursor-pointer 
+                                     hover:bg-secondary transition-colors"
                         >
                             {/* 封面 */}
                             <div className="relative w-28 flex-shrink-0">
@@ -189,10 +189,10 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
 
                             {/* 信息 */}
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-white font-medium line-clamp-1">
+                                <h3 className="text-primary font-medium line-clamp-1">
                                     {item.title}
                                 </h3>
-                                <div className="flex items-center gap-3 mt-2 text-sm text-gray-400">
+                                <div className="flex items-center gap-3 mt-2 text-sm text-secondary">
                                     {item.episode_name && (
                                         <span>看到 {item.episode_name}</span>
                                     )}
@@ -200,7 +200,7 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
                                         <span>{formatProgress(item.progress, item.duration)}</span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                <div className="flex items-center gap-3 mt-1 text-xs text-secondary">
                                     {item.source_name && <span>{item.source_name}</span>}
                                     <span>{formatTime(item.updated_at)}</span>
                                 </div>
@@ -208,13 +208,13 @@ export function History({ onNavigate, sources, netdiskSources }: HistoryProps) {
 
                             {/* 继续播放 */}
                             <div className="flex items-center">
-                                <i className="fas fa-play-circle text-2xl text-gray-500 group-hover:text-red-400"></i>
+                                <i className="fas fa-play-circle text-2xl text-secondary group-hover:text-red-400"></i>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-secondary">
                     <i className="fas fa-history text-4xl mb-4 opacity-50"></i>
                     <p>暂无播放记录</p>
                 </div>

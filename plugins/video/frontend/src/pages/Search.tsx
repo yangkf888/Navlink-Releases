@@ -140,20 +140,25 @@ export function Search({ initialKeyword, sourceId, sources = [], onNavigate }: S
         <div className="p-4 lg:p-6 space-y-6">
             {/* 正在搜索状态 */}
             {(loading || searchingSource) && !isFinished && (
-                <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="flex items-center justify-between mb-2">
+                <div className="glass-effect border border-border-color rounded-2xl p-5 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-gray-200 font-medium">{searchingSource}</span>
+                            <div className="relative">
+                                <div className="w-5 h-5 border-2 border-blue-500/20 rounded-full"></div>
+                                <div className="absolute top-0 left-0 w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                            <span className="text-primary font-bold text-sm tracking-tight">{searchingSource}</span>
                         </div>
-                        <span className="text-gray-400 text-sm">
-                            已找到 {results.length} 个结果
-                        </span>
+                        <div className="px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/20">
+                            <span className="text-blue-400 text-xs font-black">
+                                已发现 {results.length}
+                            </span>
+                        </div>
                     </div>
                     {/* 进度条 */}
-                    <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden p-[1px]">
                         <div
-                            className="h-full bg-blue-500 transition-all duration-500 ease-out"
+                            className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(37,99,235,0.4)]"
                             style={{
                                 width: sources.length ? `${(results.length > 0 ? (searchProgress.current / sources.length) * 100 : 5)}%` : '5%'
                             }}
@@ -164,33 +169,39 @@ export function Search({ initialKeyword, sourceId, sources = [], onNavigate }: S
 
             {/* 搜索状态提示 */}
             {currentKeyword && (
-                <div className="flex items-center justify-between text-gray-400">
-                    <div className="flex items-center gap-2">
-                        <span>在</span>
-                        <span className="text-blue-400 font-medium">{getSearchScope()}</span>
-                        <span>中搜索</span>
-                        <span className="text-white font-medium">"{currentKeyword}"</span>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className="text-secondary opacity-60">搜索范围</span>
+                        <span className="px-2.5 py-0.5 bg-secondary/40 text-primary rounded-lg border border-border-color font-bold text-xs">
+                            {getSearchScope()}
+                        </span>
+                        <div className="h-3 w-px bg-white/10 mx-1"></div>
+                        <span className="text-secondary opacity-60">关键词</span>
+                        <span className="text-blue-500 font-black">"{currentKeyword}"</span>
                     </div>
                     {isFinished && (
-                        <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-500">
-                            搜索完成
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-secondary opacity-40">
+                            <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+                            COMPLETED
+                        </div>
                     )}
                 </div>
             )}
 
             {/* 搜索结果 */}
             {loading && results.length === 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-pulse">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {[...Array(12)].map((_, i) => (
-                        <div key={i} className="aspect-[2/3] bg-gray-800 rounded-lg"></div>
+                        <div key={i} className="aspect-[2/3] bg-secondary/20 rounded-2xl border border-border-color animate-pulse overflow-hidden relative">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                        </div>
                     ))}
                 </div>
             ) : searched ? (
                 results.length > 0 ? (
                     <div className="space-y-4">
-                        <p className="text-gray-400">
-                            找到 <span className="text-white font-medium">{results.length}</span> 个相关结果
+                        <p className="text-secondary">
+                            找到 <span className="text-primary font-medium">{results.length}</span> 个相关结果
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                             {results.map((video, idx) => (
@@ -205,7 +216,7 @@ export function Search({ initialKeyword, sourceId, sources = [], onNavigate }: S
                         </div>
                         {!isFinished && results.length > 0 && (
                             <div className="flex justify-center py-8">
-                                <div className="flex items-center gap-2 text-gray-500 bg-gray-800/30 px-4 py-2 rounded-full border border-gray-800">
+                                <div className="flex items-center gap-2 text-secondary bg-secondary/30 px-4 py-2 rounded-full border border-border-color">
                                     <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
                                     <span className="text-sm italic">更多结果正在加载中...</span>
                                 </div>
@@ -213,17 +224,26 @@ export function Search({ initialKeyword, sourceId, sources = [], onNavigate }: S
                         )}
                     </div>
                 ) : !loading && isFinished ? (
-                    <div className="text-center py-20 bg-gray-800/20 rounded-2xl border border-dashed border-gray-800">
-                        <i className="fas fa-search text-5xl mb-4 text-gray-700"></i>
-                        <p className="text-gray-400 text-lg">未找到相关结果</p>
-                        <p className="text-sm text-gray-600 mt-2">尝试更换关键词或检查视频源状态</p>
+                    <div className="text-center py-32 glass-effect rounded-3xl border border-border-color space-y-4">
+                        <div className="w-20 h-20 mx-auto bg-white/5 rounded-full flex items-center justify-center border border-border-color mb-2">
+                            <i className="fas fa-search-minus text-3xl text-secondary opacity-30"></i>
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-bold text-primary">未找到结果</h3>
+                            <p className="text-secondary text-sm opacity-50">尝试更换关键词或检查视频源状态</p>
+                        </div>
                     </div>
                 ) : null
             ) : (
-                <div className="text-center py-20 opacity-50">
-                    <i className="fas fa-search text-6xl mb-6 text-gray-800"></i>
-                    <p className="text-gray-500 text-lg font-medium">输入关键词并按回车开始探索</p>
-                    <p className="text-gray-600 text-sm mt-2">支持全网 50+ 资源站同步搜索</p>
+                <div className="text-center py-40 space-y-8">
+                    <div className="relative inline-block">
+                        <div className="absolute inset-0 bg-blue-500/20 blur-[60px] rounded-full"></div>
+                        <i className="fas fa-compass text-7xl text-blue-500/40 relative z-10 animate-bounce"></i>
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-primary text-2xl font-black tracking-tight">探索精彩内容</p>
+                        <p className="text-secondary text-sm opacity-60">支持全网 50+ 资源站同步搜索</p>
+                    </div>
                 </div>
             )}
         </div>

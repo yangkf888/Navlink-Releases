@@ -435,10 +435,10 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
     if (loading) {
         return (
             <div className="p-6 animate-pulse">
-                <div className="aspect-video bg-gray-800 rounded-xl mb-6"></div>
-                <div className="h-8 bg-gray-800 rounded w-1/3 mb-4"></div>
-                <div className="h-4 bg-gray-800 rounded w-full mb-2"></div>
-                <div className="h-4 bg-gray-800 rounded w-2/3"></div>
+                <div className="aspect-video bg-secondary rounded-xl mb-6"></div>
+                <div className="h-8 bg-secondary rounded w-1/3 mb-4"></div>
+                <div className="h-4 bg-secondary rounded w-full mb-2"></div>
+                <div className="h-4 bg-secondary rounded w-2/3"></div>
             </div>
         );
     }
@@ -447,10 +447,10 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
         return (
             <div className="p-6 text-center">
                 <i className="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-                <p className="text-gray-400">{error || '视频不存在'}</p>
+                <p className="text-secondary">{error || '视频不存在'}</p>
                 <button
                     onClick={() => onNavigate('home')}
-                    className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                    className="mt-4 px-6 py-2 bg-secondary text-primary rounded-lg hover:bg-gray-700"
                 >
                     返回首页
                 </button>
@@ -461,275 +461,291 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
     const currentSource = video.episodes[selectedSourceIndex];
 
     return (
-        <div className="p-4 lg:p-6 space-y-4">
-            {/* 顶部区域：播放器 + 剧集面板 */}
-            <div className="flex flex-col lg:flex-row gap-4">
-                {/* 左侧：播放器 */}
-                <div className="flex-1 min-w-0">
-                    <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-                        <div className="w-full h-full" ref={playerRef}></div>
-                    </div>
-
-                    {/* 当前播放信息 */}
-                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        {/* 左侧：返回按钮 + 播放信息 */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <button
-                                onClick={() => onGoBack ? onGoBack() : onNavigate('home')}
-                                className="px-3 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center gap-2"
-                            >
-                                <i className="fas fa-arrow-left"></i>
-                                <span className="hidden sm:inline">返回</span>
-                            </button>
-                            <div className="text-gray-400 text-sm flex-1 min-w-0">
-                                <span className="hidden sm:inline">正在播放：</span>
-                                <span className="text-white">{video.vod_name}</span>
-                                {currentSource && currentSource.list[selectedEpisodeIndex] && (
-                                    <span className="text-red-400 ml-2">
-                                        {currentSource.list[selectedEpisodeIndex].name}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        {/* 右侧：收藏 + 刷新按钮 */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={toggleFavorite}
-                                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-gray-800 text-gray-400 hover:text-red-400'
-                                    }`}
-                            >
-                                <i className="fas fa-heart"></i>
-                                {isFavorite ? '已收藏' : '收藏'}
-                            </button>
-                            <button
-                                onClick={loadVideoDetail}
-                                className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                            >
-                                <i className="fas fa-sync-alt"></i>
-                                刷新
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 右侧：剧集面板 */}
-                <div className="lg:w-72 xl:w-80 flex-shrink-0">
-                    <div className="bg-gray-800/50 rounded-xl p-4 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+60px)] flex flex-col">
-                        <h3 className="text-white font-medium mb-3 flex items-center justify-between">
-                            <span>
-                                <i className="fas fa-list-ol mr-2 text-red-400"></i>
-                                选集 ({currentSource?.list.length || 0}集)
-                            </span>
-                        </h3>
-
-                        {/* 剧集网格 - 可滚动 */}
-                        {currentSource && (
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                                    {currentSource.list.map((ep, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => handleEpisodeClick(selectedSourceIndex, idx)}
-                                            className={`px-2 py-2.5 rounded text-sm transition-colors truncate ${selectedEpisodeIndex === idx
-                                                ? 'bg-red-500 text-white font-medium'
-                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                                }`}
-                                            title={ep.name}
-                                        >
-                                            {ep.name.length > 4 ? `${idx + 1}` : ep.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* 视频源切换 */}
-            {video.episodes.length > 1 && (
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="text-white font-medium mb-3 flex items-center">
-                        <i className="fas fa-server mr-2 text-blue-400"></i>
-                        播放线路 ({video.episodes.length}个源)
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {video.episodes.map((source, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => {
-                                    setSelectedSourceIndex(idx);
-                                    setSelectedEpisodeIndex(0);
-                                }}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedSourceIndex === idx
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    }`}
-                            >
-                                <i className="fas fa-play-circle mr-2"></i>
-                                {source.source}
-                            </button>
-                        ))}
-                    </div>
-                    <p className="text-gray-500 text-xs mt-2">
-                        💡 如果当前线路卡顿，可尝试切换其他播放源
-                    </p>
+        <div className="relative h-full overflow-hidden bg-primary scroll-smooth">
+            {/* 氛围感背景层 */}
+            {video.vod_pic && (
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-40">
+                    <img
+                        src={video.vod_pic}
+                        className="w-full h-full object-cover blur-[100px] scale-125 transition-opacity duration-1000"
+                        alt="bg"
+                    />
                 </div>
             )}
 
-            {/* 其他视频源 - 多源切换 */}
-            <div className="bg-gray-800/50 rounded-xl p-4">
-                <h3
-                    className="text-white font-medium mb-3 flex items-center justify-between cursor-pointer"
-                    onClick={() => setShowAlternatives(!showAlternatives)}
-                >
-                    <span>
-                        <i className="fas fa-exchange-alt mr-2 text-green-400"></i>
-                        全部视频源
-                        {searchingAlternatives ? (
-                            <span className="text-gray-500 text-sm ml-2">
-                                <i className="fas fa-spinner fa-spin mr-1"></i>搜索中...
-                            </span>
-                        ) : (
-                            <span className="text-gray-500 text-sm ml-2">
-                                ({alternativeSources.length + 1}个)
-                            </span>
-                        )}
-                    </span>
-                    <i className={`fas fa-chevron-${showAlternatives ? 'up' : 'down'} text-gray-500`}></i>
-                </h3>
+            <div className="relative z-10 p-4 lg:p-6 h-full overflow-y-auto custom-scrollbar space-y-6">
+                {/* 顶部区域：播放器 + 剧集面板 */}
+                <div className="flex flex-col lg:flex-row gap-4">
+                    {/* 左侧：播放器 */}
+                    <div className="flex-1 min-w-0">
+                        <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 group">
+                            <div className="w-full h-full" ref={playerRef}></div>
+                        </div>
 
-                {showAlternatives && (
-                    <>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                            {/* 当前播放的源 - 始终显示在第一位 */}
-                            <div
-                                className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400"
-                            >
-                                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full z-10">
-                                    当前
-                                </div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <div className="text-white font-medium text-sm truncate flex-1">
-                                        {video.source_name || `源 ${sourceId}`}
-                                    </div>
-                                    <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-green-200 text-xs">
-                                        {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
-                                    </span>
-                                    {video.vod_remarks && (
-                                        <span className="px-1.5 py-0.5 bg-white/20 text-white text-[10px] rounded font-medium">
-                                            {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
+                        {/* 当前播放信息 */}
+                        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            {/* 左侧：返回按钮 + 播放信息 */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <button
+                                    onClick={() => onGoBack ? onGoBack() : onNavigate('home')}
+                                    className="px-3 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center gap-2"
+                                >
+                                    <i className="fas fa-arrow-left"></i>
+                                    <span className="hidden sm:inline">返回</span>
+                                </button>
+                                <div className="text-secondary text-sm flex-1 min-w-0">
+                                    <span className="hidden sm:inline">正在播放：</span>
+                                    <span className="text-primary">{video.vod_name}</span>
+                                    {currentSource && currentSource.list[selectedEpisodeIndex] && (
+                                        <span className="text-red-400 ml-2">
+                                            {currentSource.list[selectedEpisodeIndex].name}
                                         </span>
                                     )}
                                 </div>
                             </div>
-
-                            {/* 其他可用的源 */}
-                            {alternativeSources.map((alt) => (
+                            {/* 右侧：收藏 + 刷新按钮 */}
+                            <div className="flex items-center gap-2">
                                 <button
-                                    key={`${alt.source_id}-${alt.vod_id}`}
-                                    onClick={() => handleSwitchSource(alt)}
-                                    className="bg-gray-700 hover:bg-gray-600 rounded-lg p-3 text-left transition-all hover:scale-[1.02] group relative overflow-hidden"
+                                    onClick={toggleFavorite}
+                                    className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
+                                        ? 'bg-red-500 text-primary'
+                                        : 'bg-secondary text-secondary hover:text-red-400'
+                                        }`}
                                 >
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <div className="text-white font-medium text-sm truncate flex-1 group-hover:text-green-400">
-                                            {alt.source_name}
-                                        </div>
-                                        {alt.response_time !== undefined && (
-                                            <span
-                                                className={`flex-shrink-0 w-2 h-2 rounded-full ${alt.response_time < 500 ? 'bg-green-500' :
-                                                    alt.response_time < 1200 ? 'bg-yellow-500' : 'bg-red-500'
-                                                    }`}
-                                                title={`延迟: ${alt.response_time}ms`}
-                                            ></span>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-gray-400 text-xs">
-                                            {alt.total_episodes}集
-                                        </span>
-                                        {alt.quality && (
-                                            <span className="px-1.5 py-0.5 bg-blue-500/80 text-white text-[10px] rounded font-medium">
-                                                {alt.quality}
-                                            </span>
-                                        )}
-                                        {alt.current_episode_available && (
-                                            <span className="text-green-400 text-[10px] font-bold">✓</span>
-                                        )}
-                                    </div>
+                                    <i className="fas fa-heart"></i>
+                                    {isFavorite ? '已收藏' : '收藏'}
                                 </button>
-                            ))}
+                                <button
+                                    onClick={loadVideoDetail}
+                                    className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <i className="fas fa-sync-alt"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-                            {/* 搜索中的占位符 */}
-                            {searchingAlternatives && (
-                                <div className="bg-gray-700/50 rounded-lg p-3 animate-pulse">
-                                    <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
-                                    <div className="h-3 bg-gray-600 rounded w-1/2"></div>
+                    {/* 右侧：剧集面板 */}
+                    <div className="lg:w-80 xl:w-96 flex-shrink-0">
+                        <div className="bg-secondary/40 backdrop-blur-xl rounded-2xl p-5 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+80px)] flex flex-col border border-border-color shadow-xl transition-all duration-300">
+                            <h3 className="text-primary font-bold mb-4 flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                    <i className="fas fa-list-ol text-blue-400 text-sm"></i>
+                                    选集 ({currentSource?.list.length || 0}集)
+                                </span>
+                            </h3>
+
+                            {/* 剧集网格 - 可滚动 */}
+                            {currentSource && (
+                                <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                                        {currentSource.list.map((ep, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleEpisodeClick(selectedSourceIndex, idx)}
+                                                className={`px-1 py-3 rounded-xl text-xs font-semibold transition-all duration-300 truncate shadow-sm ${selectedEpisodeIndex === idx
+                                                    ? 'bg-blue-600 text-primary shadow-blue-500/30 ring-1 ring-white/20'
+                                                    : 'bg-white/5 text-secondary hover:bg-white/10 hover:text-primary border border-border-color'
+                                                    }`}
+                                                title={ep.name}
+                                            >
+                                                {ep.name.length > 4 ? `${idx + 1}` : ep.name}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
-
-                        {!searchingAlternatives && alternativeSources.length === 0 && (
-                            <p className="text-gray-500 text-sm mt-2">
-                                未找到其他视频源
-                            </p>
-                        )}
-
-                        <p className="text-gray-500 text-xs mt-3">
-                            💡 点击可快速切换到其他视频源播放同一视频
-                        </p>
-                    </>
-                )}
-            </div>
-
-            {/* 视频详情 */}
-            <div className="bg-gray-800/50 rounded-xl p-4 space-y-4">
-                {/* 标题和基本信息 */}
-                <div>
-                    <h1 className="text-xl font-bold text-white">{video.vod_name}</h1>
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-400">
-                        {video.vod_year && (
-                            <span className="px-2 py-0.5 bg-gray-700 rounded">{video.vod_year}</span>
-                        )}
-                        {video.vod_area && (
-                            <span className="px-2 py-0.5 bg-gray-700 rounded">{video.vod_area}</span>
-                        )}
-                        {video.vod_class && (
-                            <span className="px-2 py-0.5 bg-gray-700 rounded">{video.vod_class}</span>
-                        )}
-                        {video.vod_score && parseFloat(video.vod_score) > 0 && (
-                            <span className="text-yellow-400 flex items-center">
-                                <i className="fas fa-star mr-1"></i>
-                                {video.vod_score}
-                            </span>
-                        )}
                     </div>
                 </div>
 
-                {/* 演员导演 */}
-                {(video.vod_director || video.vod_actor) && (
-                    <div className="text-sm text-gray-400 space-y-1 border-t border-gray-700 pt-4">
-                        {video.vod_director && (
-                            <p><span className="text-gray-500">导演：</span>{video.vod_director}</p>
-                        )}
-                        {video.vod_actor && (
-                            <p><span className="text-gray-500">演员：</span>{video.vod_actor}</p>
-                        )}
+                {/* 视频源切换 */}
+                {video.episodes.length > 1 && (
+                    <div className="bg-secondary/30 backdrop-blur-md rounded-2xl p-5 border border-border-color shadow-lg">
+                        <h3 className="text-primary font-bold mb-4 flex items-center gap-2">
+                            <i className="fas fa-server text-blue-400 text-sm"></i>
+                            播放线路 ({video.episodes.length}个源)
+                        </h3>
+                        <div className="flex flex-wrap gap-2.5">
+                            {video.episodes.map((source, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => {
+                                        setSelectedSourceIndex(idx);
+                                        setSelectedEpisodeIndex(0);
+                                    }}
+                                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 border ${selectedSourceIndex === idx
+                                        ? 'bg-blue-600 text-primary border-blue-500/50 shadow-lg shadow-blue-500/20'
+                                        : 'bg-white/5 text-secondary border-border-color hover:bg-white/10 hover:text-primary'
+                                        }`}
+                                >
+                                    <i className={`fas fa-play-circle mr-2 ${selectedSourceIndex === idx ? 'text-primary' : 'text-blue-400'}`}></i>
+                                    {source.source}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {/* 简介 */}
-                {video.vod_content && (
-                    <div className="text-sm text-gray-400 border-t border-gray-700 pt-4">
-                        <p className="text-gray-500 mb-1">简介：</p>
-                        <p className="leading-relaxed">{video.vod_content}</p>
+                {/* 其他视频源 - 多源切换 */}
+                <div className="bg-secondary/30 backdrop-blur-md rounded-2xl p-5 border border-border-color shadow-lg">
+                    <h3
+                        className="text-primary font-bold mb-4 flex items-center justify-between cursor-pointer group/title"
+                        onClick={() => setShowAlternatives(!showAlternatives)}
+                    >
+                        <span className="flex items-center gap-2">
+                            <i className="fas fa-exchange-alt text-green-400 text-sm"></i>
+                            全部视频源
+                            {searchingAlternatives ? (
+                                <span className="text-secondary text-[11px] ml-2 font-normal animate-pulse">
+                                    <i className="fas fa-spinner fa-spin mr-1"></i>搜索中...
+                                </span>
+                            ) : (
+                                <span className="text-secondary text-[11px] ml-2 font-normal opacity-60">
+                                    ({alternativeSources.length + 1}个)
+                                </span>
+                            )}
+                        </span>
+                        <i className={`fas fa-chevron-${showAlternatives ? 'up' : 'down'} text-secondary text-xs opacity-40 transition-transform duration-300 group-hover/title:opacity-100`}></i>
+                    </h3>
+
+                    {showAlternatives && (
+                        <>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                {/* 当前播放的源 - 始终显示在第一位 */}
+                                <div
+                                    className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400"
+                                >
+                                    <div className="absolute -top-2 -right-2 bg-green-500 text-primary text-xs px-2 py-0.5 rounded-full z-10">
+                                        当前
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                        <div className="text-primary font-medium text-sm truncate flex-1">
+                                            {video.source_name || `源 ${sourceId}`}
+                                        </div>
+                                        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-green-200 text-xs">
+                                            {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
+                                        </span>
+                                        {video.vod_remarks && (
+                                            <span className="px-1.5 py-0.5 bg-white/20 text-primary text-[10px] rounded font-medium">
+                                                {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 其他可用的源 */}
+                                {alternativeSources.map((alt) => (
+                                    <button
+                                        key={`${alt.source_id}-${alt.vod_id}`}
+                                        onClick={() => handleSwitchSource(alt)}
+                                        className="bg-gray-700 hover:bg-gray-600 rounded-lg p-3 text-left transition-all hover:scale-[1.02] group relative overflow-hidden"
+                                    >
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <div className="text-primary font-medium text-sm truncate flex-1 group-hover:text-green-400">
+                                                {alt.source_name}
+                                            </div>
+                                            {alt.response_time !== undefined && (
+                                                <span
+                                                    className={`flex-shrink-0 w-2 h-2 rounded-full ${alt.response_time < 500 ? 'bg-green-500' :
+                                                        alt.response_time < 1200 ? 'bg-yellow-500' : 'bg-red-500'
+                                                        }`}
+                                                    title={`延迟: ${alt.response_time}ms`}
+                                                ></span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className="text-secondary text-xs">
+                                                {alt.total_episodes}集
+                                            </span>
+                                            {alt.quality && (
+                                                <span className="px-1.5 py-0.5 bg-blue-500/80 text-primary text-[10px] rounded font-medium">
+                                                    {alt.quality}
+                                                </span>
+                                            )}
+                                            {alt.current_episode_available && (
+                                                <span className="text-green-400 text-[10px] font-bold">✓</span>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+
+                                {/* 搜索中的占位符 */}
+                                {searchingAlternatives && (
+                                    <div className="bg-gray-700/50 rounded-lg p-3 animate-pulse">
+                                        <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
+                                        <div className="h-3 bg-gray-600 rounded w-1/2"></div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {!searchingAlternatives && alternativeSources.length === 0 && (
+                                <p className="text-secondary text-sm mt-2">
+                                    未找到其他视频源
+                                </p>
+                            )}
+
+                            <p className="text-secondary text-xs mt-3">
+                                💡 点击可快速切换到其他视频源播放同一视频
+                            </p>
+                        </>
+                    )}
+                </div>
+
+                {/* 视频详情 */}
+                <div className="bg-secondary/30 backdrop-blur-md rounded-2xl p-6 border border-border-color shadow-lg space-y-6">
+                    {/* 标题和基本信息 */}
+                    <div className="pb-4 border-b border-border-color">
+                        <h1 className="text-2xl font-bold text-primary tracking-tight">{video.vod_name}</h1>
+                        <div className="flex flex-wrap items-center gap-3 mt-3 text-xs font-semibold">
+                            {video.vod_year && (
+                                <span className="px-2.5 py-1 bg-white/5 text-secondary border border-border-color rounded-lg">{video.vod_year}</span>
+                            )}
+                            {video.vod_area && (
+                                <span className="px-2.5 py-1 bg-white/5 text-secondary border border-border-color rounded-lg">{video.vod_area}</span>
+                            )}
+                            {video.vod_class && (
+                                <span className="px-2.5 py-1 bg-white/5 text-secondary border border-border-color rounded-lg">{video.vod_class}</span>
+                            )}
+                            {video.vod_score && parseFloat(video.vod_score) > 0 && (
+                                <span className="text-yellow-400 flex items-center px-2.5 py-1 bg-yellow-400/10 border border-yellow-400/20 rounded-lg">
+                                    <i className="fas fa-star mr-1.5 text-[10px]"></i>
+                                    {video.vod_score}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                )}
+
+                    {/* 演员导演 */}
+                    {(video.vod_director || video.vod_actor) && (
+                        <div className="text-sm text-secondary space-y-2 py-2">
+                            {video.vod_director && (
+                                <p className="flex items-center gap-2">
+                                    <span className="opacity-50 font-bold text-[11px] uppercase tracking-wider w-12">导演</span>
+                                    <span className="opacity-90">{video.vod_director}</span>
+                                </p>
+                            )}
+                            {video.vod_actor && (
+                                <p className="flex items-start gap-2">
+                                    <span className="opacity-50 font-bold text-[11px] uppercase tracking-wider w-12 pt-1">演员</span>
+                                    <span className="opacity-90 flex-1">{video.vod_actor}</span>
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 简介 */}
+                    {video.vod_content && (
+                        <div className="text-sm text-secondary leading-relaxed border-t border-border-color pt-6">
+                            <p className="opacity-50 font-bold text-[11px] uppercase tracking-wider mb-2">简介</p>
+                            <p className="opacity-80 font-medium">{video.vod_content}</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -134,7 +134,7 @@ export function LivePlayer({ sourceId, onNavigate }: LivePlayerProps) {
 
     if (!sourceId) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-secondary">
                 <i className="fas fa-broadcast-tower text-6xl mb-4 opacity-30"></i>
                 <p>请选择直播间开始观看</p>
             </div>
@@ -143,7 +143,7 @@ export function LivePlayer({ sourceId, onNavigate }: LivePlayerProps) {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full bg-black text-white">
+            <div className="flex items-center justify-center h-full bg-black text-primary">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500 mb-4 mx-auto"></div>
                     <p>正在解析直播流...</p>
@@ -154,11 +154,11 @@ export function LivePlayer({ sourceId, onNavigate }: LivePlayerProps) {
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-full bg-black text-white p-6">
+            <div className="flex items-center justify-center h-full bg-black text-primary p-6">
                 <div className="text-center max-w-md">
                     <i className="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
                     <p className="text-xl font-bold mb-2">出错了</p>
-                    <p className="text-gray-400 mb-6">{error}</p>
+                    <p className="text-secondary mb-6">{error}</p>
                     <button
                         onClick={() => onNavigate('live')}
                         className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
@@ -176,7 +176,7 @@ export function LivePlayer({ sourceId, onNavigate }: LivePlayerProps) {
             <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent z-[100] transition-opacity flex justify-between items-center group-hover:opacity-100 opacity-100">
                 <button
                     onClick={() => onNavigate('live')}
-                    className="text-white/80 hover:text-white flex items-center gap-2"
+                    className="text-primary/80 hover:text-primary flex items-center gap-2"
                 >
                     <i className="fas fa-arrow-left"></i>
                     <span>返回直播列表</span>
