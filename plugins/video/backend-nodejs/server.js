@@ -46,12 +46,14 @@ module.exports = {
         router.use('/api/transcode', require('./routes/transcode'));
 
         // 启动时触发首页数据刷新（异步，延迟5秒执行）
+        /*
         setTimeout(() => {
             console.log('[video] Triggering initial home data refresh...');
             require('./services/HomeService').refreshAll().catch(e => {
                 console.error('[video] Initial home refresh failed:', e.message);
             });
         }, 5000);
+        */
 
         // 调试路由
         router.get('/debug', (req, res) => {

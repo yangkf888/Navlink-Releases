@@ -100,10 +100,56 @@ router.get('/sessions', (req, res) => {
 });
 
 /**
+ * 透明代理流接口 (Jellyfin 模式) 🚀 优先匹配
+ * GET /:sessionId/stream
+ */
+router.get('/:sessionId/stream', async (req, res) => {
+    const { sessionId } = req.params;
+    const session = transcodeService.activeSessions.get(sessionId);
+
+    if (!session) {
+        return res.status(404).json({ success: false, error: '会话已过期或不存在' });
+    }
+
+    await transcodeService.proxyStream(session.inputUrl, req.headers, res);
+});
+
+/**
+ * 停止转码会话
+ * POST /:sessionId/stop
+ */
+router.post('/:sessionId/stop', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+        await transcodeService.stopSession(sessionId);
+        res.json({ success: true, message: '会话已停止' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * 获取转码会话状态（进度）
+ * GET /:sessionId/status
+ */
+router.get('/:sessionId/status', (req, res) => {
+    const { sessionId } = req.params;
+    try {
+        const status = transcodeService.getSessionStatus(sessionId);
+        if (!status) {
+            return res.status(404).json({ success: false, error: '会话不存在' });
+        }
+        res.json({ success: true, data: status });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
  * 获取转码文件 (m3u8 播放列表或 ts 分片)
  * GET /:sessionId/:filename
  */
-router.get('/:sessionId/:filename', (req, res) => {
+router.get('/:sessionId/:filename', async (req, res) => {
     const { sessionId, filename } = req.params;
 
     // 安全检查：防止路径遍历
@@ -111,40 +157,38 @@ router.get('/:sessionId/:filename', (req, res) => {
         return res.status(400).json({ success: false, error: '非法文件名' });
     }
 
-    const filePath = transcodeService.getFile(sessionId, filename);
-
-    if (!filePath) {
-        return res.status(404).json({ success: false, error: '文件不存在或会话已过期' });
-    }
-
-    // 设置正确的 Content-Type
-    if (filename.endsWith('.m3u8')) {
+    // 处理 m3u8 播放列表请求
+    if (filename === 'playlist.m3u8') {
+        const filePath = await transcodeService.getFileAsync(sessionId, filename);
+        if (!filePath) {
+            return res.status(404).json({ success: false, error: '会话不存在或已过期' });
+        }
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         res.setHeader('Cache-Control', 'no-cache, no-store');
-    } else if (filename.endsWith('.ts')) {
-        res.setHeader('Content-Type', 'video/mp2t');
-        res.setHeader('Cache-Control', 'max-age=3600');
+        return res.sendFile(filePath);
     }
 
-    // 支持 CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // 处理 ts 分片请求 - 按需转码
+    const segmentMatch = filename.match(/^segment(\d+)\.ts$/);
+    if (segmentMatch) {
+        const segmentIndex = parseInt(segmentMatch[1], 10);
+        try {
+            const filePath = await transcodeService.requestSegment(sessionId, segmentIndex);
+            res.setHeader('Content-Type', 'video/mp2t');
+            res.setHeader('Cache-Control', 'max-age=3600');
+            return res.sendFile(filePath);
+        } catch (err) {
+            console.error(`[Transcode] Segment ${segmentIndex} error:`, err.message);
+            return res.status(503).json({ success: false, error: '分片转码中，请稍后重试' });
+        }
+    }
 
+    // 其他文件类型
+    const filePath = await transcodeService.getFileAsync(sessionId, filename);
+    if (!filePath) {
+        return res.status(404).json({ success: false, error: '文件不存在' });
+    }
     res.sendFile(filePath);
-});
-
-/**
- * 停止转码会话
- * POST /:sessionId/stop
- */
-router.post('/:sessionId/stop', (req, res) => {
-    const { sessionId } = req.params;
-
-    try {
-        transcodeService.stopSession(sessionId);
-        res.json({ success: true, message: '会话已停止' });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
 });
 
 /**

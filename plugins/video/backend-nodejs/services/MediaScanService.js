@@ -8,6 +8,7 @@ const { TmdbService } = require('./TmdbService');
 const { AlistService } = require('./AlistService');
 const { WebdavService } = require('./WebdavService');
 const { LocalService } = require('./LocalService');
+const transcodeService = require('./TranscodeService');
 const fetch = require('node-fetch');
 
 // NFO 常见文件名
@@ -389,17 +390,52 @@ class MediaScanService {
             } catch (err) { /* ignore */ }
         }
 
+        // 4. 视频编码及探测 (秒开关键逻辑)
+        if (videoFiles.length > 0) {
+            try {
+                const firstVideo = videoFiles[0];
+                let probeUrl = "";
+                let probeHeaders = {};
+
+                if (firstVideo.includes('|')) {
+                    // STRM 文件，直接探测原始 URL
+                    probeUrl = firstVideo.split('|')[1];
+                } else {
+                    // 普通文件，获取直链或代理
+                    const videoPath = (folder.path + '/' + firstVideo).replace(/\/+/g, '/');
+                    const info = await client.getFileInfo(videoPath);
+                    if (info) {
+                        probeUrl = info.raw_url;
+                        probeHeaders = client.getHeaders ? client.getHeaders() : {};
+                    }
+                }
+
+                if (probeUrl) {
+                    console.log(`[MediaScan] Probing codec for: ${metadata.title}`);
+                    const mediaInfo = await transcodeService.getMediaInfo(probeUrl, probeHeaders);
+                    if (mediaInfo) {
+                        metadata.v_codec = mediaInfo.videoCodec;
+                        metadata.a_codec = mediaInfo.audioCodec;
+                        metadata.duration = mediaInfo.duration;
+                    }
+                }
+            } catch (err) {
+                console.warn(`[MediaScan] Probe failed for ${metadata.title}:`, err.message);
+            }
+        }
+
         // 写入数据库
         db.run(`
             INSERT OR REPLACE INTO netdisk_media 
-            (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `, [
             source.id, folder.path, metadata.title, metadata.original_title || null, metadata.year,
             metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
             metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
             metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
-            metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null
+            metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
+            metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0
         ]);
     }
 

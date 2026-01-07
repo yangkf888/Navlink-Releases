@@ -712,6 +712,8 @@ router.post('/media/:id/play', async (req, res) => {
         let strmRawUrl = null;
         let sessionId = null;
 
+        let playMethod = 'direct'; // 默认为 direct
+
         // 如果是 .strm 格式 (文件名|URL)
         if (videoFile && videoFile.includes('|')) {
             isStrm = true;
@@ -724,46 +726,59 @@ router.post('/media/:id/play', async (req, res) => {
             const hwaccelSettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_hwaccel'");
 
             const transcodeEnabled = transcodeSettingsRow?.value === 'true' || transcodeSettingsRow?.value === '1';
-            const transcodeMode = modeSettings?.value || 'auto';
             const quality = qualitySettings?.value || 'medium';
             const hwaccel = hwaccelSettings?.value || 'none';
 
-            if (transcodeEnabled && transcodeMode === 'force') {
-                // 强制模式：直接启动转码
+            if (transcodeEnabled) {
+                // 启用转码时：优先使用数据库中的元数据进行极速分流
                 try {
-                    console.log(`[Netdisk] Starting transcode (force) for STRM: ${strmRawUrl.substring(0, 80)}...`);
+                    console.log(`[Netdisk] Starting smart play for: ${media.title} (${media.v_codec}/${media.a_codec})`);
+
                     const transcodeHeaders = {
                         'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0'
                     };
+
+                    // 将预存的元数据传给转码服务，避免重复探测
                     const result = await transcodeService.startTranscode(strmRawUrl, {
                         quality,
                         hwaccel,
-                        headers: transcodeHeaders
+                        headers: transcodeHeaders,
+                        mediaInfo: media.v_codec ? {
+                            videoCodec: media.v_codec,
+                            audioCodec: media.a_codec,
+                            duration: media.duration
+                        } : null
                     });
-                    playUrl = result.playlistUrl;
+
+                    playUrl = result.playUrl;
                     sessionId = result.sessionId;
-                    console.log(`[Netdisk] Transcode started, sessionId: ${sessionId}, playlist: ${playUrl}`);
+                    playMethod = result.playMethod;
+                    console.log(`[Netdisk] Play Method Decided: ${playMethod} (Fast Path: ${!!media.v_codec})`);
                 } catch (err) {
-                    console.error('[Netdisk] Transcode failed, fallback to proxy:', err.message);
-                    // 转码失败时回退到直接代理
+                    console.error('[Netdisk] Smart play failed, fallback to direct proxy:', err.message);
                     playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
+                    playMethod = 'direct';
                 }
             } else {
-                // 自动模式或禁用：使用代理，前端播放失败后可请求转码
+                // 禁用转码：仅由于地址解析后的代理转发
                 playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
+                playMethod = 'direct';
             }
         } else {
             const videoPath = (media.path + '/' + videoFile).replace(/\/+/g, '/');
             if (source.type === 'webdav') {
                 // WebDAV 需要认证，使用流式代理
                 playUrl = `/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(videoPath)}`;
+                playMethod = 'proxy';
             } else if (source.type === 'local') {
                 // 本地文件使用本地流代理
                 playUrl = `/api/plugins/video/api/netdisk/local-stream?path=${encodeURIComponent(videoPath)}`;
+                playMethod = 'direct';
             } else {
                 // Alist 等其他源使用直链
-                const fileInfo = await client.getFileInfo(videoPath);
+                const fileInfo = await client.getFileInfo(videoPath).catch(() => null);
                 playUrl = fileInfo?.raw_url || `${source.url}/d${videoPath}`;
+                playMethod = 'direct';
             }
         }
 
@@ -792,7 +807,6 @@ router.post('/media/:id/play', async (req, res) => {
             } catch (e) { /* ignore pre-warm error */ }
         }
 
-        // 获取转码设置状态（用于前端判断是否可请求转码）
         const transcodeSettingsCheck = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
         const transcodeAvailable = isStrm && (transcodeSettingsCheck?.value === 'true' || transcodeSettingsCheck?.value === '1');
 
@@ -800,12 +814,18 @@ router.post('/media/:id/play', async (req, res) => {
             success: true,
             data: {
                 playUrl,
+                playMethod,
                 fileName: videoFile,
                 videoFiles: media.video_files,
                 isStrm,
                 strmRawUrl: isStrm ? strmRawUrl : undefined,
                 transcodeAvailable,
-                sessionId
+                sessionId,
+                metadata: {
+                    vCodec: media.v_codec,
+                    aCodec: media.a_codec,
+                    duration: media.duration
+                }
             }
         });
 

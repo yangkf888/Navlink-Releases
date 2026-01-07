@@ -215,6 +215,9 @@ function initSchema(db) {
             tagline TEXT,
             studio TEXT,
             scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            v_codec TEXT,
+            a_codec TEXT,
+            duration REAL DEFAULT 0,
             extra_metadata TEXT,
             UNIQUE(source_id, path),
             FOREIGN KEY (source_id) REFERENCES netdisk_sources(id) ON DELETE CASCADE
@@ -425,16 +428,25 @@ function migrateSchema(db) {
         console.log(`[Database] Migration error for netdisk_sources: ${err.message}`);
     }
 
-    // netdisk_media 表迁移
+    // netdisk_media 表迁移 (增加元数据支持)
     try {
         const mediaTableInfo = db.all('PRAGMA table_info(netdisk_media)');
-        const columns = ['director', 'actor', 'area', 'tagline', 'studio', 'extra_metadata'];
+        const mediaColumnsToAdd = [
+            { name: 'director', type: 'TEXT' },
+            { name: 'actor', type: 'TEXT' },
+            { name: 'area', type: 'TEXT' },
+            { name: 'tagline', type: 'TEXT' },
+            { name: 'studio', type: 'TEXT' },
+            { name: 'v_codec', type: 'TEXT' },
+            { name: 'a_codec', type: 'TEXT' },
+            { name: 'duration', type: 'REAL DEFAULT 0' },
+            { name: 'extra_metadata', type: 'TEXT' }
+        ];
 
-        for (const col of columns) {
-            const exists = mediaTableInfo.some(c => c.name === col);
-            if (!exists) {
-                db.run(`ALTER TABLE netdisk_media ADD COLUMN ${col} TEXT`);
-                console.log(`[Database] Migration: Added column ${col} to netdisk_media`);
+        for (const col of mediaColumnsToAdd) {
+            if (!mediaTableInfo.some(c => c.name === col.name)) {
+                db.run(`ALTER TABLE netdisk_media ADD COLUMN ${col.name} ${col.type}`);
+                console.log(`[Database] Migration: Added column ${col.name} to netdisk_media`);
             }
         }
     } catch (err) {
