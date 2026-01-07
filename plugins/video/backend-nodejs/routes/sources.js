@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
         const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
         const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
 
-        const isPasswordEnabled = enabledSetting?.value === 'true';
+        const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
         const storedPassword = passwordSetting?.value || '';
 
         // 如果密码保护开启且密码不匹配，过滤掉隐藏的视频源

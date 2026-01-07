@@ -109,9 +109,11 @@ function VideoApp() {
     // 直播源
     const [liveSources, setLiveSources] = useState<LiveSource[]>([]);
 
-    // 网盘源
     const [netdiskSources, setNetdiskSources] = useState<NetdiskSource[]>([]);
     const [selectedNetdiskSourceId, setSelectedNetdiskSourceId] = useState<number | null>(null);
+
+    // 安全设置状态
+    const [isAdminPasswordEnabled, setIsAdminPasswordEnabled] = useState<boolean>(false);
 
     // 直播状态数据
     const [liveStatuses, setLiveStatuses] = useState<Record<number, any>>({});
@@ -212,16 +214,27 @@ function VideoApp() {
     const loadSourcesAndCategories = async () => {
         try {
             // 1. 并发加载基础源数据
-            const [sourcesRes, tvRes, liveRes, netdiskRes] = await Promise.all([
+            const [sourcesRes, tvRes, liveRes, netdiskRes, settingsRes] = await Promise.all([
                 apiGet<VideoSource[]>('/sources'),
                 apiGet<TvSource[]>('/tv/sources'),
                 apiGet<LiveSource[]>('/live/sources'),
-                apiGet<NetdiskSource[]>('/netdisk/sources')
+                apiGet<NetdiskSource[]>('/netdisk/sources'),
+                apiGet<any>('/settings')
             ]);
+
+            // 处理安全设置
+            if (settingsRes.success && settingsRes.data) {
+                const isEnabled = settingsRes.data.admin_password_enabled === 'true' ||
+                    settingsRes.data.admin_password_enabled === true;
+                setIsAdminPasswordEnabled(isEnabled);
+            }
 
             // 处理视频源
             if (sourcesRes.success && sourcesRes.data) {
-                const enabledSources = sourcesRes.data.filter(s => s.enabled && (isAuthenticated || !s.hidden));
+                // 如果开启了密码保护且未登录，则过滤掉隐藏源；否则显示全部启用源
+                const enabledSources = sourcesRes.data.filter(s =>
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                );
                 setSources(enabledSources);
 
                 let finalSelectedId = selectedSourceId;
@@ -266,7 +279,9 @@ function VideoApp() {
 
             // 处理网盘源
             if (netdiskRes.success && netdiskRes.data) {
-                const enabledNetdisk = netdiskRes.data.filter(s => s.enabled && (isAuthenticated || !s.hidden));
+                const enabledNetdisk = netdiskRes.data.filter(s =>
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                );
                 setNetdiskSources(enabledNetdisk);
 
                 // 验证选中的网盘源是否有效
@@ -457,7 +472,8 @@ function VideoApp() {
                     activeModule,
                     onModuleChange: handleModuleChange,
                     theme,
-                    onToggleTheme: toggleTheme
+                    onToggleTheme: toggleTheme,
+                    isAdminPasswordEnabled  // 传递安全设置状态
                 }}
             >
                 {activeView === 'home' && (

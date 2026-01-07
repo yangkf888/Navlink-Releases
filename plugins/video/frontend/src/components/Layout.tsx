@@ -46,6 +46,7 @@ interface LayoutProps {
         theme: 'light' | 'dark';
         onToggleTheme: () => void;
         liveStatuses?: Record<number, any>;
+        isAdminPasswordEnabled?: boolean;
     };
 }
 
@@ -127,6 +128,7 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                     onToggleSidebar={() => setMobileOpen(true)}
                     theme={sidebarProps.theme}
                     onToggleTheme={sidebarProps.onToggleTheme}
+                    isAdminPasswordEnabled={sidebarProps.isAdminPasswordEnabled}
                 />
 
                 {/* 内容区域 */}
