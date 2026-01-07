@@ -18,6 +18,8 @@ interface GlobalSearchBarProps {
     activeModule: AppModule;
     onModuleChange: (module: AppModule) => void;
     onToggleSidebar?: () => void; // 移动端侧边栏切换
+    theme: 'light' | 'dark';
+    onToggleTheme: () => void;
 }
 
 // 简单的密码输入模态框
@@ -84,13 +86,11 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
     );
 }
 
-// 主题类型
-type Theme = 'dark' | 'light';
 
 // localStorage key
 const THEME_KEY = 'video_theme';
 
-export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, activeModule, onModuleChange, onToggleSidebar }: GlobalSearchBarProps) {
+export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, activeModule, onModuleChange, onToggleSidebar, theme, onToggleTheme }: GlobalSearchBarProps) {
     const [keyword, setKeyword] = useState('');
     const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -101,20 +101,17 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-    const [theme, setTheme] = useState<Theme>(() => {
-        const saved = localStorage.getItem(THEME_KEY);
-        return (saved as Theme) || 'dark';
-    });
-
     // 应用主题到 document
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem(THEME_KEY, theme);
 
         if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
             document.body.classList.add('light-theme');
             document.body.classList.remove('dark-theme');
         } else {
+            document.documentElement.classList.add('dark');
             document.body.classList.add('dark-theme');
             document.body.classList.remove('light-theme');
         }
@@ -131,10 +128,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
         if (e.key === 'Enter' && keyword.trim()) {
             onSearch(keyword.trim(), selectedSourceId);
         }
-    };
-
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
     };
 
     const handleUserIconClick = () => {
@@ -210,7 +203,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
                         {/* 主题切换 */}
                         <button
-                            onClick={toggleTheme}
+                            onClick={onToggleTheme}
                             className={`p-2 rounded-lg transition-colors
                                 ${theme === 'dark'
                                     ? 'text-gray-400 hover:text-white hover:bg-gray-800'
@@ -451,7 +444,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <div
                             className={`relative w-14 h-7 rounded-full cursor-pointer transition-colors flex items-center px-1
                             ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-100'}`}
-                            onClick={toggleTheme}
+                            onClick={onToggleTheme}
                             title={theme === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}
                         >
                             {/* 滑块 */}

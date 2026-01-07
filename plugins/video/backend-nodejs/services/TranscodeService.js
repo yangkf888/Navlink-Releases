@@ -314,12 +314,58 @@ class TranscodeService {
         if (session.strategy === 'transmux') {
             args.push('-c', 'copy');
         } else {
-            // 💡 强制每隔 segment_time 秒插入关键帧，确保精确切分
-            args.push(
-                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-                '-force_key_frames', `expr:gte(t,n_forced*${this.segmentDuration})`,
-                '-c:a', 'aac', '-b:a', '128k'
-            );
+            const hwaccel = session.hwaccel || 'none';
+            const quality = session.quality || 'medium';
+
+            // 基础视频参数
+            const vArgs = ['-force_key_frames', `expr:gte(t,n_forced*${this.segmentDuration})`];
+
+            // 根据硬件加速选择编码器和参数
+            if (hwaccel === 'nvenc') {
+                // NVIDIA GPU
+                args.push('-hwaccel', 'cuda');
+                vArgs.push('-c:v', 'h264_nvenc');
+
+                // NVENC 质量控制
+                if (quality === 'fast') vArgs.push('-preset', 'p2', '-cq', '30');       // 快速
+                else if (quality === 'high') vArgs.push('-preset', 'p6', '-cq', '20');  // 高质量
+                else vArgs.push('-preset', 'p4', '-cq', '26');                          // 平衡 (Default)
+
+                // CBR/VBR 模式微调 (可选，这里使用 -cq 恒定质量模式)
+            } else if (hwaccel === 'qsv') {
+                // Intel QSV
+                args.push('-hwaccel', 'qsv');
+                vArgs.push('-c:v', 'h264_qsv');
+
+                // QSV 质量控制
+                if (quality === 'fast') vArgs.push('-preset', 'veryfast', '-global_quality', '28');
+                else if (quality === 'high') vArgs.push('-preset', 'veryslow', '-global_quality', '20');
+                else vArgs.push('-preset', 'medium', '-global_quality', '24');
+
+            } else if (hwaccel === 'vaapi') {
+                // VAAPI (AMD/Intel on Linux)
+                args.push('-hwaccel', 'vaapi');
+                args.push('-hwaccel_output_format', 'vaapi');
+                args.push('-vaapi_device', '/dev/dri/renderD128'); // 默认设备
+                vArgs.push('-c:v', 'h264_vaapi');
+
+                // VAAPI 质量 (QP)
+                if (quality === 'fast') vArgs.push('-qp', '30');
+                else if (quality === 'high') vArgs.push('-qp', '22');
+                else vArgs.push('-qp', '26');
+
+            } else {
+                // CPU (libx264) - 默认
+                vArgs.push('-c:v', 'libx264');
+
+                // CPU 质量控制
+                if (quality === 'fast') vArgs.push('-preset', 'ultrafast', '-crf', '28');
+                else if (quality === 'high') vArgs.push('-preset', 'fast', '-crf', '19');
+                else vArgs.push('-preset', 'veryfast', '-crf', '23');
+            }
+
+            args.push(...vArgs);
+            args.push('-c:a', 'aac', '-b:a', '128k');
         }
 
         args.push(

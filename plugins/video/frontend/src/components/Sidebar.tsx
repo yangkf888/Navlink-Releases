@@ -77,6 +77,7 @@ export function Sidebar({
     onCloseMobile,
     activeModule,
     onModuleChange,
+    theme = 'dark',
     liveStatuses = {}
 }: SidebarProps) {
     const [isSourcesOpen, setIsSourcesOpen] = useState(true);
@@ -138,18 +139,21 @@ export function Sidebar({
 
     // 渲染 Logo/Header
     const renderHeader = () => {
+        const borderColor = theme === 'dark' ? 'border-gray-800' : 'border-gray-200';
+        const titleColor = theme === 'dark' ? 'text-white' : 'text-gray-900';
+
         if (collapsed) {
             return (
-                <div className="h-16 flex items-center justify-center border-b border-gray-800">
+                <div className={`h-16 flex items-center justify-center border-b ${borderColor}`}>
                     <i className="fas fa-play-circle text-blue-500 text-xl"></i>
                 </div>
             );
         }
         return (
-            <div className="p-4 h-16 border-b border-gray-800 flex items-center justify-between">
+            <div className={`p-4 h-16 border-b ${borderColor} flex items-center justify-between`}>
                 <div>
-                    <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                        <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text - blue - 500`}></i>
+                    <h1 className={`text-xl font-bold ${titleColor} flex items-center gap-2`}>
+                        <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-blue-500`}></i>
                         {activeModule === 'tv' ? '电视直播' : '视频中心'}
                     </h1>
                     <p className="text-xs text-gray-500 mt-1 truncate">
@@ -161,7 +165,7 @@ export function Sidebar({
                 </div>
                 {/* 移动端关闭按钮 */}
                 {isMobile && onCloseMobile && (
-                    <button onClick={onCloseMobile} className="text-gray-400 hover:text-white lg:hidden">
+                    <button onClick={onCloseMobile} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'} lg:hidden`}>
                         <i className="fas fa-times text-lg"></i>
                     </button>
                 )}
@@ -412,7 +416,11 @@ export function Sidebar({
                 <div className="relative">
                     <input
                         type="text"
-                        className="w-full bg-gray-800 text-gray-200 text-xs rounded-full border border-gray-700 py-1.5 pl-8 pr-3 focus:outline-none focus:border-blue-500"
+                        className={`w-full text-xs rounded-full border py-1.5 pl-8 pr-3 focus:outline-none focus:border-blue-500
+                            ${theme === 'dark'
+                                ? 'bg-gray-800 text-gray-200 border-gray-700'
+                                : 'bg-gray-100 text-gray-800 border-gray-200'}
+                        `}
                         placeholder="搜索频道..."
                         value={tvSearch}
                         onChange={(e) => setTvSearch(e.target.value)}
@@ -491,13 +499,15 @@ export function Sidebar({
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-gray-950 text-gray-300 select-none pb-safe">
+        <div className={`flex flex-col h-full w-full select-none pb-safe transition-colors duration-300
+            ${theme === 'dark' ? 'bg-gray-950 text-gray-300' : 'bg-white text-gray-600'}
+        `}>
             {renderHeader()}
 
             <div className={`flex-1 w-full min-w-full sidebar-scrollbar scrollbar-overlay space-y-0.5 ${collapsed ? 'py-4' : 'py-2'}`}>
                 {/* 移动端导航菜单 */}
                 {isMobile && onModuleChange && (
-                    <div className="px-1 pb-3 mb-2 border-b border-gray-800 dark:border-gray-800/50">
+                    <div className={`px-1 pb-3 mb-2 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">导航</div>
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
@@ -530,14 +540,17 @@ export function Sidebar({
             </div>
 
             {/* 底部功能按钮 */}
-            <div className="p-3 border-t border-gray-800 space-y-1">
+            <div className={`p-3 border-t space-y-1 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
 
                 {!isMobile && onToggleCollapse && (
                     <button
                         onClick={onToggleCollapse}
                         className={`
-                            flex items-center w-full px-3 py-2 text-sm text-gray-500 hover:text-white hover:bg-white/5 rounded-md transition-colors
+                            flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors
                             ${collapsed ? 'justify-center' : 'justify-start'}
+                            ${theme === 'dark'
+                                ? 'text-gray-500 hover:text-white hover:bg-white/5'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-black/5'}
                         `}
                         title={collapsed ? "展开" : "收起"}
                     >

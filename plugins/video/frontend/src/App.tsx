@@ -363,11 +363,6 @@ function VideoApp() {
         const isInIframe = window.parent !== window;
         if (!isInIframe || !isLoaded) return;
 
-        // 同步主题为 dark (此插件原生风格为深色)
-        window.parent.postMessage({
-            type: 'PLUGIN_THEME_CHANGED',
-            payload: { theme: 'dark' }
-        }, '*');
 
         let count = 0;
         const maxAttempts = 5;
@@ -384,11 +379,6 @@ function VideoApp() {
                 }
             }, '*');
 
-            // 再次确保主题同步
-            window.parent.postMessage({
-                type: 'PLUGIN_THEME_CHANGED',
-                payload: { theme }
-            }, '*');
 
             // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
             window.parent.postMessage({

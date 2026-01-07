@@ -67,13 +67,18 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 overflow-hidden relative">
+        <div className={`flex h-screen overflow-hidden relative transition-colors duration-300
+            ${sidebarProps.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}
+        `}>
 
             {/* 桌面端 Sidebar */}
             <div
                 className={`
-                    hidden lg:flex flex-shrink-0 border-r border-gray-800 bg-gray-950 h-full overflow-hidden transition-all duration-300
+                    hidden lg:flex flex-shrink-0 border-r h-full overflow-hidden transition-all duration-300
                     ${isCollapsed ? 'w-16' : 'w-72'}
+                    ${sidebarProps.theme === 'dark'
+                        ? 'bg-gray-950 border-gray-800'
+                        : 'bg-white border-gray-200'}
                 `}
             >
                 <Sidebar
@@ -92,7 +97,10 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                         onClick={() => setMobileOpen(false)}
                     ></div>
                     {/* 侧边栏内容 */}
-                    <div className="absolute left-0 top-0 bottom-0 w-64 bg-gray-950 shadow-2xl animate-slide-right">
+                    <div className={`
+                        absolute left-0 top-0 bottom-0 w-64 shadow-2xl animate-slide-right
+                        ${sidebarProps.theme === 'dark' ? 'bg-gray-950' : 'bg-white'}
+                    `}>
                         <Sidebar
                             {...sidebarProps}
                             isMobile={true}
@@ -117,6 +125,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
                     activeModule={sidebarProps.activeModule}
                     onModuleChange={sidebarProps.onModuleChange}
                     onToggleSidebar={() => setMobileOpen(true)}
+                    theme={sidebarProps.theme}
+                    onToggleTheme={sidebarProps.onToggleTheme}
                 />
 
                 {/* 内容区域 */}
