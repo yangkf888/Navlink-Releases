@@ -84,8 +84,40 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const playerRef = useRef<HTMLDivElement>(null);
     const artPlayerRef = useRef<any>(null);
     const progressTimerRef = useRef<any>(null);
+    const transcodingSessionIdRef = useRef<string | null>(null); // 用于追踪最新的 sessionId，避免闭包问题
+    const hlsRef = useRef<any>(null); // 用于追踪 HLS.js 实例，确保正确销毁
 
+    // 当 mediaId 变化时，先清理旧的播放器和转码会话
     useEffect(() => {
+        // 先销毁旧的 HLS.js 实例，这是关键！
+        if (hlsRef.current) {
+            hlsRef.current.destroy();
+            hlsRef.current = null;
+        }
+        // 然后销毁旧播放器
+        if (artPlayerRef.current) {
+            artPlayerRef.current.destroy();
+            artPlayerRef.current = null;
+        }
+        if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+        }
+        // 停止旧的转码会话 (使用 ref 获取最新值，避免闭包问题)
+        if (transcodingSessionIdRef.current) {
+            const url = `/api/plugins/video/api/transcode/${transcodingSessionIdRef.current}/stop`;
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url, new Blob(['{}'], { type: 'application/json' }));
+            } else {
+                apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
+            }
+            setTranscodingSessionId(null);
+            transcodingSessionIdRef.current = null;
+        }
+        // 重置状态
+        setPlayUrl(null);
+        setIsTranscoding(false);
+
         loadMediaDetail();
         checkFavoriteStatus();
     }, [mediaId, sourceId]);
@@ -101,6 +133,11 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             initPlayer();
         }
         return () => {
+            // 先销毁 HLS 实例，停止所有网络请求
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+                hlsRef.current = null;
+            }
             if (artPlayerRef.current) {
                 saveHistory(artPlayerRef.current);
                 artPlayerRef.current.destroy();
@@ -171,6 +208,13 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         if (transcodingSessionId) {
             apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
             setTranscodingSessionId(null);
+            transcodingSessionIdRef.current = null;
+        }
+
+        // 立即销毁旧播放器，防止 HLS.js 继续请求旧的会话 URL
+        if (artPlayerRef.current) {
+            artPlayerRef.current.destroy();
+            artPlayerRef.current = null;
         }
 
         // 🚀 核心优化：如果媒体标题或文件名暗示是 STRM，先给个加载提示
@@ -186,6 +230,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 setPlayUrl(res.data.playUrl);
                 if (res.data.sessionId) {
                     setTranscodingSessionId(res.data.sessionId);
+                    transcodingSessionIdRef.current = res.data.sessionId;
                     setIsTranscoding(true);
                 }
             }
@@ -255,6 +300,12 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 playerConfig.customType = {
                     m3u8: function (video: any, url: any) {
                         if (Hls.isSupported()) {
+                            // 先销毁旧的 HLS 实例
+                            if (hlsRef.current) {
+                                hlsRef.current.destroy();
+                                hlsRef.current = null;
+                            }
+
                             const hls = new Hls({
                                 // 深度优化实时转码流参数
                                 maxBufferLength: 20,
@@ -266,6 +317,10 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                 // 针对转码流，如果分片 404，可能是 FFmpeg 还没写完，增加重试
                                 fragLoadingRetryDelay: 1000,
                             });
+
+                            // 保存 HLS 实例引用，用于后续清理
+                            hlsRef.current = hls;
+
                             hls.loadSource(url);
                             hls.attachMedia(video);
 

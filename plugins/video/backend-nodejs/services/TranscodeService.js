@@ -26,8 +26,30 @@ class TranscodeService {
             fs.mkdirSync(this.cacheDir, { recursive: true });
         }
 
+        // 服务启动时清理所有旧的缓存目录
+        this._cleanupOnStartup();
+
         // 定期清理过期或无活动的会话
         setInterval(() => this.cleanup(), 60000); // 每分钟检查一次
+    }
+
+    /**
+     * 服务启动时清理所有旧的缓存目录
+     */
+    _cleanupOnStartup() {
+        try {
+            const dirs = fs.readdirSync(this.cacheDir);
+            for (const dir of dirs) {
+                const dirPath = path.join(this.cacheDir, dir);
+                const stat = fs.statSync(dirPath);
+                if (stat.isDirectory()) {
+                    fs.rmSync(dirPath, { recursive: true, force: true });
+                    console.log(`[Transcode] Startup cleanup: removed ${dir}`);
+                }
+            }
+        } catch (e) {
+            console.error('[Transcode] Startup cleanup error:', e.message);
+        }
     }
 
     /**
@@ -323,13 +345,13 @@ class TranscodeService {
             }
         }
 
-        // 清理物理磁盘上的孤儿目录 (超过24小时的全部清理)
+        // 清理物理磁盘上的孤儿目录 (超过1小时的全部清理)
         try {
             const dirs = fs.readdirSync(this.cacheDir);
             for (const dir of dirs) {
                 const dirPath = path.join(this.cacheDir, dir);
                 const stat = fs.statSync(dirPath);
-                if (stat.isDirectory() && now - stat.mtimeMs > 86400000) {
+                if (stat.isDirectory() && now - stat.mtimeMs > 3600000) { // 1小时
                     if (!this.activeSessions.has(dir)) {
                         fs.rmSync(dirPath, { recursive: true, force: true });
                         console.log(`[Transcode] Removed orphan cache: ${dir}`);

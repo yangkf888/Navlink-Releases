@@ -56,3 +56,4 @@ dist-plugins/
 # Cache
 data/cache/
 data/transcode_cache/
+plugins/video/data/transcode_cache/
