@@ -341,3 +341,22 @@ docker logs navlink-app --tail 100 -f
 ```
 
 </details>
+
+<details>
+<summary><strong>ARM 设备如何安装 FFmpeg？</strong></summary>
+
+Video 插件的便携版 FFmpeg 仅支持 x86_64 架构。对于 ARM 设备（如树莓派、RK3528、玩客云等），需要在容器启动时安装：
+
+修改 `docker-compose.yml`，添加 `command`：
+
+```yaml
+services:
+  navlink:
+    image: ghcr.io/txwebroot/navlink-releases:latest
+    command: sh -c "apk add --no-cache ffmpeg && node server.js"
+    # ... 其他配置保持不变
+```
+
+重启容器后，FFmpeg 会在每次启动时自动安装（约 10-30 秒）。
+
+</details>

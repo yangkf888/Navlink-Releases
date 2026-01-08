@@ -83,10 +83,29 @@ deploy:
 
 ### 2. FFmpeg 安装
 
-对于 Docker 用户，无需手动在宿主机安装：
+Video 插件的 STRM 转码功能依赖 FFmpeg。根据您的环境选择合适的安装方式：
+
+#### 方式一：一键安装（x86_64 架构推荐）
+
 1. 进入 Video 插件设置。
 2. 在「STRM 转码」部分，系统会自动识别您的 Linux 系统。
 3. 点击「一键安装便携版」即可完成初始化。
+
+#### 方式二：容器启动时自动安装（ARM 设备必选）
+
+对于 **ARM 架构设备**（如 RK3528、树莓派、玩客云等），便携版不兼容，请修改 `docker-compose.yml`：
+
+```yaml
+services:
+  navlink:
+    image: ghcr.io/txwebroot/navlink-releases:latest
+    command: sh -c "apk add --no-cache ffmpeg && node server.js"
+    # ... 其他配置保持不变
+```
+
+::: tip 💡 说明
+此方式每次容器重启都会重新安装 FFmpeg，但耗时很短（约 10-30 秒）。
+:::
 
 ## 使用场景
 
@@ -97,3 +116,29 @@ deploy:
 ## 截图预览
 
 > 功能截图待补充
+
+## 高级选项
+
+### 挂载宿主机 FFmpeg（不推荐）
+
+::: warning ⚠️ 此方法复杂且容易出问题
+仅适用于宿主机已安装 FFmpeg 且架构与容器一致的场景。大多数用户应使用上述"方式二"。
+:::
+
+如果您希望复用宿主机已安装的 FFmpeg，可以通过卷挂载实现：
+
+```yaml
+services:
+  navlink:
+    image: ghcr.io/txwebroot/navlink-releases:latest
+    volumes:
+      - /usr/bin/ffmpeg:/usr/bin/ffmpeg:ro
+      - /usr/bin/ffprobe:/usr/bin/ffprobe:ro
+      # 如依赖动态库，可能需要额外挂载
+      # - /usr/lib:/usr/lib:ro
+```
+
+**注意事项**：
+- 宿主机和容器架构必须一致（都是 ARM64 或都是 x86_64）
+- 若 FFmpeg 依赖动态库，需要挂载 `/usr/lib` 或 `/lib`（可能导致冲突）
+- 宿主机更新 FFmpeg 后可能影响容器内行为
