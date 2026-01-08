@@ -253,10 +253,7 @@ function insertDefaultTvSources(db) {
     if (existing && existing.count > 0) return;
 
     const sources = [
-        { name: '默认直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u', type: 'm3u', order: 1 },
-        { name: 'IPv6 直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u', type: 'm3u', order: 2 },
-        { name: 'IPv4 直播源', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u', type: 'm3u', order: 3 },
-        { name: '点播源 (JSON)', url: 'https://raw.githubusercontent.com/Guovin/iptv-api/gd/source.json', type: 'json', order: 4 }
+        // 已清空预设源 - 用户自行添加
     ];
 
     const stmt = db.prepare('INSERT INTO tv_sources (name, url, type, sort_order, enabled) VALUES (?, ?, ?, ?, 1)');
@@ -501,10 +498,7 @@ function insertDefaultSources(db) {
     }
 
     const presetSources = [
-        { name: '黑木耳', url: 'https://json.heimuer.xyz/api.php/provide/vod', type: 'cms_api', sort_order: 1 },
-        { name: '暴风资源', url: 'https://bfzyapi.com/api.php/provide/vod', type: 'cms_api', sort_order: 2 },
-        { name: '非凡影视', url: 'https://ffzy5.tv/api.php/provide/vod', type: 'cms_api', sort_order: 3 },
-        { name: '电影天堂', url: 'http://caiji.dyttzyapi.com/api.php/provide/vod', type: 'cms_api', sort_order: 4 }
+        // 已清空预设源 - 用户自行添加
     ];
 
     const stmt = db.prepare(`

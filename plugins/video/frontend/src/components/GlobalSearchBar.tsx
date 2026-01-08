@@ -150,9 +150,15 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
         }
     };
 
-    const handleUserIconClick = () => {
+    const handleUserIconClick = async () => {
         if (isAuthenticated) {
             setIsUserMenuOpen(!isUserMenuOpen);
+        } else if (!isAdminPasswordEnabled) {
+            // 后台未启用密码：自动免密登录并刷新
+            const success = await login('');
+            if (success) {
+                window.location.reload();
+            }
         } else {
             setIsLoginModalOpen(true);
         }
@@ -235,55 +241,53 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             <i className={`fas ${theme === 'dark' ? 'fa-moon' : 'fa-sun'}`}></i>
                         </button>
 
-                        {/* 用户图标 - 仅在启用安全设置时显示 */}
-                        {isAdminPasswordEnabled && (
-                            <div className="relative">
-                                <button
-                                    onClick={handleUserIconClick}
-                                    className={`p-2 rounded-lg transition-colors
-                                        ${isAuthenticated
-                                            ? 'text-green-400'
-                                            : theme === 'dark'
-                                                ? 'text-secondary hover:text-primary'
-                                                : 'text-secondary hover:text-gray-600'
-                                        }`}
-                                >
-                                    <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
-                                </button>
+                        {/* 用户图标 - 始终显示以提供管理入口 */}
+                        <div className="relative">
+                            <button
+                                onClick={handleUserIconClick}
+                                className={`p-2 rounded-lg transition-colors
+                                    ${isAuthenticated
+                                        ? 'text-green-400'
+                                        : theme === 'dark'
+                                            ? 'text-secondary hover:text-primary'
+                                            : 'text-secondary hover:text-gray-600'
+                                    }`}
+                            >
+                                <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
+                            </button>
 
-                                {/* 移动端用户菜单 */}
-                                {isUserMenuOpen && isAuthenticated && (
-                                    <>
-                                        <div
-                                            className="fixed inset-0 z-[60]"
-                                            onClick={() => setIsUserMenuOpen(false)}
-                                        ></div>
-                                        <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
-                                        ${theme === 'dark'
-                                                ? 'bg-secondary border border-border-color shadow-black/50'
-                                                : 'bg-white border border-gray-100 shadow-slate-200'
-                                            }`}
-                                        >
-                                            <div className="px-4 py-2 border-b border-border-color mb-1">
-                                                <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
-                                                <p className="text-sm font-bold text-primary">系统管理员</p>
-                                            </div>
-                                            <button
-                                                onClick={handleLogout}
-                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
-                                                ${theme === 'dark'
-                                                        ? 'text-red-400 hover:bg-red-500/10'
-                                                        : 'text-red-500 hover:bg-red-50'
-                                                    }`}
-                                            >
-                                                <i className="fas fa-sign-out-alt"></i>
-                                                <span className="font-bold">安全退出登录</span>
-                                            </button>
+                            {/* 移动端用户菜单 */}
+                            {isUserMenuOpen && isAuthenticated && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-[60]"
+                                        onClick={() => setIsUserMenuOpen(false)}
+                                    ></div>
+                                    <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                    ${theme === 'dark'
+                                            ? 'bg-secondary border border-border-color shadow-black/50'
+                                            : 'bg-white border border-gray-100 shadow-slate-200'
+                                        }`}
+                                    >
+                                        <div className="px-4 py-2 border-b border-border-color mb-1">
+                                            <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
+                                            <p className="text-sm font-bold text-primary">系统管理员</p>
                                         </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                        <button
+                                            onClick={handleLogout}
+                                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
+                                            ${theme === 'dark'
+                                                    ? 'text-red-400 hover:bg-red-500/10'
+                                                    : 'text-red-500 hover:bg-red-50'
+                                                }`}
+                                        >
+                                            <i className="fas fa-sign-out-alt"></i>
+                                            <span className="font-bold">安全退出登录</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -522,7 +526,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         <div className={`w-px h-6 mx-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
 
                         {/* 收藏按钮 */}
-                        {isAuthenticated && (
+                        {(!isAdminPasswordEnabled || isAuthenticated) && (
                             <button
                                 onClick={() => onNavigate('favorites')}
                                 className={buttonClass(activeView === 'favorites')}
@@ -534,7 +538,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         )}
 
                         {/* 历史按钮 */}
-                        {isAuthenticated && (
+                        {(!isAdminPasswordEnabled || isAuthenticated) && (
                             <button
                                 onClick={() => onNavigate('history')}
                                 className={buttonClass(activeView === 'history')}
@@ -546,7 +550,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         )}
 
                         {/* 管理按钮 */}
-                        {isAuthenticated && (
+                        {(!isAdminPasswordEnabled || isAuthenticated) && (
                             <button
                                 onClick={() => onNavigate('admin')}
                                 className={buttonClass(activeView === 'admin')}
@@ -557,54 +561,57 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             </button>
                         )}
 
-                        {/* 登录状态图标 - 仅在启用安全设置时显示 */}
-                        {isAdminPasswordEnabled && (
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={handleUserIconClick}
-                                    className={`p-2.5 rounded-lg text-sm transition-colors ${isAuthenticated
-                                        ? 'text-green-400 hover:bg-gray-700/50'
-                                        : theme === 'dark' ? 'text-gray-600 hover:text-primary hover:bg-gray-700/50' : 'text-secondary hover:text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    title={isAuthenticated ? '已认证 (点击管理)' : '未认证 (点击登录)'}
-                                >
-                                    <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
-                                </button>
+                        {/* 登录状态图标 - 始终显示以提供管理入口 */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={handleUserIconClick}
+                                className={`p-2.5 rounded-lg text-sm transition-colors ${isAuthenticated
+                                    ? 'text-green-400 hover:bg-gray-700/50'
+                                    : theme === 'dark' ? 'text-gray-600 hover:text-primary hover:bg-gray-700/50' : 'text-secondary hover:text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                title={isAuthenticated ? '已认证 (点击管理)' : '未认证 (点击登录)'}
+                            >
+                                <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
+                            </button>
 
-                                {/* 用户菜单 - 增加美化与层级控制 */}
-                                {isUserMenuOpen && isAuthenticated && (
-                                    <>
-                                        <div
-                                            className="fixed inset-0 z-[60]"
-                                            onClick={() => setIsUserMenuOpen(false)}
-                                        ></div>
-                                        <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
-                                        ${theme === 'dark'
-                                                ? 'bg-secondary border border-border-color shadow-black/50'
-                                                : 'bg-white border border-gray-100 shadow-slate-200'
-                                            }`}
-                                        >
-                                            <div className="px-4 py-2 border-b border-border-color mb-1">
-                                                <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
-                                                <p className="text-sm font-bold text-primary">系统管理员</p>
+                            {/* 用户菜单 - 增加美化与层级控制 */}
+                            {isUserMenuOpen && isAuthenticated && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-[60]"
+                                        onClick={() => setIsUserMenuOpen(false)}
+                                    ></div>
+                                    <div className={`absolute right-0 top-full mt-2 w-56 py-3 rounded-2xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                    ${theme === 'dark'
+                                            ? 'bg-[#1a1c1e] border border-white/10 shadow-black/60 backdrop-blur-xl'
+                                            : 'bg-white border border-slate-100 shadow-slate-200/80'
+                                        }`}
+                                    >
+                                        <div className="px-4 py-3 border-b border-border-color/50 mb-2 bg-gradient-to-r from-red-500/5 to-transparent">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                                <p className="text-[10px] text-secondary uppercase font-black tracking-[0.2em]">当前用户</p>
                                             </div>
-                                            <button
-                                                onClick={handleLogout}
-                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
-                                                ${theme === 'dark'
-                                                        ? 'text-red-400 hover:bg-red-500/10'
-                                                        : 'text-red-500 hover:bg-red-50'
-                                                    }`}
-                                            >
-                                                <i className="fas fa-sign-out-alt"></i>
-                                                <span className="font-bold">安全退出登录</span>
-                                            </button>
+                                            <p className="text-sm font-extrabold text-primary">系统管理员</p>
                                         </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                        <button
+                                            onClick={handleLogout}
+                                            className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-all duration-300
+                                            ${theme === 'dark'
+                                                    ? 'text-red-400 hover:bg-red-500/20 hover:pl-5'
+                                                    : 'text-red-500 hover:bg-red-50 hover:pl-5'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                                                <i className="fas fa-sign-out-alt"></i>
+                                            </div>
+                                            <span className="font-bold">全面退出登录</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
