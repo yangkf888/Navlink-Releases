@@ -521,7 +521,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     }
 
     return (
-        <div className="p-4 lg:p-6 space-y-4 bg-gray-950 min-h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 lg:p-6 space-y-4 bg-primary min-h-full overflow-y-auto custom-scrollbar">
             {/* 顶部区域：播放器 + 剧集面板 */}
             <div className="flex flex-col lg:flex-row gap-4">
                 {/* 左侧：播放器 */}
@@ -611,8 +611,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             {/* 下方：NFO 信息 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-gray-800/30 rounded-xl p-5 border border-white/5 space-y-4">
-                        <h3 className="text-white font-bold flex items-center gap-2 border-b border-white/5 pb-2">
+                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4">
+                        <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
                             <i className="fas fa-info-circle text-blue-400"></i>
                             媒体详情
                         </h3>
@@ -623,7 +623,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
 
                         {media.actor && (
                             <div className="pt-4 border-t border-white/5">
-                                <div className="text-gray-500 mb-2 flex items-center gap-2">
+                                <div className="text-secondary mb-2 flex items-center gap-2">
                                     <i className="fas fa-users text-xs"></i>
                                     主演阵容:
                                 </div>
@@ -633,12 +633,12 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     </div>
 
                     {media.overview && (
-                        <div className="bg-gray-800/30 rounded-xl p-5 border border-white/5">
-                            <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                        <div className="bg-secondary rounded-xl p-5 border border-border-color">
+                            <h3 className="text-primary font-bold mb-3 flex items-center gap-2">
                                 <i className="fas fa-align-left text-green-400"></i>
                                 剧情简介
                             </h3>
-                            <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
+                            <p className="text-secondary text-sm leading-relaxed whitespace-pre-wrap">
                                 {media.overview}
                             </p>
                         </div>
@@ -646,7 +646,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 </div>
 
                 <div className="hidden lg:block">
-                    <div className="bg-gray-800/30 rounded-xl p-2 border border-white/5 overflow-hidden">
+                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden">
                         {media.poster_url ? (
                             <img
                                 src={media.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(media.poster_url)}` : media.poster_url}

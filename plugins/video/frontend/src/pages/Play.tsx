@@ -461,9 +461,9 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
     const currentSource = video.episodes[selectedSourceIndex];
 
     return (
-        <div className="relative h-full overflow-hidden bg-[#0c0e12] scroll-smooth">
-            {/* 渐变底色层 */}
-            <div className="absolute inset-0 z-0 bg-gradient-to-b from-blue-900/10 via-transparent to-transparent opacity-50"></div>
+        <div className="relative h-full overflow-hidden bg-primary scroll-smooth">
+            {/* 渐变底色层 - 在明亮模式下调淡 */}
+            <div className="absolute inset-0 z-0 bg-gradient-to-b from-blue-900/5 via-transparent to-transparent dark:from-blue-900/10 opacity-50"></div>
 
             <div className="relative z-10 p-4 lg:p-6 h-full overflow-y-auto custom-scrollbar space-y-6">
                 {/* 顶部区域：播放器 + 剧集面板 */}
@@ -520,7 +520,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
 
                     {/* 右侧：剧集面板 */}
                     <div className="lg:w-80 xl:w-96 flex-shrink-0">
-                        <div className="bg-secondary/80 rounded-2xl p-5 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+80px)] flex flex-col border border-border-color shadow-2xl transition-all duration-300">
+                        <div className="bg-secondary rounded-2xl p-5 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+80px)] flex flex-col border border-border-color shadow-2xl transition-all duration-300">
                             <h3 className="text-primary font-bold mb-4 flex items-center justify-between">
                                 <span className="flex items-center gap-2">
                                     <i className="fas fa-list-ol text-blue-400 text-sm"></i>
@@ -581,7 +581,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                 )}
 
                 {/* 其他视频源 - 多源切换 */}
-                <div className="bg-secondary/60 rounded-2xl p-5 border border-border-color shadow-lg">
+                <div className="bg-secondary rounded-2xl p-5 border border-border-color shadow-lg">
                     <h3
                         className="text-primary font-bold mb-4 flex items-center justify-between cursor-pointer group/title"
                         onClick={() => setShowAlternatives(!showAlternatives)}
@@ -689,7 +689,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                 </div>
 
                 {/* 视频详情 */}
-                <div className="bg-secondary/60 rounded-2xl p-6 border border-border-color shadow-lg space-y-6">
+                <div className="bg-secondary rounded-2xl p-6 border border-border-color shadow-lg space-y-6">
                     {/* 标题和基本信息 */}
                     <div className="pb-4 border-b border-border-color">
                         <h1 className="text-2xl font-bold text-primary tracking-tight">{video.vod_name}</h1>
