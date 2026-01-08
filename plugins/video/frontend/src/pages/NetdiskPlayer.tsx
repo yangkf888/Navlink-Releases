@@ -33,7 +33,6 @@ interface NetdiskPlayerProps {
     onGoBack?: () => void;
 }
 
-// 扩展元数据标签映射字典 (覆盖电影、剧集、VR、成人等多种场景)
 const METADATA_LABELS: Record<string, string> = {
     original_title: '原始标题',
     originaltitle: '原始标题',
@@ -59,7 +58,6 @@ const METADATA_LABELS: Record<string, string> = {
     writer: '编剧',
     producer: '制片',
     musicby: '配乐',
-    // 针对特定类型 (如 VR/Label) 的补全
     maker: '片商',
     label: '发行商',
     publisher: '出版商',
@@ -77,24 +75,44 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [playUrl, setPlayUrl] = useState<string | null>(null);
+    const [playMethod, setPlayMethod] = useState<'hls' | 'proxy' | 'direct'>('hls');
     const [isFavorite, setIsFavorite] = useState(false);
-    const [transcodingSessionId, setTranscodingSessionId] = useState<string | null>(null);
     const [isTranscoding, setIsTranscoding] = useState(false);
+    const [metaData, setMetaData] = useState<{ vCodec?: string, duration?: number }>({});
+
+    // 💡 状态追踪 (使用 useRef 避免闭包陷阱!!)
+    const maxCompletedIdxRef = useRef<number>(-1);
+    const lastValidTimeRef = useRef<number>(0);
 
     const playerRef = useRef<HTMLDivElement>(null);
     const artPlayerRef = useRef<any>(null);
     const progressTimerRef = useRef<any>(null);
-    const transcodingSessionIdRef = useRef<string | null>(null); // 用于追踪最新的 sessionId，避免闭包问题
-    const hlsRef = useRef<any>(null); // 用于追踪 HLS.js 实例，确保正确销毁
+    const pollTimerRef = useRef<any>(null);
+    const loadingTimeoutRef = useRef<any>(null);
+    const transcodingSessionIdRef = useRef<string | null>(null);
+    const hlsRef = useRef<any>(null);
+    const isFirstFragLoadedRef = useRef(false);
 
-    // 当 mediaId 变化时，先清理旧的播放器和转码会话
     useEffect(() => {
-        // 先销毁旧的 HLS.js 实例，这是关键！
+        loadMediaDetail();
+        checkFavoriteStatus();
+        return () => {
+            // 💡 关键修复：组件卸载（如点击返回按钮）时，通知后端停止转码
+            if (transcodingSessionIdRef.current) {
+                apiPost(`/transcode/${transcodingSessionIdRef.current}/stop`, {}).catch(() => { });
+                transcodingSessionIdRef.current = null;
+            }
+            cleanupPlayer();
+            if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        };
+    }, [mediaId, sourceId]);
+
+    const cleanupPlayer = () => {
         if (hlsRef.current) {
             hlsRef.current.destroy();
             hlsRef.current = null;
         }
-        // 然后销毁旧播放器
         if (artPlayerRef.current) {
             artPlayerRef.current.destroy();
             artPlayerRef.current = null;
@@ -103,24 +121,15 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             clearInterval(progressTimerRef.current);
             progressTimerRef.current = null;
         }
-        // 停止旧的转码会话 (使用 ref 获取最新值，避免闭包问题)
-        if (transcodingSessionIdRef.current) {
-            const url = `/api/plugins/video/api/transcode/${transcodingSessionIdRef.current}/stop`;
-            if (navigator.sendBeacon) {
-                navigator.sendBeacon(url, new Blob(['{}'], { type: 'application/json' }));
-            } else {
-                apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
-            }
-            setTranscodingSessionId(null);
-            transcodingSessionIdRef.current = null;
+        if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
         }
-        // 重置状态
-        setPlayUrl(null);
-        setIsTranscoding(false);
-
-        loadMediaDetail();
-        checkFavoriteStatus();
-    }, [mediaId, sourceId]);
+        isFirstFragLoadedRef.current = false;
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+        maxCompletedIdxRef.current = -1;
+        lastValidTimeRef.current = 0;
+    };
 
     useEffect(() => {
         if (media) {
@@ -132,35 +141,33 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         if (playUrl) {
             initPlayer();
         }
-        return () => {
-            // 先销毁 HLS 实例，停止所有网络请求
-            if (hlsRef.current) {
-                hlsRef.current.destroy();
-                hlsRef.current = null;
-            }
-            if (artPlayerRef.current) {
-                saveHistory(artPlayerRef.current);
-                artPlayerRef.current.destroy();
-                artPlayerRef.current = null;
-            }
-            if (progressTimerRef.current) {
-                clearInterval(progressTimerRef.current);
-            }
-            // 不要在这里直接停止转码，因为切换 playUrl 会触发这个清理，
-            // 而新 session 可能还没建立。停止逻辑放在 getPlayUrl 中。
-        };
-    }, [playUrl]);
+    }, [playUrl, playMethod]);
 
-    // 组件卸载或页面关闭时确保停止转码
+    // 💡 每秒获取一次转码进度 (增加频率，让体验更实时)
+    useEffect(() => {
+        if (isTranscoding && transcodingSessionIdRef.current && playMethod === 'hls') {
+            const poll = async () => {
+                try {
+                    const res = await apiGet<{ maxContinuousSegment: number }>(`/transcode/${transcodingSessionIdRef.current}/status`);
+                    if (res.success && res.data) {
+                        maxCompletedIdxRef.current = res.data.maxContinuousSegment;
+                        console.log(`[Transcode Poll] maxCompletedIdx updated to: ${res.data.maxContinuousSegment}`);
+                    }
+                } catch (e) { }
+            };
+            pollTimerRef.current = setInterval(poll, 2000);
+            return () => clearInterval(pollTimerRef.current);
+        }
+    }, [isTranscoding, playMethod, transcodingSessionIdRef.current]);
+
     useEffect(() => {
         const stopTranscoding = () => {
-            if (transcodingSessionId) {
-                // 使用 sendBeacon 或同步 xhr 确保请求发出
-                const url = `/api/plugins/video/api/transcode/${transcodingSessionId}/stop`;
+            if (transcodingSessionIdRef.current) {
+                const url = `/api/plugins/video/api/transcode/${transcodingSessionIdRef.current}/stop`;
                 if (navigator.sendBeacon) {
                     navigator.sendBeacon(url, new Blob(['{}'], { type: 'application/json' }));
                 } else {
-                    apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
+                    apiPost(`/transcode/${transcodingSessionIdRef.current}/stop`, {}).catch(() => { });
                 }
             }
         };
@@ -170,7 +177,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             stopTranscoding();
             window.removeEventListener('beforeunload', stopTranscoding);
         };
-    }, [transcodingSessionId]);
+    }, []);
 
     const loadMediaDetail = async () => {
         setLoading(true);
@@ -204,34 +211,42 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     };
 
     const getPlayUrl = async (index: number) => {
-        // 如果已有转码会话，先停止旧的
-        if (transcodingSessionId) {
-            apiPost(`/transcode/${transcodingSessionId}/stop`, {}).catch(() => { });
-            setTranscodingSessionId(null);
+        if (transcodingSessionIdRef.current) {
+            apiPost(`/transcode/${transcodingSessionIdRef.current}/stop`, {}).catch(() => { });
             transcodingSessionIdRef.current = null;
         }
 
-        // 立即销毁旧播放器，防止 HLS.js 继续请求旧的会话 URL
-        if (artPlayerRef.current) {
-            artPlayerRef.current.destroy();
-            artPlayerRef.current = null;
-        }
-
+        cleanupPlayer();
+        setIsTranscoding(true);
         setPlayUrl(null);
-        setIsTranscoding(false);
+
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = setTimeout(() => {
+            setIsTranscoding(false);
+        }, 12000);
 
         try {
-            const res = await apiPost<{ playUrl: string, isStrm?: boolean, transcodeAvailable?: boolean, sessionId?: string }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
+            const res = await apiPost<{ playUrl: string, sessionId?: string, playMethod?: any, metadata?: any }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
             if (res.success && res.data) {
-                setPlayUrl(res.data.playUrl);
                 if (res.data.sessionId) {
-                    setTranscodingSessionId(res.data.sessionId);
                     transcodingSessionIdRef.current = res.data.sessionId;
-                    setIsTranscoding(true);
                 }
+                setPlayMethod(res.data.playMethod || 'hls');
+                setMetaData(res.data.metadata || {});
+                setPlayUrl(res.data.playUrl);
+
+                if (res.data.playMethod === 'proxy' || res.data.playMethod === 'direct') {
+                    setIsTranscoding(false);
+                    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+                }
+            } else {
+                setIsTranscoding(false);
+                setError(res.error || '无法获取播放地址');
             }
         } catch (err) {
             console.error('Failed to get play URL:', err);
+            setIsTranscoding(false);
+            setError('获取播放地址网络请求失败');
         }
     };
 
@@ -261,10 +276,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const initPlayer = async () => {
         if (!playerRef.current || !playUrl || !media) return;
 
-        if (artPlayerRef.current) {
-            artPlayerRef.current.destroy();
-            artPlayerRef.current = null;
-        }
+        cleanupPlayer();
 
         try {
             const [ArtplayerModule, HlsModule] = await Promise.all([
@@ -287,67 +299,47 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 theme: '#ef4444',
                 moreVideoAttr: {
                     crossOrigin: 'anonymous',
+                    playsInline: true,
                 },
+                control: (playMethod === 'proxy' && metaData.vCodec && !['h264', 'avc1'].includes(metaData.vCodec.toLowerCase())) ? false : true,
             };
 
-            const isM3U8 = playUrl.includes('.m3u8') || playUrl.includes('playlist.m3u8');
-            if (isM3U8) {
+            if (metaData.duration) {
+                playerConfig.duration = metaData.duration;
+            }
+
+            if (playMethod === 'hls') {
                 playerConfig.type = 'm3u8';
                 playerConfig.customType = {
                     m3u8: function (video: any, url: any) {
                         if (Hls.isSupported()) {
-                            // 先销毁旧的 HLS 实例
-                            if (hlsRef.current) {
-                                hlsRef.current.destroy();
-                                hlsRef.current = null;
-                            }
-
                             const hls = new Hls({
-                                // 深度优化实时转码流参数
-                                maxBufferLength: 20,
-                                maxMaxBufferLength: 40,
+                                maxBufferLength: 60,  // 增加缓冲区
+                                maxMaxBufferLength: 120,
                                 enableWorker: true,
-                                lowLatencyMode: true,
-                                fragLoadingMaxRetry: 10,
-                                manifestLoadingMaxRetry: 10,
-                                // 针对转码流，如果分片 404，可能是 FFmpeg 还没写完，增加重试
-                                fragLoadingRetryDelay: 1000,
+                                fragLoadingMaxRetry: 10,  // 增加重试次数
+                                fragLoadingRetryDelay: 2000,  // 增加重试延迟
+                                fragLoadingMaxRetryTimeout: 60000,  // 最大重试超时
+                                manifestLoadingMaxRetry: 5,
+                                levelLoadingMaxRetry: 5,
+                                startLevel: 0,
+                                // 💡 关键：增加分片加载超时，适应慢速转码
+                                fragLoadingTimeOut: 60000,  // 60 秒超时
+                                levelLoadingTimeOut: 30000,
                             });
-
-                            // 保存 HLS 实例引用，用于后续清理
                             hlsRef.current = hls;
-
                             hls.loadSource(url);
                             hls.attachMedia(video);
-
-                            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                                setIsTranscoding(false);
-                                video.play().catch(() => { });
-                            });
-
-                            // 针对转码初期的 404 错误优化处理
-                            hls.on(Hls.Events.ERROR, (_, data) => {
-                                if (data.fatal) {
-                                    switch (data.type) {
-                                        case Hls.ErrorTypes.NETWORK_ERROR:
-                                            // 如果是网络错误且正在转码，说明文件还没写好，让他自动重试
-                                            console.warn('HLS Network Error, retrying...', data);
-                                            hls.startLoad();
-                                            break;
-                                        default:
-                                            setIsTranscoding(false);
-                                            console.error('HLS Fatal Error:', data);
-                                            hls.destroy();
-                                            initPlayer(); // 再次重试或回退
-                                            break;
-                                    }
+                            hls.on(Hls.Events.FRAG_LOADED, () => {
+                                if (!isFirstFragLoadedRef.current) {
+                                    isFirstFragLoadedRef.current = true;
+                                    setIsTranscoding(false);
                                 }
                             });
+                            // 注意：不再在 FRAG_LOADING 阶段拦截，因为会干扰正常的预加载
+                            // 只通过 Artplayer 的 seek 事件拦截用户主动的拖动操作
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = url;
-                            video.addEventListener('loadedmetadata', () => {
-                                setIsTranscoding(false);
-                            });
                         }
                     }
                 };
@@ -356,12 +348,46 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             const player = new Artplayer(playerConfig);
             artPlayerRef.current = player;
 
-            // 如果不是 M3U8，在播放开始时关闭加载提示
-            player.on('play', () => {
-                setIsTranscoding(false);
+            // 💡 监听播放进度，记录有效时间
+            player.on('video:timeupdate', () => {
+                const currentTime = player.currentTime;
+                const targetIdx = Math.floor(currentTime / 10);
+                const maxIdx = maxCompletedIdxRef.current;
+
+                // 只有在已转码范围内，才更新有效位置
+                if (maxIdx === -1) {
+                    if (targetIdx === 0) lastValidTimeRef.current = currentTime;
+                } else if (targetIdx <= maxIdx) {
+                    lastValidTimeRef.current = currentTime;
+                }
             });
 
-            // 定时保存进度 (每 30 秒)
+            // 💡 简化策略：只在用户拖动到未转码区域时显示提示，不主动回弹
+            // 让 HLS.js 自然处理（等待分片或超时），避免误触发导致的异常行为
+            player.on('seeking', () => {
+                if (playMethod === 'hls' && transcodingSessionIdRef.current) {
+                    const currentTime = player.currentTime;
+                    const targetIdx = Math.floor(currentTime / 10);
+                    const maxIdx = maxCompletedIdxRef.current;
+                    // 只显示提示，不回弹
+                    if (maxIdx !== -1 && targetIdx > maxIdx + 2) {
+                        player.notice.show = `⏳ 正在等待转码... (已就绪: ${(maxIdx + 1) * 10}s)`;
+                    }
+                }
+            });
+
+            player.on('video:canplay', () => {
+                setIsTranscoding(false);
+                if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+            });
+
+            player.on('ready', () => {
+                if (playMethod !== 'hls') {
+                    setIsTranscoding(false);
+                    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+                }
+            });
+
             if (progressTimerRef.current) clearInterval(progressTimerRef.current);
             progressTimerRef.current = setInterval(() => {
                 saveHistory(player);
@@ -403,118 +429,64 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         }
     };
 
-    // 动态渲染元数据行 (全量读取策略)
     const renderMetadataRows = () => {
         if (!media) return null;
-
+        const extraData = media.extra_metadata || {};
         const rows: { label: string, value: any, key: string }[] = [];
-        const processedKeys = new Set<string>();
 
-        // 1. 核心显示字段 (手动排序以固定常见布局)
-        const coreDisplays = [
-            { k: 'originaltitle', l: METADATA_LABELS.originaltitle },
-            { k: 'genre', l: '类型' },
-            { k: 'director', l: METADATA_LABELS.director },
-            { k: 'maker', l: METADATA_LABELS.maker },
-            { k: 'studio', l: METADATA_LABELS.studio },
-            { k: 'publisher', l: METADATA_LABELS.publisher },
-            { k: 'label', l: METADATA_LABELS.label },
-            { k: 'series', l: METADATA_LABELS.series },
-            { k: 'area', l: METADATA_LABELS.area },
-            { k: 'year', l: METADATA_LABELS.year },
-            { k: 'premiered', l: METADATA_LABELS.premiered },
-            { k: 'rating', l: '社区评分' },
-            { k: 'tagline', l: METADATA_LABELS.tagline },
-            { k: 'number', l: METADATA_LABELS.number },
-            { k: 'code', l: METADATA_LABELS.code },
-        ];
+        // 1. 收集所有可能的元数据键 (合并 extra_metadata 和 media 顶层属性)
+        const allKeys = new Set([
+            ...Object.keys(METADATA_LABELS),
+            ...Object.keys(extraData),
+            'director', 'year', 'area', 'studio', 'rating', 'genre', 'originaltitle'
+        ]);
 
-        const data = media.extra_metadata || {};
+        allKeys.forEach(key => {
+            const label = METADATA_LABELS[key] || key; // 如果没有中文标签，展示原始键名
+            let value = extraData[key] || (media as any)[key];
 
-        coreDisplays.forEach(core => {
-            const val = data[core.k];
-            if (val) {
-                let displayVal = val;
-                if (core.k === 'genre') {
-                    const genres = typeof val === 'string' ? val.split(', ') : val;
-                    displayVal = (
-                        <div className="flex flex-wrap gap-1">
-                            {Array.isArray(genres) ? genres.map(g => (
-                                <span key={g} className="text-blue-400">#{g}</span>
-                            )) : <span className="text-blue-400">#{genres}</span>}
-                        </div>
-                    );
-                } else if (core.k === 'rating') {
-                    displayVal = (
-                        <span className="text-yellow-500 font-bold flex items-center gap-1">
-                            <i className="fas fa-star text-xs"></i>
-                            {parseFloat(val).toFixed(1)}
-                        </span>
-                    );
-                } else if (core.k === 'tagline') {
-                    displayVal = <span className="text-gray-400 italic">{val}</span>;
-                }
+            // 过滤无效或重复展示的值
+            if (value === undefined || value === null || value === '' || value === 0 || value === '0') return;
+            if (key === 'overview' || key === 'title' || key === 'poster_url' || key === 'fanart_url' || key === 'video_files') return;
+            if (rows.some(r => r.label === label)) return;
 
-                rows.push({ label: core.l, value: displayVal, key: core.k });
-                processedKeys.add(core.k);
+            let displayVal = value;
+            // 针对特定字段进行格式化
+            if (key === 'genre' || key === 'tag' || label === '类型') {
+                const genres = typeof value === 'string' ? value.split(/[,，]\s*/) : value;
+                displayVal = (
+                    <div className="flex flex-wrap gap-1">
+                        {Array.isArray(genres) ? genres.map(g => (
+                            <span key={g} className="text-primary bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium border border-blue-500/20">#{g}</span>
+                        )) : <span className="text-primary bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium border border-blue-500/20">#{value}</span>}
+                    </div>
+                );
+            } else if (key === 'rating') {
+                displayVal = <span className="text-yellow-500 font-bold">★ {value}</span>;
+            } else if (typeof value === 'string' && (value.startsWith('http'))) {
+                displayVal = <a href={value} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline break-all">{value}</a>;
             }
-        });
 
-        // 2. 及其它所有定义的元数据 (非核心但在标签字典里的)
-        Object.keys(METADATA_LABELS).forEach(key => {
-            if (!processedKeys.has(key) && data[key]) {
-                rows.push({ label: METADATA_LABELS[key], value: data[key], key });
-                processedKeys.add(key);
-            }
-        });
-
-        // 3. 兜底策略：没有任何映射但在数据里有的字段 (全量透显)
-        const skipKeys = [
-            'title', 'plot', 'outline', 'summary', 'poster', 'fanart', 'thumb',
-            'actor', 'credits', 'cast', 'uniqueid', 'id', 'user_rating'
-        ];
-        Object.entries(data).forEach(([key, val]) => {
-            if (!processedKeys.has(key) && !skipKeys.includes(key)) {
-                // 排除一些格式复杂的标签
-                if (typeof val === 'string' && val.length < 200 && !val.includes('<')) {
-                    rows.push({ label: key.toUpperCase(), value: val, key });
-                }
-            }
+            rows.push({ label, value: displayVal, key });
         });
 
         return rows.map((row, idx) => (
-            <div key={idx} className="flex items-start gap-2">
-                <span className="text-secondary w-20 flex-shrink-0">{row.label}:</span>
-                <div className="text-primary break-words flex-1 min-w-0">{row.value}</div>
+            <div key={idx} className="flex items-start gap-2 py-1.5 border-b border-white/[0.05] last:border-0">
+                <span className="text-secondary w-24 flex-shrink-0 text-xs font-semibold">{row.label}:</span>
+                <div className="text-primary break-words flex-1 min-w-0 text-xs sm:text-sm">{row.value}</div>
             </div>
         ));
     };
 
-    if (loading) {
-        return (
-            <div className="p-6 animate-pulse bg-gray-950 min-h-full">
-                <div className="aspect-video bg-gray-800 rounded-xl mb-6"></div>
-                <div className="h-8 bg-gray-800 rounded w-1/3 mb-4"></div>
-                <div className="h-4 bg-gray-800 rounded w-full mb-2"></div>
-                <div className="h-4 bg-gray-800 rounded w-2/3"></div>
-            </div>
-        );
-    }
-
-    if (error || !media) {
-        return (
-            <div className="p-6 text-center bg-gray-950 min-h-full">
-                <i className="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-                <p className="text-gray-400">{error || '媒体不存在'}</p>
-                <button
-                    onClick={() => onNavigate('netdisk')}
-                    className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
-                >
-                    返回媒体库
-                </button>
-            </div>
-        );
-    }
+    if (loading) return <div className="p-6 text-primary text-center">加载中...</div>;
+    if (error || !media) return (
+        <div className="p-6 text-red-500 text-center space-y-4">
+            <p>{error || '加载失败'}</p>
+            <button onClick={() => onNavigate('netdisk')} className="px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color">
+                返回
+            </button>
+        </div>
+    );
 
     return (
         <div className="p-4 lg:p-6 space-y-4 bg-primary min-h-full overflow-y-auto custom-scrollbar">
@@ -529,13 +501,15 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                         {isTranscoding && (
                             <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10">
                                 <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                                <p className="text-white font-medium">正在启动实时转码...</p>
-                                <p className="text-gray-400 text-sm mt-2">首次转码可能需要 5-10 秒，请稍候</p>
+                                <p className="text-white font-medium">正在建立智能极速播放链路...</p>
+                                <p className="text-gray-400 text-sm mt-2">
+                                    {playMethod === 'hls' ? '服务器正在准备转推流数据' : '正在解析远程加速地址'}
+                                </p>
                             </div>
                         )}
                     </div>
 
-                    {/* 控制条 */}
+                    {/* 控制条 - 补全收藏、刷新、返回动作 */}
                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 flex-wrap">
                             <button
@@ -579,7 +553,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                         <h3 className="text-primary font-medium mb-3 flex items-center justify-between">
                             <span>
                                 <i className="fas fa-list-ol mr-2 text-red-500"></i>
-                                剧集选集 ({media.video_files.length})
+                                选集 ({media.video_files.length})
                             </span>
                         </h3>
 
@@ -588,14 +562,17 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                 {media.video_files.map((file, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => setSelectedVideoIndex(idx)}
+                                        onClick={() => {
+                                            setSelectedVideoIndex(idx);
+                                            setIsTranscoding(true);
+                                        }}
                                         className={`px-2 py-2.5 rounded text-sm transition-colors truncate ${selectedVideoIndex === idx
                                             ? 'bg-red-500 text-white font-medium shadow-lg'
                                             : 'bg-secondary/50 text-secondary hover:bg-secondary hover:text-primary border border-border-color'
                                             }`}
                                         title={file}
                                     >
-                                        {file.includes('|') ? file.split('|')[0] : file}
+                                        P{idx + 1}
                                     </button>
                                 ))}
                             </div>
@@ -607,7 +584,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             {/* 下方：NFO 信息 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4">
+                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4 shadow-sm">
                         <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
                             <i className="fas fa-info-circle text-blue-400"></i>
                             媒体详情
@@ -618,7 +595,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                         </div>
 
                         {media.actor && (
-                            <div className="pt-4 border-t border-white/5">
+                            <div className="pt-4 border-t border-border-color">
                                 <div className="text-secondary mb-2 flex items-center gap-2">
                                     <i className="fas fa-users text-xs"></i>
                                     主演阵容:
@@ -629,7 +606,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     </div>
 
                     {media.overview && (
-                        <div className="bg-secondary rounded-xl p-5 border border-border-color">
+                        <div className="bg-secondary rounded-xl p-5 border border-border-color shadow-sm">
                             <h3 className="text-primary font-bold mb-3 flex items-center gap-2">
                                 <i className="fas fa-align-left text-green-400"></i>
                                 剧情简介
@@ -641,8 +618,9 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     )}
                 </div>
 
+                {/* 海报封面展示区 */}
                 <div className="hidden lg:block">
-                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden">
+                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden shadow-lg">
                         {media.poster_url ? (
                             <img
                                 src={media.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(media.poster_url)}` : media.poster_url}
@@ -651,8 +629,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                 onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
                             />
                         ) : (
-                            <div className="aspect-[2/3] bg-gray-900 rounded-lg flex items-center justify-center text-gray-700">
-                                <i className="fas fa-film text-6xl"></i>
+                            <div className="aspect-[2/3] bg-tertiary rounded-lg flex items-center justify-center text-secondary">
+                                <i className="fas fa-film text-6xl opacity-20"></i>
                             </div>
                         )}
                     </div>
