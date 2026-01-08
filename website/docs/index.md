@@ -20,7 +20,7 @@ hero:
       link: https://github.com/txwebroot/Navlink-Releases
     - theme: alt
       text: ✈️ Telegram交流群
-      link: https://t.me/%2BJim9BO22f2VkY2M9
+      link: https://t.me/+Jim9BO22f2VkY2M9
 
 features:
   - icon: 🔍
@@ -114,6 +114,26 @@ features:
   background: #4f46e5 !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+}
+
+/* 修复 Hero 按钮被图片遮挡的问题 */
+.VPHero .image-container {
+  pointer-events: none;
+}
+
+/* Telegram 按钮醒目样式 */
+.VPHero .VPButton.alt[href*="t.me"] {
+  background: linear-gradient(135deg, #0088cc 0%, #00a2e8 100%) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(0, 136, 204, 0.4);
+  transition: all 0.3s ease;
+}
+
+.VPHero .VPButton.alt[href*="t.me"]:hover {
+  background: linear-gradient(135deg, #006699 0%, #0088cc 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 136, 204, 0.5);
 }
 
 /* Feature 卡片 - 柔和浅色背景 */
