@@ -126,8 +126,8 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
                                     <i className="fas fa-play text-3xl text-primary"></i>
                                 </div>
                                 {fav.source_name && (
-                                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 
-                                                   text-xs text-primary rounded">
+                                    <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500/90 
+                                                   text-[10px] text-white font-bold rounded-md backdrop-blur-sm z-20">
                                         {fav.source_name}
                                     </span>
                                 )}

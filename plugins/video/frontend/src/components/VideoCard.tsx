@@ -56,8 +56,8 @@ export function VideoCard({ video, onClick, showSource = false, sourceName }: Vi
 
                 {/* 视频源标签 */}
                 {showSource && displaySourceName && (
-                    <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500/80 
-                                   text-[10px] text-primary rounded-md backdrop-blur-sm z-20">
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-blue-500/90 
+                                   text-[10px] text-white font-bold rounded-md backdrop-blur-sm z-20">
                         {displaySourceName}
                     </span>
                 )}

@@ -186,7 +186,7 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
     };
 
     return (
-        <div className="w-full glass-effect relative z-30 transition-all duration-300 border-b border-border-color">
+        <div className="w-full glass-effect relative z-25 transition-all duration-300 border-b border-border-color">
             {/* Top Level Categories Row */}
             <div
                 ref={containerRef}

@@ -20,7 +20,7 @@ interface GlobalSearchBarProps {
     onToggleSidebar?: () => void; // 移动端侧边栏切换
     theme: 'light' | 'dark';
     onToggleTheme: () => void;
-    isAdminPasswordEnabled?: boolean; // 新增属性
+    isAdminPasswordEnabled?: boolean;
 }
 
 // 简单的密码输入模态框
@@ -42,6 +42,8 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
         if (success) {
             setPassword('');
             onClose();
+            // 登录成功后强制刷新页面以同步所有状态
+            window.location.reload();
         } else {
             setError('密码错误');
         }
@@ -49,35 +51,52 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
     };
 
     return ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-secondary rounded-xl p-6 w-full max-w-sm shadow-2xl border border-border-color">
-                <h3 className="text-xl font-bold text-primary mb-4 text-center">管理员登录</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <div className="bg-secondary rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-border-color transform transition-all">
+                <div className="flex flex-col items-center mb-6">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                        <i className="fas fa-user-shield text-red-500 text-2xl"></i>
+                    </div>
+                    <h3 className="text-2xl font-black text-primary">管理员登录</h3>
+                    <p className="text-secondary text-sm mt-1">请输入管理密码以继续</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="relative">
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="输入管理密码"
-                            className="w-full px-4 py-2.5 bg-gray-700 text-primary rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none text-center"
+                            placeholder="管理密码"
+                            className="w-full px-4 py-3 bg-tertiary text-primary rounded-xl border border-border-color focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono tracking-wider transition-all placeholder:text-secondary/50"
                             autoFocus
                         />
-                        {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
+                        {error && (
+                            <div className="flex items-center justify-center gap-2 mt-3 text-red-500 text-xs font-bold animate-shake">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {error}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex gap-3">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 bg-gray-700 text-primary rounded-lg hover:bg-gray-600 transition-colors"
+                            className="flex-1 px-4 py-3 bg-secondary hover:bg-tertiary text-primary rounded-xl border border-border-color font-bold transition-all active:scale-95"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-red-500 text-primary rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all font-bold active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? '验证中...' : '登录'}
+                            {loading ? (
+                                <i className="fas fa-spinner fa-spin mr-2"></i>
+                            ) : (
+                                '确认登录'
+                            )}
                         </button>
                     </div>
                 </form>
@@ -142,6 +161,8 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const handleLogout = () => {
         logout();
         setIsUserMenuOpen(false);
+        // 退出后强制刷新页面以同步所有状态
+        window.location.reload();
     };
 
     const selectedSource = sources.find(s => s.id === selectedSourceId);
@@ -216,18 +237,52 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
                         {/* 用户图标 - 仅在启用安全设置时显示 */}
                         {isAdminPasswordEnabled && (
-                            <button
-                                onClick={handleUserIconClick}
-                                className={`p-2 rounded-lg transition-colors
-                                    ${isAuthenticated
-                                        ? 'text-green-400'
-                                        : theme === 'dark'
-                                            ? 'text-secondary hover:text-primary'
-                                            : 'text-secondary hover:text-gray-600'
-                                    }`}
-                            >
-                                <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={handleUserIconClick}
+                                    className={`p-2 rounded-lg transition-colors
+                                        ${isAuthenticated
+                                            ? 'text-green-400'
+                                            : theme === 'dark'
+                                                ? 'text-secondary hover:text-primary'
+                                                : 'text-secondary hover:text-gray-600'
+                                        }`}
+                                >
+                                    <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
+                                </button>
+
+                                {/* 移动端用户菜单 */}
+                                {isUserMenuOpen && isAuthenticated && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-[60]"
+                                            onClick={() => setIsUserMenuOpen(false)}
+                                        ></div>
+                                        <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                        ${theme === 'dark'
+                                                ? 'bg-secondary border border-border-color shadow-black/50'
+                                                : 'bg-white border border-gray-100 shadow-slate-200'
+                                            }`}
+                                        >
+                                            <div className="px-4 py-2 border-b border-border-color mb-1">
+                                                <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
+                                                <p className="text-sm font-bold text-primary">系统管理员</p>
+                                            </div>
+                                            <button
+                                                onClick={handleLogout}
+                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
+                                                ${theme === 'dark'
+                                                        ? 'text-red-400 hover:bg-red-500/10'
+                                                        : 'text-red-500 hover:bg-red-50'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-sign-out-alt"></i>
+                                                <span className="font-bold">安全退出登录</span>
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -298,7 +353,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
             )}
 
             {/* 桌面端导航栏 (原有布局) */}
-            <div className={`hidden lg:block sticky top-0 z-20 border-b px-4 py-3 h-16 transition-colors
+            <div className={`hidden lg:block sticky top-0 z-[50] border-b px-4 py-3 h-16 transition-colors
                 ${theme === 'dark'
                     ? 'bg-secondary/80 border-border-color backdrop-blur-lg'
                     : 'bg-white/80 border-gray-200 backdrop-blur-lg'
@@ -517,29 +572,33 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
                                 </button>
 
-                                {/* 用户菜单 */}
+                                {/* 用户菜单 - 增加美化与层级控制 */}
                                 {isUserMenuOpen && isAuthenticated && (
                                     <>
                                         <div
-                                            className="fixed inset-0 z-10"
+                                            className="fixed inset-0 z-[60]"
                                             onClick={() => setIsUserMenuOpen(false)}
                                         ></div>
-                                        <div className={`absolute right-0 top-full mt-2 w-32 py-1 rounded-lg shadow-xl z-50
+                                        <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
                                         ${theme === 'dark'
-                                                ? 'bg-secondary border border-border-color'
-                                                : 'bg-white border border-gray-200'
+                                                ? 'bg-secondary border border-border-color shadow-black/50'
+                                                : 'bg-white border border-gray-100 shadow-slate-200'
                                             }`}
                                         >
+                                            <div className="px-4 py-2 border-b border-border-color mb-1">
+                                                <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
+                                                <p className="text-sm font-bold text-primary">系统管理员</p>
+                                            </div>
                                             <button
                                                 onClick={handleLogout}
-                                                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2
+                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
                                                 ${theme === 'dark'
-                                                        ? 'text-red-400 hover:bg-gray-700'
-                                                        : 'text-red-500 hover:bg-gray-100'
+                                                        ? 'text-red-400 hover:bg-red-500/10'
+                                                        : 'text-red-500 hover:bg-red-50'
                                                     }`}
                                             >
                                                 <i className="fas fa-sign-out-alt"></i>
-                                                退出登录
+                                                <span className="font-bold">安全退出登录</span>
                                             </button>
                                         </div>
                                     </>
