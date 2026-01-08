@@ -488,8 +488,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
 
         return rows.map((row, idx) => (
             <div key={idx} className="flex items-start gap-2">
-                <span className="text-gray-500 w-20 flex-shrink-0">{row.label}:</span>
-                <div className="text-gray-300 break-words flex-1 min-w-0">{row.value}</div>
+                <span className="text-secondary w-20 flex-shrink-0">{row.label}:</span>
+                <div className="text-primary break-words flex-1 min-w-0">{row.value}</div>
             </div>
         ));
     };
@@ -544,14 +544,14 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                         <div className="flex items-center gap-3 flex-wrap">
                             <button
                                 onClick={() => onGoBack ? onGoBack() : onNavigate('netdisk')}
-                                className="px-3 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                                className="px-3 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center gap-2 border border-border-color shadow-sm"
                             >
                                 <i className="fas fa-arrow-left"></i>
                                 <span className="hidden sm:inline">返回</span>
                             </button>
-                            <div className="text-gray-400 text-sm flex-1 min-w-0">
+                            <div className="text-secondary text-sm flex-1 min-w-0">
                                 <span className="hidden sm:inline">正在播放：</span>
-                                <span className="text-white font-medium">{media.title}</span>
+                                <span className="text-primary font-medium">{media.title}</span>
                             </div>
                         </div>
 
@@ -559,8 +559,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                             <button
                                 onClick={toggleFavorite}
                                 className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-gray-800 text-gray-400 hover:text-red-400'
+                                    ? 'bg-red-500 text-white shadow-lg'
+                                    : 'bg-secondary text-secondary hover:text-primary border border-border-color shadow-sm'
                                     }`}
                             >
                                 <i className="fas fa-heart"></i>
@@ -568,7 +568,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                             </button>
                             <button
                                 onClick={loadMediaDetail}
-                                className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border border-border-color shadow-sm"
                             >
                                 <i className="fas fa-sync-alt"></i>
                                 刷新
@@ -579,10 +579,10 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
 
                 {/* 右侧：剧集网格面板 */}
                 <div className="lg:w-72 xl:w-80 flex-shrink-0">
-                    <div className="bg-gray-800/50 rounded-xl p-4 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+60px)] flex flex-col border border-white/5">
-                        <h3 className="text-white font-medium mb-3 flex items-center justify-between">
+                    <div className="bg-secondary rounded-xl p-4 h-full max-h-[400px] lg:max-h-[calc(56.25vw*0.5+80px)] flex flex-col border border-border-color shadow-xl transition-all duration-300">
+                        <h3 className="text-primary font-medium mb-3 flex items-center justify-between">
                             <span>
-                                <i className="fas fa-list-ol mr-2 text-red-400"></i>
+                                <i className="fas fa-list-ol mr-2 text-red-500"></i>
                                 剧集选集 ({media.video_files.length})
                             </span>
                         </h3>
@@ -595,7 +595,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                         onClick={() => setSelectedVideoIndex(idx)}
                                         className={`px-2 py-2.5 rounded text-sm transition-colors truncate ${selectedVideoIndex === idx
                                             ? 'bg-red-500 text-white font-medium shadow-lg'
-                                            : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
+                                            : 'bg-secondary/50 text-secondary hover:bg-secondary hover:text-primary border border-border-color'
                                             }`}
                                         title={file}
                                     >
@@ -627,7 +627,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                     <i className="fas fa-users text-xs"></i>
                                     主演阵容:
                                 </div>
-                                <p className="text-gray-300 leading-relaxed text-sm">{media.actor}</p>
+                                <p className="text-primary leading-relaxed text-sm">{media.actor}</p>
                             </div>
                         )}
                     </div>

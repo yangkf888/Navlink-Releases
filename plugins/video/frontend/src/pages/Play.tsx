@@ -619,11 +619,11 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                         <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-green-200 text-xs">
+                                        <span className="text-primary/80 text-xs">
                                             {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
                                         </span>
                                         {video.vod_remarks && (
-                                            <span className="px-1.5 py-0.5 bg-white/20 text-primary text-[10px] rounded font-medium">
+                                            <span className="px-1.5 py-0.5 bg-white/10 text-primary text-[10px] rounded font-medium border border-white/10">
                                                 {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
                                             </span>
                                         )}
@@ -635,10 +635,10 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                     <button
                                         key={`${alt.source_id}-${alt.vod_id}`}
                                         onClick={() => handleSwitchSource(alt)}
-                                        className="bg-gray-700 hover:bg-gray-600 rounded-lg p-3 text-left transition-all hover:scale-[1.02] group relative overflow-hidden"
+                                        className="bg-tertiary hover:bg-secondary rounded-lg p-3 text-left transition-all hover:scale-[1.02] group relative overflow-hidden border border-border-color shadow-sm"
                                     >
                                         <div className="flex items-center gap-1.5 mb-1">
-                                            <div className="text-primary font-medium text-sm truncate flex-1 group-hover:text-green-400">
+                                            <div className="text-primary font-medium text-sm truncate flex-1 group-hover:text-blue-500">
                                                 {alt.source_name}
                                             </div>
                                             {alt.response_time !== undefined && (
