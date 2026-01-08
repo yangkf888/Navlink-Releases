@@ -64,12 +64,16 @@ body {
 }
 
 /* 列表与卡片背景适配 */
+.bg-primary {
+    background-color: var(--bg-primary) !important;
+}
+
 .bg-secondary {
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-secondary) !important;
 }
 
 .text-primary {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 .text-secondary {
