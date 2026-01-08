@@ -217,12 +217,8 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             artPlayerRef.current = null;
         }
 
-        // 🚀 核心优化：如果媒体标题或文件名暗示是 STRM，先给个加载提示
-        if (media?.video_files?.[index]?.includes('|')) {
-            setIsTranscoding(true);
-        }
-
         setPlayUrl(null);
+        setIsTranscoding(false);
 
         try {
             const res = await apiPost<{ playUrl: string, isStrm?: boolean, transcodeAvailable?: boolean, sessionId?: string }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
