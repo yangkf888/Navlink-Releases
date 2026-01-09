@@ -192,16 +192,15 @@ async function autoRenewSubscription(subscription, timezone, userId) {
         }
     } while (calculateDaysRemaining(newExpiryDate.toISOString().split('T')[0], timezone) < 0);
 
-    console.log(`[订阅检查] 订阅 "${subscription.name}" 已过期，自动续订至: ${newExpiryDate.toISOString().split('T')[0]}`);
+    const newExpiryDateStr = newExpiryDate.toISOString().split('T')[0];
+    console.log(`[订阅检查] 订阅 "${subscription.name}" 已过期，自动续订至: ${newExpiryDateStr}`);
 
     // 更新数据库
     try {
         const updated = await getSubscriptionDAO().update(
             subscription.id,
             {
-                ...subscription,
-                expiryDate: newExpiryDate.toISOString().split('T')[0],
-                updatedAt: new Date().toISOString()
+                expiryDate: newExpiryDateStr
             },
             userId
         );

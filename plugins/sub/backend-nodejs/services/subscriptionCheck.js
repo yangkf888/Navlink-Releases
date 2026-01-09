@@ -124,7 +124,7 @@ async function runSubscriptionCheck(forceNotify = false) {
             }
 
             // 尝试自动续订
-            const renewed = await autoRenewSubscription(sub, timezone, sub.tenant_id, sub.user_id);
+            const renewed = await autoRenewSubscription(sub, timezone, sub.user_id);
             if (renewed) {
                 renewedSubscriptions.push(renewed);
                 sub = renewed; // 使用续订后的数据继续检查

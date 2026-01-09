@@ -15,9 +15,8 @@ const {
 
 const router = express.Router();
 
-// 添加请求日志中间件
+// 路由中间件
 router.use((req, res, next) => {
-    console.log(`[Sub API] ${req.method} ${req.path}`);
     next();
 });
 
@@ -52,9 +51,7 @@ const jsonUpload = multer({
 router.get('/', async (req, res) => {
     try {
         const { userId } = getUserContext(req);
-        console.log('[sub] GET /subscriptions - userId:', userId);
         const subscriptions = await getSubscriptionDAO().getAll(userId);
-        console.log('[sub] Found subscriptions:', subscriptions.length);
         res.json(subscriptions);
     } catch (error) {
         console.error('Get subscriptions error:', error);
