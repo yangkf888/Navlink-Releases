@@ -6,6 +6,7 @@ set -e
 # 配置
 REGISTRY="${REGISTRY:-ghcr.io}"  # 默认使用 GitHub Container Registry
 GITHUB_USERNAME="${GITHUB_USERNAME:-txwebroot}"  # 修改为您的 GitHub 用户名
+GITHUB_TOKEN="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" # GitHub Personal Access Token
 IMAGE_NAME="navlink-releases"
 # 默认从 package.json 读取版本号
 DEFAULT_VERSION=$(node -p "require('./package.json').version")
@@ -33,29 +34,11 @@ echo "✅ 前端编译完成"
 echo "✅ 后端代码混淆完成"
 echo ""
 
-# 检查是否登录
-echo "🔐 检查登录状态..."
-if [ "$REGISTRY" = "ghcr.io" ]; then
-    echo "使用 GitHub Container Registry"
-    echo "请确保已创建 Personal Access Token (classic)"
-    echo "权限: write:packages, read:packages, delete:packages"
-    echo ""
-    # 自动检查 docker login 状态 (简单检查)
-    echo "✅ 强制忽略登录检查：假定已登录"
-else
-    # Docker Hub Logic
-    if ! docker info | grep -q "Username"; then
-        echo "⚠️  未登录 Docker Hub"
-        read -p "是否现在登录？(y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker login
-        else
-            echo "❌ 取消构建"
-            exit 1
-        fi
-    fi
-fi
+# 检查并执行登录
+echo "🔐 正在自动登录 GitHub Container Registry..."
+echo "$GITHUB_TOKEN" | docker login "$REGISTRY" -u "$GITHUB_USERNAME" --password-stdin
+
+# 检查混淆后的代码是否存在
 
 # 检查混淆后的代码是否存在
 echo "🔍 检查混淆后的代码..."
