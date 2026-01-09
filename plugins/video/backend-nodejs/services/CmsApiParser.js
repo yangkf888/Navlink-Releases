@@ -140,8 +140,19 @@ class CmsApiParser {
                 pg: page
             });
 
+            // 增加过滤逻辑：部分资源站在无搜索结果时会返回“最新视频”，这里进行二次匹配确保关联度
+            const rawList = (data.list || []).map(item => this.normalizeVideo(item));
+            const filteredList = rawList.filter(item => {
+                if (!keyword) return true;
+                const lowerKeyword = keyword.toLowerCase();
+                const lowerName = (item.vod_name || '').toLowerCase();
+                return lowerName.includes(lowerKeyword);
+            });
+
+            console.log(`[CmsApiParser] Search Filter (${this.baseUrl}): keyword="${keyword}", original=${rawList.length}, filtered=${filteredList.length}`);
+
             return {
-                list: (data.list || []).map(item => this.normalizeVideo(item)),
+                list: filteredList,
                 page: data.page || page,
                 pagecount: data.pagecount || 1,
                 limit: data.limit || limit,
