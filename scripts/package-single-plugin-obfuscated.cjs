@@ -23,7 +23,7 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 const PLUGINS_DIR = path.join(__dirname, '../plugins');
 const OUTPUT_DIR = path.join(__dirname, '../dist-plugins');
 const ZIP_OUTPUT_DIR = path.join(__dirname, '../Navlink-plugins');
-const TARGET_VERSION = '1.0.4';
+let currentVersion = ''; // 将从 manifest.json 中动态读取
 
 // 混淆忽略名单 (保持明文的文件)
 const OBFUSCATE_IGNORE = [
@@ -187,18 +187,24 @@ function copyFrontendDist(src, dest, stats = { files: 0, size: 0 }) {
     return stats;
 }
 
-// 处理manifest.json (保持不变)
+// 处理manifest.json (自动获取版本号)
 function processManifest(pluginDir, outputDir) {
     const manifestPath = path.join(pluginDir, 'manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+        throw new Error(`manifest.json not found in ${pluginDir}`);
+    }
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    manifest.version = TARGET_VERSION;
+
+    // 设置全局当前版本号
+    currentVersion = manifest.version;
+
     const outputManifestPath = path.join(outputDir, 'manifest.json');
     fs.writeFileSync(outputManifestPath, JSON.stringify(manifest, null, 2), 'utf8');
     return manifest;
 }
 
-// 处理package.json (保持不变)
-function processPackageJson(backendDir, outputBackendDir) {
+// 处理package.json
+function processPackageJson(backendDir, outputBackendDir, version) {
     const packagePath = path.join(backendDir, 'package.json');
     if (!fs.existsSync(packagePath)) {
         console.warn(`  ⚠️  package.json not found in ${backendDir}`);
@@ -207,7 +213,7 @@ function processPackageJson(backendDir, outputBackendDir) {
     const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
     const prodPkg = {
         name: pkg.name,
-        version: TARGET_VERSION,
+        version: version || pkg.version,
         description: pkg.description,
         main: pkg.main || 'server.js',
         dependencies: pkg.dependencies || {}
@@ -267,7 +273,7 @@ async function packagePlugin(pluginId) {
     console.log(`  ✅ 后端处理完成: 总数 ${backendStats.files}, 混淆 ${backendStats.obfuscated} 个敏感文件`);
 
     // 4. 处理package.json
-    processPackageJson(backendDir, outputBackendDir);
+    processPackageJson(backendDir, outputBackendDir, manifest.version);
 
     // 5. 复制前端dist
     const frontendDistDir = path.join(pluginDir, 'frontend/dist');
@@ -290,10 +296,10 @@ async function packagePlugin(pluginId) {
     };
 }
 
-// 压缩插件为 zip 文件 (保持不变)
-function zipPlugin(pluginId) {
+// 压缩插件为 zip 文件
+function zipPlugin(pluginId, version) {
     const outputDir = path.join(OUTPUT_DIR, pluginId);
-    const zipFile = path.join(ZIP_OUTPUT_DIR, `${pluginId}-${TARGET_VERSION}.zip`);
+    const zipFile = path.join(ZIP_OUTPUT_DIR, `${pluginId}-${version}.zip`);
 
     if (!fs.existsSync(ZIP_OUTPUT_DIR)) {
         fs.mkdirSync(ZIP_OUTPUT_DIR, { recursive: true });
@@ -327,7 +333,7 @@ async function main() {
     const result = await packagePlugin(pluginId);
     if (!result) process.exit(1);
 
-    const zipResult = zipPlugin(result.id);
+    const zipResult = zipPlugin(result.id, currentVersion);
     if (!zipResult) process.exit(1);
 
     console.log('\n✨ 打包完成！');
