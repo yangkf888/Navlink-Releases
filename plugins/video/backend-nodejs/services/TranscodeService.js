@@ -43,6 +43,7 @@ class TranscodeService {
         const pathsToTry = [
             customPath,
             process.env.FFMPEG_PATH,
+            path.join(__dirname, '..', 'data', 'bin', 'ffmpeg'), // 插件内置路径 (一键安装版)
             'ffmpeg',
             '/usr/bin/ffmpeg',
             '/usr/local/bin/ffmpeg'

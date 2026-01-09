@@ -55,6 +55,13 @@
 
 ---
 
+### C. 插件环境自检 (Environments)
+*   **实现方法**：
+    - **多路径探测**：`TranscodeService` 自动优先扫描 `plugins/video/data/bin/ffmpeg`，兼容 Linux 便携版。
+    - **Docker 最佳实践**：在项目的 `Dockerfile` 中预装 `ffmpeg` (`apk add ffmpeg`)，实现开箱即用。
+
+---
+
 ## 4. 关键数据库变更 (Schema)
 
 ```sql
