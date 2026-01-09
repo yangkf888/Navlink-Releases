@@ -23,7 +23,7 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 const PLUGINS_DIR = path.join(__dirname, '../plugins');
 const OUTPUT_DIR = path.join(__dirname, '../dist-plugins');
 const ZIP_OUTPUT_DIR = path.join(__dirname, '../Navlink-plugins');
-const TARGET_VERSION = '1.0.3';
+const TARGET_VERSION = '1.0.4';
 
 // 混淆忽略名单 (保持明文的文件)
 const OBFUSCATE_IGNORE = [
