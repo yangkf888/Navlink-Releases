@@ -72,17 +72,19 @@ export function initAuthDB() {
     const defaultUsername = config.admin.defaultUsername;
     const defaultPassword = config.admin.defaultPassword;
 
-    const user = db.get('SELECT id FROM users WHERE username = ?', [defaultUsername]);
+    const user = db.get('SELECT id FROM users WHERE username = ? OR id = ?', [defaultUsername, 'user_1001']);
     if (!user) {
         console.log(`[AuthDB] Creating default admin user... (username: ${defaultUsername})`);
         // bcrypt.hash 是异步的，需要转为同步
         const passwordHash = bcrypt.hashSync(defaultPassword, 10);
         db.run(
-            `INSERT INTO users (id, tenant_id, username, password_hash, email, role) 
+            `INSERT OR IGNORE INTO users (id, tenant_id, username, password_hash, email, role) 
              VALUES ('user_1001', 'default', ?, ?, 'admin@navlink.local', 'admin')`,
             [defaultUsername, passwordHash]
         );
         console.log(`[AuthDB] Default admin created (username: ${defaultUsername}, password: ${defaultPassword})`);
+    } else {
+        console.log(`[AuthDB] Admin user already exists (id: ${user.id}, username: ${user.username}), skipping creation.`);
     }
 
     console.log('[AuthDB] Initialization complete');
