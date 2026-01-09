@@ -3,7 +3,7 @@
  * 当点击侧边栏某个视频源时，显示该源的多个分类及各分类的视频
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Video, Category } from '../types';
 import { apiGet } from '../utils/api';
 import { VideoCard } from '../components/VideoCard';
@@ -28,35 +28,109 @@ interface CategorySection {
 export function SourceOverview({ sourceId, sourceName, categories, onNavigate }: SourceOverviewProps) {
     const [sections, setSections] = useState<CategorySection[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [allTopLevelCats, setAllTopLevelCats] = useState<Category[]>([]);
+    const [loadedCount, setLoadedCount] = useState(0);
+    const loaderRef = useRef<HTMLDivElement>(null);
 
+    const INITIAL_LOAD = 4;  // 初始加载4个分类
+    const LOAD_MORE = 4;     // 每次加载更多4个
+
+    // 分类图标和颜色配置
+    const categoryConfigs: { name: string; icon: string; color: string }[] = [
+        { name: '电影', icon: 'fas fa-film', color: 'blue' },
+        { name: '连续剧', icon: 'fas fa-tv', color: 'green' },
+        { name: '电视剧', icon: 'fas fa-tv', color: 'green' },
+        { name: '剧集', icon: 'fas fa-tv', color: 'green' },
+        { name: '综艺', icon: 'fas fa-masks-theater', color: 'pink' },
+        { name: '动漫', icon: 'fas fa-dragon', color: 'purple' },
+        { name: '动画', icon: 'fas fa-dragon', color: 'purple' },
+        { name: '纪录片', icon: 'fas fa-video', color: 'yellow' },
+    ];
+
+    // 加载单个分类的视频
+    const loadCategoryVideos = async (cat: Category): Promise<CategorySection | null> => {
+        const config = categoryConfigs.find(c => cat.name.includes(c.name)) ||
+            { icon: 'fas fa-folder', color: 'gray' };
+
+        const subCats = categories.filter(c =>
+            c.parent_id === parseInt(cat.type_id) ||
+            (c.parent_id && String(c.parent_id) === cat.type_id)
+        );
+
+        let resultData: Video[] = [];
+
+        // 如果有子分类，从子分类获取视频
+        if (subCats.length > 0) {
+            for (const subCat of subCats.slice(0, 3)) {
+                const subVideoRes = await apiGet<Video[]>('/videos', {
+                    source_id: sourceId,
+                    category_id: subCat.type_id,
+                    page: 1,
+                    limit: 12
+                });
+
+                if (subVideoRes.success && subVideoRes.data && subVideoRes.data.length > 0) {
+                    resultData = subVideoRes.data;
+                    break;
+                }
+            }
+        }
+
+        // 如果子分类没有数据，尝试一级分类本身
+        if (resultData.length === 0) {
+            const videoRes = await apiGet<Video[]>('/videos', {
+                source_id: sourceId,
+                category_id: cat.type_id,
+                page: 1,
+                limit: 12
+            });
+
+            if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
+                resultData = videoRes.data;
+            }
+        }
+
+        if (resultData.length > 0) {
+            return {
+                id: cat.type_id,
+                name: cat.name,
+                icon: config.icon,
+                color: config.color,
+                videos: resultData.map(v => ({ ...v, source_id: sourceId } as Video))
+            };
+        }
+
+        return null;
+    };
+
+    // 加载更多分类
+    const loadMoreCategories = async (startIndex: number, count: number) => {
+        if (startIndex >= allTopLevelCats.length) return;
+
+        const catsToLoad = allTopLevelCats.slice(startIndex, startIndex + count);
+        const promises = catsToLoad.map(cat => loadCategoryVideos(cat));
+        const results = await Promise.all(promises);
+        const validSections = results.filter((s): s is CategorySection => s !== null);
+
+        setSections(prev => [...prev, ...validSections]);
+        setLoadedCount(startIndex + count);
+    };
+
+    // 初始化：筛选和排序顶级分类
     useEffect(() => {
         if (sourceId && categories.length > 0) {
-            loadCategoryVideos();
-        } else {
-            setLoading(false);
-        }
-    }, [sourceId, categories]);
+            // 获取所有分类的 type_id 集合
+            const allTypeIds = new Set(categories.map(c => String(c.type_id)));
 
-    const loadCategoryVideos = async () => {
-        setLoading(true);
+            // 筛选一级分类
+            const topLevelCats = categories.filter(c => {
+                const isOrphan = c.parent_id && !allTypeIds.has(String(c.parent_id));
+                const isRealTopLevel = !c.parent_id || c.parent_id === 0;
+                return isRealTopLevel || isOrphan;
+            });
 
-        try {
-            // 1. 筛选一级分类 (与 Sidebar.tsx 第74行逻辑一致)
-            const topLevelCats = categories.filter(c => !c.parent_id || c.parent_id === 0);
-
-            // 2. 定义分类图标和颜色配置
-            const categoryConfigs: { name: string; icon: string; color: string }[] = [
-                { name: '电影', icon: 'fas fa-film', color: 'blue' },
-                { name: '连续剧', icon: 'fas fa-tv', color: 'green' },
-                { name: '电视剧', icon: 'fas fa-tv', color: 'green' },
-                { name: '剧集', icon: 'fas fa-tv', color: 'green' },
-                { name: '综艺', icon: 'fas fa-masks-theater', color: 'pink' },
-                { name: '动漫', icon: 'fas fa-dragon', color: 'purple' },
-                { name: '动画', icon: 'fas fa-dragon', color: 'purple' },
-                { name: '纪录片', icon: 'fas fa-video', color: 'yellow' },
-            ];
-
-            // 3. 按优先级排序一级分类
+            // 按优先级排序
             const priorityKeywords = ['电影', '连续剧', '电视剧', '剧集', '综艺', '动漫', '动画', '纪录片'];
             topLevelCats.sort((a, b) => {
                 const indexA = priorityKeywords.findIndex(k => a.name.includes(k));
@@ -67,77 +141,40 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                 return 0;
             });
 
-            // 4. 并发加载所有一级分类的视频
-            const catsToLoad = topLevelCats.slice(0, 10);
-            const promises = catsToLoad.map(async (cat) => {
-                const config = categoryConfigs.find(c => cat.name.includes(c.name)) ||
-                    { icon: 'fas fa-folder', color: 'gray' };
-
-                // 与 Sidebar.tsx 第201-204行完全相同的子分类查找逻辑
-                const subCats = categories.filter(c =>
-                    c.parent_id === parseInt(cat.type_id) ||
-                    (c.parent_id && String(c.parent_id) === cat.type_id)
-                );
-
-                let resultData: Video[] = [];
-
-                // 如果有子分类，从子分类获取视频（与 Category.tsx loadSubCategoryVideos 逻辑一致）
-                if (subCats.length > 0) {
-                    // 尝试前3个子分类，直到找到有内容的
-                    for (const subCat of subCats.slice(0, 3)) {
-                        const subVideoRes = await apiGet<Video[]>('/videos', {
-                            source_id: sourceId,
-                            category_id: subCat.type_id,
-                            page: 1,
-                            limit: 12
-                        });
-
-                        if (subVideoRes.success && subVideoRes.data && subVideoRes.data.length > 0) {
-                            resultData = subVideoRes.data;
-                            break;
-                        }
-                    }
-                }
-
-                // 如果子分类没有数据，或没有子分类，尝试一级分类本身
-                if (resultData.length === 0) {
-                    const videoRes = await apiGet<Video[]>('/videos', {
-                        source_id: sourceId,
-                        category_id: cat.type_id,
-                        page: 1,
-                        limit: 12
-                    });
-
-                    if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
-                        resultData = videoRes.data;
-                    }
-                }
-
-                if (resultData.length > 0) {
-                    return {
-                        id: cat.type_id,
-                        name: cat.name,
-                        icon: config.icon,
-                        color: config.color,
-                        videos: resultData.map(v => ({ ...v, source_id: sourceId } as Video))
-                    } as CategorySection;
-                }
-
-                console.log(`[SourceOverview] "${cat.name}" -> NO DATA`);
-                return null;
-            });
-
-            const results = await Promise.all(promises);
-            // 过滤掉空结果，并限制显示数量
-            const validSections = results.filter((s): s is CategorySection => s !== null).slice(0, 8);
-
-            setSections(validSections);
-        } catch (error) {
-            console.error('[SourceOverview] Failed to load:', error);
-        } finally {
+            setAllTopLevelCats(topLevelCats);
+            setSections([]);
+            setLoadedCount(0);
+        } else {
             setLoading(false);
         }
-    };
+    }, [sourceId, categories]);
+
+    // 初始加载
+    useEffect(() => {
+        if (allTopLevelCats.length > 0 && loadedCount === 0) {
+            setLoading(true);
+            loadMoreCategories(0, INITIAL_LOAD).finally(() => setLoading(false));
+        }
+    }, [allTopLevelCats]);
+
+    // Intersection Observer 实现滚动懒加载
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && !loadingMore && loadedCount < allTopLevelCats.length) {
+                    setLoadingMore(true);
+                    loadMoreCategories(loadedCount, LOAD_MORE).finally(() => setLoadingMore(false));
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [loadedCount, allTopLevelCats.length, loadingMore]);
 
     const handleVideoClick = (video: Video) => {
         onNavigate('play', {
@@ -147,7 +184,6 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
     };
 
     const handleViewMore = (categoryId: string, categoryName: string) => {
-        // 与 Sidebar.tsx 逻辑一致：计算该分类的子分类并传递
         const subCategories = categories.filter(c =>
             c.parent_id === parseInt(categoryId) ||
             (c.parent_id && String(c.parent_id) === categoryId)
@@ -191,7 +227,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
         );
     }
 
-    if (sections.length === 0) {
+    if (sections.length === 0 && !loadingMore) {
         return (
             <div className="flex flex-col h-full">
                 <div className="flex-1 w-full min-w-0">
@@ -247,6 +283,29 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                         </section>
                     );
                 })}
+
+                {/* 加载更多触发器 */}
+                {loadedCount < allTopLevelCats.length && (
+                    <div ref={loaderRef} className="flex justify-center py-8">
+                        {loadingMore ? (
+                            <div className="flex items-center gap-2 text-secondary">
+                                <i className="fas fa-spinner fa-spin"></i>
+                                <span>加载更多分类...</span>
+                            </div>
+                        ) : (
+                            <div className="text-secondary text-sm opacity-50">
+                                向下滚动加载更多
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* 已加载完毕提示 */}
+                {loadedCount >= allTopLevelCats.length && sections.length > 0 && (
+                    <div className="text-center py-4 text-secondary text-sm opacity-50">
+                        已加载全部 {sections.length} 个分类
+                    </div>
+                )}
             </div>
         </div>
     );

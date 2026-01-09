@@ -18,11 +18,17 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
     const containerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // Filter top-level categories (Same as Sidebar logic) and exclude empty ones
-    const topLevelCats = categories.filter(c =>
-        (!c.parent_id || c.parent_id === 0) &&
-        (c.has_content === undefined || c.has_content === 1)  // 过滤空分类
-    );
+    // 获取所有分类的 type_id 集合，用于判断父分类是否存在
+    const allTypeIds = new Set(categories.map(c => String(c.type_id)));
+
+    // Filter top-level categories: parent_id 为空/0，或者 parent_id 不在当前分类列表中
+    // 这样可以兼容那些 parent_id 指向不存在分类的资源站
+    const topLevelCats = categories.filter(c => {
+        const isOrphan = c.parent_id && !allTypeIds.has(String(c.parent_id));
+        const isRealTopLevel = !c.parent_id || c.parent_id === 0;
+        const hasContent = c.has_content === undefined || c.has_content === 1;
+        return (isRealTopLevel || isOrphan) && hasContent;
+    });
 
     // Identify active top-level category based on currentCategoryId
     useEffect(() => {

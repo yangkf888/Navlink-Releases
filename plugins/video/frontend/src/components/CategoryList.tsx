@@ -39,8 +39,13 @@ export function CategoryList({ sources, onSelect, activeSourceId, activeCategory
         for (const source of sources) {
             const res = await apiGet<Category[]>('/categories', { source_id: source.id });
             if (res.success && res.data) {
-                // 只取一级分类
-                result[source.id] = res.data.filter(c => !c.parent_id || c.parent_id === 0);
+                // 筛选一级分类：parent_id 为空/0，或者 parent_id 不在当前分类列表中
+                const allTypeIds = new Set(res.data.map(c => String(c.type_id)));
+                result[source.id] = res.data.filter(c => {
+                    const isOrphan = c.parent_id && !allTypeIds.has(String(c.parent_id));
+                    const isRealTopLevel = !c.parent_id || c.parent_id === 0;
+                    return isRealTopLevel || isOrphan;
+                });
             }
         }
 
