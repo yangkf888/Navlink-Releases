@@ -53,9 +53,12 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
         const config = categoryConfigs.find(c => cat.name.includes(c.name)) ||
             { icon: 'fas fa-folder', color: 'gray' };
 
+        // 确保 type_id 是整数格式，兼容那些不支持带 .0 后缀的 ID 的 API
+        const cleanCatId = String(Math.floor(Number(cat.type_id)));
+
         const subCats = categories.filter(c =>
-            c.parent_id === parseInt(cat.type_id) ||
-            (c.parent_id && String(c.parent_id) === cat.type_id)
+            c.parent_id === parseInt(cleanCatId) ||
+            (c.parent_id && String(c.parent_id) === cleanCatId)
         );
 
         let resultData: Video[] = [];
@@ -63,9 +66,11 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
         // 如果有子分类，从子分类获取视频
         if (subCats.length > 0) {
             for (const subCat of subCats.slice(0, 3)) {
+                // 子分类也需要清理 ID
+                const cleanSubCatId = String(Math.floor(Number(subCat.type_id)));
                 const subVideoRes = await apiGet<Video[]>('/videos', {
                     source_id: sourceId,
-                    category_id: subCat.type_id,
+                    category_id: cleanSubCatId,
                     page: 1,
                     limit: 12
                 });
@@ -81,12 +86,14 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
         if (resultData.length === 0) {
             const videoRes = await apiGet<Video[]>('/videos', {
                 source_id: sourceId,
-                category_id: cat.type_id,
+                category_id: cleanCatId,
                 page: 1,
                 limit: 12
             });
 
             if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
+                // 检查是否是一级分类特有的内容，或者该源根本就不支持分类筛选（返回了全站最新）
+                // 这一点通常在 UI 层面由用户判断，或者我们在这里对比一下视频内容是否完全一致
                 resultData = videoRes.data;
             }
         }
