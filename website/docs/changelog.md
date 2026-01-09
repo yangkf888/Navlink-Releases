@@ -11,8 +11,35 @@
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.1.0</span>
+      <span class="version">v2.1.1</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2026-01-09</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type fix">🐛 修复</span>
+        <ul>
+          <li><strong>核心系统</strong> - 修复保留旧数据重建容器时，由于管理员重命名可能导致的数据库唯一约束冲突错误</li>
+          <li><strong>订阅插件</strong> - 修复自动续订功能在特定条件下参数传递错误导致失效的问题 (v2.1.1)</li>
+          <li><strong>视频插件</strong> - 优化搜索算法，增加关键词二次过滤，大幅提升搜索结果精准度 (v1.0.5)</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type improve">🔧 改进</span>
+        <ul>
+          <li>优化 Docker 构建脚本，支持集成 Token 实现全自动非交互式发布</li>
+          <li>清理后端冗余的 API 调试日志，提升日志终端可读性</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.1.0</span>
     </div>
     <div class="date">2026-01-04</div>
     <div class="changes">
