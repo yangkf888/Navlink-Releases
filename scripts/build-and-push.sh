@@ -41,18 +41,7 @@ if [ "$REGISTRY" = "ghcr.io" ]; then
     echo "权限: write:packages, read:packages, delete:packages"
     echo ""
     # 自动检查 docker login 状态 (简单检查)
-    if docker info 2>/dev/null | grep -q "Username"; then
-         echo "✅ 检测到 Docker 登录状态"
-    else
-        read -p "是否已登录 GitHub？(y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "请先登录："
-            echo "export CR_PAT=YOUR_TOKEN"
-            echo "echo \$CR_PAT | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin"
-            exit 1
-        fi
-    fi
+    echo "✅ 强制忽略登录检查：假定已登录"
 else
     # Docker Hub Logic
     if ! docker info | grep -q "Username"; then
@@ -110,12 +99,7 @@ if [ "$VERSION" != "latest" ]; then
 fi
 echo ""
 
-read -p "是否构建并推送到 $REGISTRY？(y/N): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ 取消构建"
-    exit 0
-fi
+echo "✅ 自动确认：开始构建并推送"
 
 # 构建并推送多架构镜像
 echo ""
