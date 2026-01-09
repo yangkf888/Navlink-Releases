@@ -24,13 +24,6 @@
           <li><strong>视频插件</strong> - 优化搜索算法，增加关键词二次过滤，大幅提升搜索结果精准度 (v1.0.5)</li>
         </ul>
       </div>
-      <div class="change-group">
-        <span class="change-type improve">🔧 改进</span>
-        <ul>
-          <li>优化 Docker 构建脚本，支持集成 Token 实现全自动非交互式发布</li>
-          <li>清理后端冗余的 API 调试日志，提升日志终端可读性</li>
-        </ul>
-      </div>
     </div>
   </div>
 </div>
