@@ -2,16 +2,13 @@
  * 网盘路由 - Alist/OpenList 集成
  */
 const express = require('express');
-const router = require('express').Router(); // Correcting router init if needed, though former was fine
-const fs = require('fs');
-const path = require('path');
+const router = express.Router();
 const { getDatabase } = require('../database');
 const { AlistService } = require('../services/AlistService');
 const { WebdavService } = require('../services/WebdavService');
 const { LocalService } = require('../services/LocalService');
 const { mediaScanService } = require('../services/MediaScanService');
 const transcodeService = require('../services/TranscodeService');
-const imageCacheService = require('../services/ImageCacheService');
 
 // Client 缓存 (sourceId -> { client, expireAt })
 const clientCache = new Map();
@@ -937,7 +934,7 @@ router.post('/media/:id/tmdb-apply', async (req, res) => {
 router.post('/media/:id/play', async (req, res) => {
     try {
         const { id } = req.params;
-        const { videoIndex = 0, caps } = req.body;
+        const { videoIndex = 0 } = req.body;
 
         const media = mediaScanService.getMediaById(parseInt(id));
         if (!media) {
@@ -964,37 +961,32 @@ router.post('/media/:id/play', async (req, res) => {
         let playMethod = 'direct'; // 默认为 direct
 
         // 1. 获取视频文件的原始 URL (无论是否为 STRM)
-        let rawUrl = '';          // 用于转码服务内部 (127.0.0.1)
-        let externalPlayUrl = ''; // 用于前端直接播放 (相对路径)
-
+        let rawUrl = '';
         if (videoFile && videoFile.includes('|')) {
             isStrm = true;
             rawUrl = videoFile.split('|')[1];
-            externalPlayUrl = rawUrl; // STRM 直接使用外部 URL
         } else {
             const videoPath = (media.path + '/' + videoFile).replace(/\/+/g, '/');
             if (source.type === 'local') {
-                // 💡 转码服务需要 127.0.0.1 内部地址
+                // 💡 修复：转码服务通过 axios 请求，无法直接读取本地磁盘文件。
+                // 我们必须将其转化为内部 HTTP 代理路径。
                 const serverPort = process.env.PORT || 3002;
                 rawUrl = `http://127.0.0.1:${serverPort}/api/plugins/video/api/netdisk/local-stream?path=${encodeURIComponent(videoPath)}`;
-                // 💡 前端使用相对路径（通过 Vite 代理或 Nginx 代理）
-                externalPlayUrl = `/api/plugins/video/api/netdisk/local-stream?path=${encodeURIComponent(videoPath)}`;
             } else if (source.type === 'webdav' || source.type === 'alist' || source.type === 'openlist') {
                 // 统一获取网盘直链/代理前置链接
                 if (source.type === 'webdav') {
-                    // WebDAV 链路：需要认证代理
+                    // WebDAV 链路：我们手动拼代理链接，确保认证通过
+                    // 💡 修复：转码服务是在后台运行的，它通过 axios 请求。Axios 无法识别相对路径 /api/...
+                    // 我们需要将其补全为绝对路径 (localhost:{PORT})。
                     const serverPort = process.env.PORT || 3002;
                     rawUrl = `http://127.0.0.1:${serverPort}/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(videoPath)}`;
-                    externalPlayUrl = `/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(videoPath)}`;
                 } else {
                     const fileInfo = await client.getFileInfo(videoPath).catch(() => null);
                     rawUrl = fileInfo?.raw_url || `${source.url}/d${videoPath}`;
-                    externalPlayUrl = rawUrl; // AList/OpenList 可以直接使用外部 URL
                 }
             } else {
                 // 兜底
                 rawUrl = videoPath;
-                externalPlayUrl = videoPath;
             }
         }
 
@@ -1018,7 +1010,6 @@ router.post('/media/:id/play', async (req, res) => {
                     hwaccel,
                     mediaId: media.id,
                     headers: transcodeHeaders,
-                    caps: caps, // 透传协商参数
                     mediaInfo: media.v_codec ? {
                         videoCodec: media.v_codec,
                         audioCodec: media.a_codec,
@@ -1033,14 +1024,14 @@ router.post('/media/:id/play', async (req, res) => {
                 console.log(`[Netdisk] Unified Play Method: ${playMethod} (Type: ${isStrm ? 'STRM' : 'Native'}, Probed: ${!!media.v_codec})`);
             } catch (err) {
                 console.error('[Netdisk] Unified start transcode failed:', err.message);
-                // 降级：如果转码服务炸了，使用外部可访问的 URL
-                playUrl = externalPlayUrl;
-                playMethod = 'direct';
+                // 降级：如果转码服务炸了，回退到普通直连
+                playUrl = rawUrl;
+                playMethod = (rawUrl.startsWith('http') && !rawUrl.includes('/api/')) ? 'direct' : 'proxy';
             }
         } else {
-            // 未开启转码：使用外部可访问的 URL（不是内部 127.0.0.1）
-            playUrl = externalPlayUrl;
-            playMethod = 'direct';
+            // 未开启转码：直接下发原始地址
+            playUrl = rawUrl;
+            playMethod = (rawUrl.startsWith('http') && !rawUrl.includes('/api/')) ? 'direct' : 'proxy';
         }
 
         // 🚀 预热缓存：如果是代理模式，提前触发重定向解析
@@ -1127,11 +1118,11 @@ router.post('/scan', async (req, res) => {
 // 新增：单目录清理
 router.post('/clear-index', async (req, res) => {
     try {
-        const { sourceId, path, clearImages } = req.body;
+        const { sourceId, path } = req.body;
         await mediaScanService.clearIndex(parseInt(sourceId), path);
 
-        // 只有在用户明确勾选且是清理整个源（或根目录）时才清空物理缓存
-        if (clearImages && (!path || path === '/')) {
+        // 如果是清空整个源的索引，则同步清空海报缓存
+        if (!path || path === '/') {
             const ImageCacheService = require('../services/ImageCacheService');
             try {
                 await ImageCacheService.clearAllCache();
@@ -1179,7 +1170,6 @@ router.get('/local-stream', async (req, res) => {
             fs.createReadStream(filePath).pipe(res);
         }
     } catch (error) {
-        console.error('[LocalStream] Error:', error.message, 'Path:', req.query.path);
         res.status(500).send(error.message);
     }
 });
@@ -1216,9 +1206,9 @@ const globalRequestQueue = new RequestQueue(10);
 // WebDAV 图片代理 - 用于解决需要认证的图片访问
 router.get('/image-proxy', async (req, res) => {
     try {
-        const { sourceId, path: imagePath, url: externalUrl } = req.query;
-        if (!externalUrl && (!sourceId || !imagePath)) {
-            return res.status(400).send('Missing params');
+        const { sourceId, path: imagePath } = req.query;
+        if (!sourceId || !imagePath) {
+            return res.status(400).send('Missing sourceId or path');
         }
 
         const db = getDatabase();
@@ -1227,70 +1217,72 @@ router.get('/image-proxy', async (req, res) => {
             return res.status(404).send('Source not found');
         }
 
-        // 构建带认证的 URL 与 Headers
+        // 构建带认证的 URL
         let imageUrl;
         const rootUrl = source.url.endsWith('/') ? source.url.slice(0, -1) : source.url;
-        // 设置强缓存：图片通常不会改变，设置 1 年缓存 (Immutable)
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        res.setHeader('Content-Disposition', 'inline');
-
         // 直接使用 imagePath（Express 已经解码一次），与视频流代理保持一致
         const cleanPath = imagePath.startsWith('/') ? imagePath : '/' + imagePath;
-        const authHeaders = {};
 
+        // 对每个路径段进行编码
         if (source.type === 'webdav') {
             imageUrl = rootUrl + cleanPath.split('/').map(s => encodeURIComponent(s)).join('/');
-            if (source.username || source.password) {
-                authHeaders['Authorization'] = `Basic ${Buffer.from(`${source.username || ''}:${source.password || ''}`).toString('base64')}`;
-            }
         } else if (source.type === 'alist') {
             imageUrl = rootUrl + '/d' + cleanPath.split('/').map(s => encodeURIComponent(s)).join('/');
-
-            // 获取 Alist 令牌 (带缓存)
-            const client = await getNetdiskClient(source);
-            if (client && client.token) {
-                authHeaders['Authorization'] = client.token;
-            }
         } else {
-            // 本地文件直接返回
+            // 本地文件处理
+            const fs = require('fs');
+            const path = require('path');
             let fullPath = imagePath;
             if (!path.isAbsolute(imagePath)) {
                 fullPath = path.join(source.root_path, imagePath);
             }
             if (fs.existsSync(fullPath)) {
+                res.setHeader('Content-Disposition', 'inline');
                 return res.sendFile(path.resolve(fullPath));
             }
             return res.status(404).send('File not found');
         }
 
-        const targetUrl = externalUrl || imageUrl;
+        // 构建请求头
+        const requestHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+        };
 
-        // 🚀 这里是关键：使用 ImageCacheService 进行持久化缓存并转换为 WebP
-        const cachedPath = await imageCacheService.getCachedImage(targetUrl, authHeaders);
-        if (cachedPath && fs.existsSync(cachedPath)) {
-            return res.sendFile(path.resolve(cachedPath));
+        if (source.type === 'webdav' && (source.username || source.password)) {
+            const auth = Buffer.from(`${source.username || ''}:${source.password || ''}`).toString('base64');
+            requestHeaders['Authorization'] = `Basic ${auth}`;
         }
 
-        console.log(`[ImageProxy] Streaming: ${targetUrl.substring(0, 100)}`);
+        console.log(`[ImageProxy] Fetching: ${imageUrl}`);
+
         const fetch = require('node-fetch');
+
         try {
-            const response = await fetch(targetUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    'Accept': '*/*',
-                    ...authHeaders
-                },
-                redirect: 'follow',
+            // 使用自动跟随重定向，简化逻辑
+            const response = await fetch(imageUrl, {
+                headers: requestHeaders,
+                redirect: 'follow', // 自动跟随重定向
                 timeout: 30000
             });
 
-            if (!response.ok) return res.status(response.status).send(`Fetch failed`);
+            if (!response.ok) {
+                const responseText = await response.text();
+                console.error(`[ImageProxy] Fetch failed: ${response.status} for ${imageUrl}`);
+                console.error(`[ImageProxy] Response body: ${responseText.substring(0, 500)}`);
+                console.error(`[ImageProxy] Response headers:`, Object.fromEntries(response.headers.entries()));
+                return res.status(response.status).send(`Fetch failed: ${response.status}`);
+            }
 
             const contentType = response.headers.get('content-type') || 'image/jpeg';
             res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+
             response.body.pipe(res);
         } catch (fetchError) {
-            res.status(500).send(fetchError.message);
+            console.error(`[ImageProxy] Request error: ${fetchError.message}`);
+            if (!res.headersSent) res.status(500).send(fetchError.message);
         }
     } catch (error) {
         console.error('[ImageProxy] critical error:', error.message);
@@ -1559,6 +1551,8 @@ router.post('/media/:id/update-poster', async (req, res) => {
 
         const imageCacheService = require('../services/ImageCacheService');
         const crypto = require('crypto');
+        const fs = require('fs');
+        const path = require('path');
         const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'video_covers');
 
         // 1. 如果有旧缓存，尝试物理删除
@@ -1602,6 +1596,8 @@ router.post('/media/:id/upload-poster', async (req, res) => {
 
             const sharp = require('sharp');
             const crypto = require('crypto');
+            const fs = require('fs');
+            const path = require('path');
             const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'video_covers');
 
             // 1. 清理旧缓存

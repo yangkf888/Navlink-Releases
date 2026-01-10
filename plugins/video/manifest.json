@@ -1,7 +1,7 @@
 {
     "id": "video",
     "name": "视频中心",
-    "version": "2.0.0",
+    "version": "2.0.5",
     "description": "视频聚合播放插件，支持多源视频接入与在线播放",
     "type": "node",
     "entry": "backend-nodejs/server.js",

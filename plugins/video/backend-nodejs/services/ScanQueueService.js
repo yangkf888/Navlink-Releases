@@ -9,12 +9,12 @@ const imageCacheService = require('./ImageCacheService');
 const os = require('os');
 
 // 并发及延迟配置
-const PROBE_CONCURRENCY = 2;      // 视频探测并发数
-const IMAGE_CONCURRENCY = 3;      // 图片下载并发数
-const PROBE_DELAY = 1000;         // 探测间隔
+const PROBE_CONCURRENCY = 1; // 降低视频探测并发 (从 2 降到 1)
+const IMAGE_CONCURRENCY = 2; // 降低下载图片并发 (从 3 降到 2)
+const PROBE_DELAY = 1500;     // 增加探测间隔
 const IMAGE_DELAY = 300;          // 图片下载间隔
-const LOAD_THRESHOLD = 2.5;       // CPU 负载阈值
-const BATCH_SIZE = 20;            // 每批次处理数量
+const LOAD_THRESHOLD = 1.5;   // 降低负载阈值，更敏锐地停机避让 (从 2.5 降到 1.5)
+const BATCH_SIZE = 10;        // 缩小一批次的任务量 (从 20 降到 10)
 
 class ScanQueueService {
     constructor() {
@@ -23,6 +23,7 @@ class ScanQueueService {
         this.processedCount = 0;
         this.failedCount = 0;
         this.lastActivity = null;
+        this.isPausedByPlayback = false; // 是否因为正在播放而暂停 (优先级最高)
 
         // 内存中的临时即时重试队列 (高优先级)
         this.instantRetryUrls = [];
@@ -66,11 +67,25 @@ class ScanQueueService {
         return {
             isRunning: this.isRunning,
             isPaused: this.isPaused,
+            isPausedByPlayback: this.isPausedByPlayback,
             processedCount: this.processedCount,
             failedCount: this.failedCount,
             lastActivity: this.lastActivity,
             instantRetryQueueLength: this.instantRetryUrls.length
         };
+    }
+
+    /**
+     * 设置是否因播放而暂停 (由 TranscodeService 驱动)
+     */
+    setPausedByPlayback(paused) {
+        if (this.isPausedByPlayback === paused) return;
+        this.isPausedByPlayback = paused;
+        if (paused) {
+            console.log('[ScanQueue] 🚀 Active playback detected, background tasks entering silent mode...');
+        } else {
+            console.log('[ScanQueue] ✅ No active playback, background tasks resuming...');
+        }
     }
 
     /**
@@ -86,7 +101,12 @@ class ScanQueueService {
                 continue;
             }
 
-            // 2. 检查系统负载
+            // 2. 检查系统暂停标记 (播放避让或负载过高)
+            if (this.isPausedByPlayback) {
+                await this._sleep(15000); // 播放中，延长休眠时间
+                continue;
+            }
+
             const load = os.loadavg()[0];
             if (load > LOAD_THRESHOLD) {
                 this.isPaused = true;

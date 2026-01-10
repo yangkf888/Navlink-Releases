@@ -121,22 +121,11 @@ class ImageCacheService {
 
         // 3. 缓存未命中，下载并处理
         try {
-            // 安全编码：处理中文、空格、特殊字符 (# 等)
+            // 还原为稳健的 URL 处理：不再进行激进解码，直接使用经过 netdisk.js 编码后的 URL。
+            // 仅处理未转义的 # 号（如果存在），防止被 axios/fetch 识别为 hash 丢弃。
             let safeUrl = imageUrl;
-            try {
-                let decoded = imageUrl;
-                for (let i = 0; i < 3; i++) {
-                    const temp = decodeURIComponent(decoded);
-                    if (temp === decoded) break;
-                    decoded = temp;
-                }
-
-                // 核心修复：把路径中的 # 替换为 %23，防止 new URL() 将其识别为 Fragment 而丢弃
-                const preparedUrl = decoded.replace(/#/g, '%23');
-                safeUrl = new URL(preparedUrl).href;
-            } catch (e) {
-                // 极端情况下的兜底，避免双重编码现有的百分号
-                safeUrl = imageUrl.indexOf('%') !== -1 ? imageUrl : encodeURI(imageUrl).replace(/#/g, '%23');
+            if (imageUrl.includes('#') && !imageUrl.includes('%23')) {
+                safeUrl = imageUrl.replace(/#/g, '%23');
             }
 
             console.log(`[ImageCache] Cache miss: ${safeUrl.substring(0, 150)}...`);

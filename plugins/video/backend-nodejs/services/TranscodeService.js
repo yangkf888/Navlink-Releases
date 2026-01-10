@@ -13,6 +13,7 @@ class TranscodeService {
         this.activeSessions = new Map();
         this.segmentDuration = 10; // 10秒一个分片
         this.ffmpegPath = '';
+        this.activePlaybacks = 0; // 当前活跃播放数 (用于后台任务避让)
 
         // 初始化
         this._init();
@@ -39,11 +40,22 @@ class TranscodeService {
         setInterval(() => this.cleanup(), 60000);
     }
 
+    /**
+     * 获取 ScanQueueService 实例 (延迟加载以避免循环依赖)
+     */
+    getScanQueueService() {
+        try {
+            return require('./ScanQueueService').scanQueueService;
+        } catch (e) {
+            return null;
+        }
+    }
+
     async detectFFmpeg(customPath = '') {
         const pathsToTry = [
             customPath,
             process.env.FFMPEG_PATH,
-            path.join(__dirname, '..', 'data', 'bin', 'ffmpeg'), // 插件内置路径 (一键安装版)
+            path.join(__dirname, '..', '..', 'data', 'bin', 'ffmpeg'), // 插件内置路径 (一键安装版) -> plugins/video/data/bin/ffmpeg
             'ffmpeg',
             '/usr/bin/ffmpeg',
             '/usr/local/bin/ffmpeg'
@@ -193,8 +205,17 @@ class TranscodeService {
         }
         await fs.mkdir(outputDir, { recursive: true });
 
+        // 🚀 任务避让：进入播放流程，增加计数并尝试暂停后台扫描
+        this.activePlaybacks++;
+        const scanQueue = this.getScanQueueService();
+        if (scanQueue && typeof scanQueue.setPausedByPlayback === 'function') {
+            scanQueue.setPausedByPlayback(true);
+        }
+
         let mediaInfo = options.mediaInfo;
         const mediaId = options.mediaId;
+        const caps = options.caps || { canPlayH265: false }; // 接收前端传来的能力
+        let probeFailed = false; // 标记探测是否失败
 
         if (!mediaInfo) {
             try {
@@ -218,7 +239,11 @@ class TranscodeService {
                     }
                 }
             } catch (err) {
-                mediaInfo = { duration: 7200, videoCodec: 'h264' };
+                // 💡 探测失败：设置默认时长但不假设编码格式，标记为探测失败
+                console.warn(`[Transcode] Probe failed for ${inputUrl.substring(0, 50)}...: ${err.message}`);
+                mediaInfo = { duration: 7200, videoCodec: '', audioCodec: '', format: '' };
+                probeFailed = true;
+                // 不保存到数据库，让后台队列稍后重试探测
             }
         }
 
@@ -230,19 +255,37 @@ class TranscodeService {
         let playMethod = 'hls';
         let strategy = 'transcode';
 
-        const isH264 = vCodec === 'h264' || vCodec === 'avc1';
-        const isAudioCompatible = aCodec === 'aac' || aCodec === 'mp3' || !aCodec;
-        const isMp4 = (mediaInfo.format || '').toLowerCase().includes('mp4') || inputUrl.toLowerCase().includes('.mp4');
-
-        if (isH264 && isAudioCompatible && isMp4) {
-            playMethod = 'proxy';
-            strategy = 'none';
-        } else if (isH264) {
+        // 💡 如果探测失败，强制走 transmux 模式（安全降级）
+        if (probeFailed) {
             playMethod = 'hls';
-            strategy = 'transmux';
+            strategy = 'transmux'; // transmux 对 H.264 几乎无性能损失，对非 H.264 也能尝试播放
+            console.log('[Transcode] Probe failed, falling back to transmux mode');
         } else {
-            playMethod = 'hls';
-            strategy = 'transcode';
+            const isH264 = vCodec === 'h264' || vCodec === 'avc1';
+            const isH265 = vCodec === 'hevc' || vCodec === 'h265';
+            const isAudioCompatible = aCodec === 'aac' || aCodec === 'mp3' || !aCodec;
+            const isMp4 = (mediaInfo.format || '').toLowerCase().includes('mp4') || inputUrl.toLowerCase().includes('.mp4');
+
+            if (isH264 && isAudioCompatible && isMp4) {
+                playMethod = 'proxy';
+                strategy = 'none';
+            } else if (isH264) {
+                playMethod = 'hls';
+                strategy = 'transmux';
+            } else if (isH265 && caps.canPlayH265 && isAudioCompatible && isMp4) {
+                // 🚀 核心优化：如果端侧支持 H265，且是 MP4，直接 Proxy 播放
+                playMethod = 'proxy';
+                strategy = 'none';
+                console.log('[Transcode] Client supports H265, triggering Direct Play');
+            } else if (isH265 && caps.canPlayH265) {
+                // H265 支持但不是 MP4，仅 transmux
+                playMethod = 'hls';
+                strategy = 'transmux';
+                console.log('[Transcode] Client supports H265, triggering Copy mode');
+            } else {
+                playMethod = 'hls';
+                strategy = 'transcode';
+            }
         }
 
         if (playMethod === 'hls') {
@@ -429,6 +472,15 @@ class TranscodeService {
         if (session) {
             console.log(`[Transcode] Stopping session ${sessionId} and clearing cache...`);
             this._stopTranscodeProcess(session);
+
+            // 🚀 任务避让恢复：减少计数，并在没有活跃播放时恢复后台扫描
+            this.activePlaybacks = Math.max(0, this.activePlaybacks - 1);
+            if (this.activePlaybacks === 0) {
+                const scanQueue = this.getScanQueueService();
+                if (scanQueue && typeof scanQueue.setPausedByPlayback === 'function') {
+                    scanQueue.setPausedByPlayback(false);
+                }
+            }
 
             // 💡 物理删除对应的分片缓存目录
             const dir = session.outputDir;

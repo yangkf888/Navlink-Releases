@@ -248,6 +248,23 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         }
     };
 
+    const checkBrowserCaps = () => {
+        const caps = {
+            canPlayH265: false
+        };
+        try {
+            // 简单的 H265 探测逻辑
+            const video = document.createElement('video');
+            const canPlay = video.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"') ||
+                video.canPlayType('video/mp4; codecs="hev1.1.6.L93.B0"');
+            caps.canPlayH265 = canPlay === 'probably' || canPlay === 'maybe';
+            console.log(`[BrowserCaps] H265 Support: ${caps.canPlayH265}`);
+        } catch (e) {
+            console.warn('[BrowserCaps] Detect failed:', e);
+        }
+        return caps;
+    };
+
     const getPlayUrl = async (index: number) => {
         if (transcodingSessionIdRef.current) {
             apiPost(`/transcode/${transcodingSessionIdRef.current}/stop`, {}).catch(() => { });
@@ -264,7 +281,11 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
         }, 12000);
 
         try {
-            const res = await apiPost<{ playUrl: string, sessionId?: string, playMethod?: any, metadata?: any }>(`/netdisk/media/${mediaId}/play`, { videoIndex: index });
+            const caps = checkBrowserCaps();
+            const res = await apiPost<{ playUrl: string, sessionId?: string, playMethod?: any, metadata?: any }>(
+                `/netdisk/media/${mediaId}/play`,
+                { videoIndex: index, caps }
+            );
             if (res.success && res.data) {
                 if (res.data.sessionId) {
                     transcodingSessionIdRef.current = res.data.sessionId;

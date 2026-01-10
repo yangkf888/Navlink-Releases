@@ -142,7 +142,7 @@ class MediaScanService {
                 status.total += mediaFolders.length;
 
                 // 2. 处理该根路径下的所有子文件夹 (并行处理，限制并发)
-                const concurrency = 5;
+                const concurrency = 2; // 👈 降低并发，减轻 VPS 压力
                 for (let i = 0; i < mediaFolders.length; i += concurrency) {
                     const chunk = mediaFolders.slice(i, i + concurrency);
                     await Promise.all(chunk.map(async (folder, index) => {
@@ -160,6 +160,8 @@ class MediaScanService {
                             console.error(`[MediaScan] Failed to process ${folder.path}:`, err.message);
                         }
                     }));
+                    // 每处理完一批，强制休息一下，让 CPU 喘口气处理 API 请求
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 status.paths[folderEntry.path].scanning = false;
                 status.paths[folderEntry.path].message = '扫描完成';
@@ -196,8 +198,7 @@ class MediaScanService {
     }
 
     /**
-     * 递归查找媒体文件夹
-     * 优化逻辑：如果当前目录有视频且[没有]有效子目录，则视为末梢节点并停止深搜。
+     * 递归查找媒体文件夹 (💡 优化：改为顺序执行，避免网络 IO 瞬间爆发)
      */
     async findMediaFolders(client, path, maxDepth, currentDepth = 0) {
         if (currentDepth > maxDepth) return [];
@@ -214,8 +215,7 @@ class MediaScanService {
                 !f.name.startsWith('.')
             );
 
-            // 核心逻辑改进：基于“末梢节点”判断
-            // 如果有视频且没有有效子目录 -> 这是一个完整的媒体节点（电影或剧集末级），停止在此分支递归
+            // 如果有视频且没有有效子目录 -> 这是一个完整的媒体节点
             if (videos.length > 0 && dirs.length === 0) {
                 result.push({
                     path,
@@ -227,7 +227,6 @@ class MediaScanService {
                 return result;
             }
 
-            // 如果既有视频又有子目录 -> 记录当前目录并继续深搜（兼容带子目录的合集结构）
             if (videos.length > 0) {
                 result.push({
                     path,
@@ -237,14 +236,14 @@ class MediaScanService {
                 });
             }
 
-            // 并行递归子目录
-            const subFoldersResults = await Promise.all(dirs.map(dir => {
+            // 💡 关键优化：不再使用 Promise.all，改为顺序递归子目录
+            // 虽然耗时略长，但对服务器极其友好，避免触发 AList/网盘并发限制
+            for (const dir of dirs) {
                 const subPath = (path + '/' + dir.name).replace(/\/+/g, '/');
-                return this.findMediaFolders(client, subPath, maxDepth, currentDepth + 1);
-            }));
-
-            for (const subFolders of subFoldersResults) {
+                const subFolders = await this.findMediaFolders(client, subPath, maxDepth, currentDepth + 1);
                 result.push(...subFolders);
+                // 给 API 预留处理空间
+                if (currentDepth < 2) await new Promise(resolve => setTimeout(resolve, 50));
             }
         } catch (err) {
             console.error(`[MediaScan] List ${path} failed:`, err.message);
@@ -258,15 +257,16 @@ class MediaScanService {
     async processMediaFolder(client, source, folder, tmdbEnabled = true, force = false) {
         const db = getDatabase();
 
-        // Video 2.0: 检查是否已锁定（用户手动编辑过的媒体不再覆盖）
-        const existingMedia = db.get('SELECT is_locked FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
-        if (existingMedia && existingMedia.is_locked && !force) {
-            console.log(`[MediaScan] Skipping locked media: ${folder.path}`);
+        // 1. 基础资源发现
+        const items = folder.items || await client.list(folder.path);
+
+        // 如果扫描结果完全为空（这通常是因为网络抖动或权限变化），直接退出并保护数据库原有内容
+        if (!items || items.length === 0) {
+            console.warn(`[MediaScan] Skip processing empty folder: ${folder.path}`);
             return;
         }
 
-        // 复用 findMediaFolders 中获取到的数据，减少请求
-        const items = folder.items || await client.list(folder.path);
+        const transcodeService = require('./TranscodeService');
 
         // 查找 NFO 和视频
         let nfoFile = items.find(f => !f.is_dir && NFO_FILES.includes(f.name.toLowerCase()));
@@ -364,26 +364,14 @@ class MediaScanService {
             } catch (err) { /* ignore */ }
         }
 
-        // 2. 获取图片直链
-        // 对于 WebDAV 源，使用代理 URL；对于 Alist，使用直链
+        // 2. 获取图片路径 (🚀 统一使用路径代理模式，确保永不过期且支持持久化缓存)
         if (posterFile && !metadata.poster_url) {
             const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
-            if (source.type === 'webdav' || source.type === 'local') {
-                // WebDAV 和本地文件都使用代理
-                metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
-            } else {
-                const info = await client.getFileInfo(posterPath);
-                if (info) metadata.poster_url = info.raw_url;
-            }
+            metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
         }
         if (fanartFile && !metadata.fanart_url) {
             const fanartPath = (folder.path + '/' + fanartFile.name).replace(/\/+/g, '/');
-            if (source.type === 'webdav' || source.type === 'local') {
-                metadata.fanart_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(fanartPath)}`;
-            } else {
-                const info = await client.getFileInfo(fanartPath);
-                if (info) metadata.fanart_url = info.raw_url;
-            }
+            metadata.fanart_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(fanartPath)}`;
         }
 
         // 3. TMDB 回退
@@ -400,22 +388,56 @@ class MediaScanService {
             } catch (err) { /* ignore */ }
         }
 
-        // 4. 视频编码探测 - 改为异步后台处理 (Video 2.0 性能优化)
-        // 扫描时不再同步调用 ffprobe，由后台 ScanQueueService 异步补全
-        // 此处仅提取容器格式并标记 probe_status=0 (待探测)
-        let container = null;
+        // 4. 视频编码探测 (🚀 回归同步探测：扫完即得，不再依赖异步队列)
         if (videoFiles.length > 0) {
-            const firstVideo = videoFiles[0].includes('|') ? videoFiles[0].split('|')[0] : videoFiles[0];
-            const ext = firstVideo.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
-            container = ext.replace('.', ''); // mp4, mkv, avi 等
+            try {
+                const firstVideoRaw = videoFiles[0];
+                let probeUrl = "";
+                let probeHeaders = {};
+
+                if (firstVideoRaw.includes('|')) {
+                    probeUrl = firstVideoRaw.split('|')[1];
+                } else {
+                    const videoPath = (folder.path + '/' + firstVideoRaw).replace(/\/+/g, '/');
+                    const info = await client.getFileInfo(videoPath);
+                    if (info) {
+                        probeUrl = info.raw_url;
+                        probeHeaders = client.getHeaders ? client.getHeaders() : {};
+                    }
+                }
+
+                if (probeUrl) {
+                    // ⚡️ Turbo Probe: 仅探测关键信息，不耗费过多 CPU
+                    const mediaInfo = await transcodeService.getMediaInfo(probeUrl, probeHeaders);
+                    if (mediaInfo) {
+                        metadata.v_codec = mediaInfo.videoCodec;
+                        metadata.a_codec = mediaInfo.audioCodec;
+                        metadata.duration = mediaInfo.duration;
+                        metadata.container = (mediaInfo.format || '').split(',')[0];
+                    }
+                }
+                metadata.probe_status = 1; // 标记已探测
+            } catch (err) {
+                console.warn(`[MediaScan] Fast probe failed for ${metadata.title}:`, err.message);
+                metadata.probe_status = 0; // 失败则交给后台重试
+            }
         }
-        metadata.container = container;
-        metadata.probe_status = 0; // 0=待探测，将由后台队列处理
 
         // 写入数据库 - 使用 UPDATE 或 INSERT 以保持已有记录的 ID 不变
-        const existingRecord = db.get('SELECT id FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
+        const existingRecord = db.get('SELECT id, poster_url, tmdb_id, is_locked, video_files FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
 
         if (existingRecord) {
+            // 💡 保护逻辑 1：如果扫描出的视频列表为空，但数据库里已有视频，则保留原有视频列表（防止 404）
+            const finalVideoFiles = (videoFiles.length === 0 && existingRecord.video_files)
+                ? JSON.parse(existingRecord.video_files)
+                : videoFiles;
+
+            // 💡 保护逻辑 2：如果已锁定，保留原有海报与 TMDB ID
+            const isLocked = existingRecord.is_locked === 1;
+            const finalPoster = (isLocked && existingRecord.poster_url) ? existingRecord.poster_url : metadata.poster_url;
+            const finalFanart = (isLocked && existingRecord.fanart_url) ? existingRecord.fanart_url : metadata.fanart_url;
+            const finalTmdbId = (isLocked && existingRecord.tmdb_id) ? existingRecord.tmdb_id : metadata.tmdb_id;
+
             // 已存在，使用 UPDATE 保持 ID 不变
             db.run(`
                 UPDATE netdisk_media SET 
@@ -424,12 +446,12 @@ class MediaScanService {
                     media_type = ?, tmdb_id = ?, video_files = ?, nfo_parsed = ?,
                     director = ?, actor = ?, area = ?, tagline = ?, studio = ?,
                     extra_metadata = ?, v_codec = ?, a_codec = ?, duration = ?,
-                    container = ?, probe_status = ?, is_locked = 0, scanned_at = datetime('now')
+                    container = ?, probe_status = ?, scanned_at = datetime('now')
                 WHERE id = ?
             `, [
                 metadata.title, metadata.original_title || null, metadata.year,
-                metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
-                metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
+                metadata.overview, finalPoster, finalFanart, metadata.rating, metadata.genres || null,
+                metadata.media_type, finalTmdbId, JSON.stringify(finalVideoFiles), metadata.nfo_parsed,
                 metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
                 metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
                 metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,

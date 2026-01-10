@@ -147,7 +147,9 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
         title: string;
         message: string;
         onConfirm: () => void;
+        onCancel?: () => void;
         variant?: 'danger' | 'primary';
+        children?: React.ReactNode;
     } | null>(null);
     const [alertDialog, setAlertDialog] = useState<{
         isOpen: boolean;
@@ -450,11 +452,29 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
             isOpen: true,
             title: '确认清除',
             message: path ? `确定要清除目录 "${path}" 的媒体索引吗？` : '确定要清除该媒体库的所有索引吗？',
+            children: (
+                <label className="flex items-center gap-3 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl cursor-pointer hover:bg-red-500/20 transition-all group">
+                    <input
+                        type="checkbox"
+                        defaultChecked={false}
+                        onChange={(e) => {
+                            (window as any).__lastClearImages = e.target.checked;
+                        }}
+                        className="w-5 h-5 rounded border-red-500/50 text-red-500 focus:ring-0 bg-transparent cursor-pointer"
+                    />
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-red-400 group-hover:text-red-300">同步清空全部海报图片缓存</span>
+                        <span className="text-[10px] text-red-400/60 leading-tight">注意：这会删除 video_covers 下的所有物理文件</span>
+                    </div>
+                </label>
+            ),
             variant: 'danger',
             onConfirm: async () => {
+                const clearImages = (window as any).__lastClearImages || false;
                 setConfirmDialog(null);
+                (window as any).__lastClearImages = false;
                 try {
-                    const res = await apiPost(`/netdisk/clear-index`, { sourceId, path });
+                    const res = await apiPost(`/netdisk/clear-index`, { sourceId, path, clearImages });
                     if (res.success) {
                         setAlertDialog({
                             isOpen: true,
@@ -472,7 +492,8 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                         variant: 'error'
                     });
                 }
-            }
+            },
+            onCancel: () => setConfirmDialog(null)
         });
     };
 
@@ -1016,7 +1037,6 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                 )
             }
 
-            {/* 确认对话框 */}
             {confirmDialog && (
                 <ConfirmDialog
                     isOpen={confirmDialog.isOpen}
@@ -1024,8 +1044,10 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                     message={confirmDialog.message}
                     confirmVariant={confirmDialog.variant}
                     onConfirm={confirmDialog.onConfirm}
-                    onCancel={() => setConfirmDialog(null)}
-                />
+                    onCancel={confirmDialog.onCancel || (() => setConfirmDialog(null))}
+                >
+                    {confirmDialog.children}
+                </ConfirmDialog>
             )}
 
             {/* 提示对话框 */}

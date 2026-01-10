@@ -398,17 +398,17 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                 </div>
             </div>
 
-            {/* STRM 转码设置 */}
+            {/* 转码设置 */}
             <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
                         <i className="fas fa-film text-orange-400"></i>
                     </div>
-                    <h3 className="text-lg font-bold">STRM 转码设置</h3>
+                    <h3 className="text-lg font-bold">转码设置</h3>
                 </div>
 
                 <p className="text-secondary text-sm mb-4">
-                    当 STRM 链接的视频（如 HEVC 编码）无法直接播放时，使用 FFmpeg 转码为兼容格式
+                    当视频内容（如 HEVC, MPEG, WMV 等编码）由于浏览器兼容性无法直接播放时，使用 FFmpeg 转码为兼容格式
                 </p>
 
                 <div className="space-y-4">
@@ -421,7 +421,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             className="w-5 h-5 rounded bg-secondary border-border-color text-orange-500 
                                      focus:ring-orange-500 focus:ring-offset-0"
                         />
-                        <span>启用 STRM 转码</span>
+                        <span>启用转码服务</span>
                     </label>
 
                     {settings.strm_transcode_enabled && (
@@ -518,7 +518,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                             onChange={() => setSettings(prev => ({ ...prev, strm_transcode_mode: 'force' }))}
                                             className="text-orange-500 focus:ring-orange-500"
                                         />
-                                        <span>强制 <span className="text-secondary text-sm">(所有 STRM 都转码)</span></span>
+                                        <span>强制 <span className="text-secondary text-sm">(所有资源都转码)</span></span>
                                     </label>
                                 </div>
                             </div>
