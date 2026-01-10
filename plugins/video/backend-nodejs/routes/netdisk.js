@@ -182,6 +182,14 @@ router.put('/sources/:id', (req, res) => {
 
         db.run(`UPDATE netdisk_sources SET ${updates.join(', ')} WHERE id = ?`, values);
 
+        // 如果修改了扫描路径且源已启用，自动触发一次增量扫描
+        if (scan_paths !== undefined && (enabled === undefined || enabled)) {
+            console.log(`[Netdisk] Scan paths updated for source ${id}, triggering auto-scan...`);
+            mediaScanService.scanSource(parseInt(id), 5).catch(err => {
+                console.error('[Netdisk] Auto-scan failed:', err);
+            });
+        }
+
         // 清除缓存
         clientCache.delete(parseInt(id));
 
@@ -443,6 +451,35 @@ router.get('/scan/:sourceId/status', (req, res) => {
 });
 
 /**
+ * Video 2.0: 获取后台探测队列状态
+ */
+router.get('/probe/status', (req, res) => {
+    try {
+        const { probeQueueService } = require('../services/ProbeQueueService');
+        const status = probeQueueService.getStatus();
+
+        // 获取待探测/已探测/失败的数量
+        const db = getDatabase();
+        const pending = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = 0')?.count || 0;
+        const success = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = 1')?.count || 0;
+        const failed = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = -1')?.count || 0;
+
+        res.json({
+            success: true,
+            data: {
+                ...status,
+                pending,
+                success,
+                failed
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
+/**
  * 获取已索引的媒体列表
  */
 router.get('/media', (req, res) => {
@@ -683,6 +720,199 @@ router.get('/media/:id', (req, res) => {
 });
 
 /**
+ * Video 2.0: 单片元数据编辑 API
+ * 支持修改标题、海报 URL、简介等，并自动锁定防止扫描覆盖
+ */
+router.patch('/media/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, poster_url, fanart_url, overview, year, genres, tmdb_id } = req.body;
+
+        const db = getDatabase();
+        const media = db.get('SELECT id FROM netdisk_media WHERE id = ?', [id]);
+
+        if (!media) {
+            return res.status(404).json({ success: false, error: '媒体不存在' });
+        }
+
+        const updates = [];
+        const values = [];
+
+        if (title !== undefined) { updates.push('title = ?'); values.push(title); }
+        if (poster_url !== undefined) { updates.push('poster_url = ?'); values.push(poster_url); }
+        if (fanart_url !== undefined) { updates.push('fanart_url = ?'); values.push(fanart_url); }
+        if (overview !== undefined) { updates.push('overview = ?'); values.push(overview); }
+        if (year !== undefined) { updates.push('year = ?'); values.push(year); }
+        if (genres !== undefined) { updates.push('genres = ?'); values.push(genres); }
+        if (tmdb_id !== undefined) { updates.push('tmdb_id = ?'); values.push(tmdb_id); }
+
+        if (updates.length === 0) {
+            return res.json({ success: true, message: '无修改内容' });
+        }
+
+        // 自动锁定：手动修改过的媒体不再被扫描覆盖
+        updates.push('is_locked = 1');
+        values.push(id);
+
+        db.run(`UPDATE netdisk_media SET ${updates.join(', ')} WHERE id = ?`, values);
+        console.log(`[Netdisk] Media ${id} updated and locked`);
+
+        res.json({ success: true, message: '已保存并锁定' });
+    } catch (error) {
+        console.error('[Netdisk] Failed to update media:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Video 2.0: 刷新单项媒体元数据
+ * 强制重新扫描文件夹中的 NFO 和图片，并尝试补全 TMDB
+ */
+router.post('/media/:id/refresh', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const db = getDatabase();
+
+        const media = db.get('SELECT source_id, path FROM netdisk_media WHERE id = ?', [id]);
+        if (!media) return res.status(404).json({ success: false, error: '媒体不存在' });
+
+        const source = db.get('SELECT * FROM netdisk_sources WHERE id = ?', [media.source_id]);
+        if (!source) return res.status(404).json({ success: false, error: '网盘源不存在' });
+
+        const client = await getNetdiskClient(source);
+        const apiKey = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'")?.value;
+        const tmdbEnabled = !!apiKey;
+
+        // 调用扫描服务（force=true 绕过锁定检查）
+        await mediaScanService.processMediaFolder(client, source, { path: media.path }, tmdbEnabled, true);
+
+        // 返回更新后的数据
+        const updated = db.get('SELECT * FROM netdisk_media WHERE id = ?', [id]);
+        res.json({ success: true, data: updated, message: '元数据已刷新' });
+    } catch (error) {
+        console.error('[Netdisk] Media refresh failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Video 2.0: 恢复自动识别 (解锁)
+ * 将 is_locked 设为 0，并立即触发一次自动扫描识别
+ */
+router.post('/media/:id/unlock', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const db = getDatabase();
+
+        const media = db.get('SELECT source_id, path FROM netdisk_media WHERE id = ?', [id]);
+        if (!media) return res.status(404).json({ success: false, error: '媒体不存在' });
+
+        // 1. 解锁
+        db.run('UPDATE netdisk_media SET is_locked = 0 WHERE id = ?', [id]);
+
+        const source = db.get('SELECT * FROM netdisk_sources WHERE id = ?', [media.source_id]);
+        const client = await getNetdiskClient(source);
+        const apiKey = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'")?.value;
+        const tmdbEnabled = !!apiKey;
+
+        // 2. 立即触发一次自动扫描识别 (不带 force，这样会应用标准的识别优先级)
+        await mediaScanService.processMediaFolder(client, source, { path: media.path }, tmdbEnabled, false);
+
+        const updated = db.get('SELECT * FROM netdisk_media WHERE id = ?', [id]);
+        res.json({ success: true, data: updated, message: '已解锁并恢复自动识别' });
+    } catch (error) {
+        console.error('[Netdisk] Media unlock failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Video 2.0: TMDB 搜索纠偏 API
+ * 允许用户手动搜索 TMDB 并应用到媒体
+ */
+router.post('/media/:id/tmdb-search', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { query, year } = req.body;
+
+        if (!query) {
+            return res.status(400).json({ success: false, error: '请输入搜索关键词' });
+        }
+
+        const db = getDatabase();
+        const apiKey = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'")?.value;
+
+        if (!apiKey) {
+            return res.status(400).json({ success: false, error: '请先配置 TMDB API Key' });
+        }
+
+        const { TmdbService } = require('../services/TmdbService');
+        const tmdb = new TmdbService(apiKey);
+        const results = await tmdb.searchMulti(query, year);
+
+        res.json({ success: true, data: results });
+    } catch (error) {
+        console.error('[Netdisk] TMDB search failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Video 2.0: 应用 TMDB 元数据
+ * 从 TMDB 获取详情并更新到本地媒体
+ */
+router.post('/media/:id/tmdb-apply', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tmdb_id, media_type } = req.body;
+
+        if (!tmdb_id || !media_type) {
+            return res.status(400).json({ success: false, error: '缺少 TMDB ID 或类型' });
+        }
+
+        const db = getDatabase();
+        const apiKey = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'")?.value;
+
+        if (!apiKey) {
+            return res.status(400).json({ success: false, error: '请先配置 TMDB API Key' });
+        }
+
+        const { TmdbService } = require('../services/TmdbService');
+        const tmdb = new TmdbService(apiKey);
+
+        let detail;
+        if (media_type === 'movie') {
+            detail = await tmdb.getMovieDetail(tmdb_id);
+        } else {
+            detail = await tmdb.getTVDetail(tmdb_id);
+        }
+
+        if (!detail) {
+            return res.status(404).json({ success: false, error: 'TMDB 资源不存在' });
+        }
+
+        // 更新本地媒体
+        db.run(`
+            UPDATE netdisk_media SET 
+                title = ?, original_title = ?, year = ?, overview = ?,
+                poster_url = ?, fanart_url = ?, rating = ?, genres = ?,
+                tmdb_id = ?, is_locked = 1
+            WHERE id = ?
+        `, [
+            detail.title, detail.original_title, detail.year, detail.overview,
+            detail.poster, detail.backdrop, detail.rating, detail.genres,
+            tmdb_id, id
+        ]);
+
+        console.log(`[Netdisk] Media ${id} updated from TMDB ${tmdb_id} and locked`);
+        res.json({ success: true, data: detail, message: '已应用 TMDB 元数据并锁定' });
+    } catch (error) {
+        console.error('[Netdisk] TMDB apply failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * 获取媒体播放链接
  */
 router.post('/media/:id/play', async (req, res) => {
@@ -714,72 +944,78 @@ router.post('/media/:id/play', async (req, res) => {
 
         let playMethod = 'direct'; // 默认为 direct
 
-        // 如果是 .strm 格式 (文件名|URL)
+        // 1. 获取视频文件的原始 URL (无论是否为 STRM)
+        let rawUrl = '';
         if (videoFile && videoFile.includes('|')) {
             isStrm = true;
-            strmRawUrl = videoFile.split('|')[1];
-
-            // 读取转码设置
-            const transcodeSettingsRow = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
-            const modeSettings = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_mode'");
-            const qualitySettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_quality'");
-            const hwaccelSettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_hwaccel'");
-
-            const transcodeEnabled = transcodeSettingsRow?.value === 'true' || transcodeSettingsRow?.value === '1';
-            const quality = qualitySettings?.value || 'medium';
-            const hwaccel = hwaccelSettings?.value || 'none';
-
-            if (transcodeEnabled) {
-                // 启用转码时：优先使用数据库中的元数据进行极速分流
-                try {
-                    console.log(`[Netdisk] Starting smart play for: ${media.title} (${media.v_codec}/${media.a_codec})`);
-
-                    const transcodeHeaders = {
-                        'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0'
-                    };
-
-                    // 将预存的元数据传给转码服务，避免重复探测
-                    const result = await transcodeService.startTranscode(strmRawUrl, {
-                        quality,
-                        hwaccel,
-                        headers: transcodeHeaders,
-                        mediaInfo: media.v_codec ? {
-                            videoCodec: media.v_codec,
-                            audioCodec: media.a_codec,
-                            duration: media.duration
-                        } : null
-                    });
-
-                    playUrl = result.playUrl;
-                    sessionId = result.sessionId;
-                    playMethod = result.playMethod;
-                    console.log(`[Netdisk] Play Method Decided: ${playMethod} (Fast Path: ${!!media.v_codec})`);
-                } catch (err) {
-                    console.error('[Netdisk] Smart play failed, fallback to direct proxy:', err.message);
-                    playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
-                    playMethod = 'direct';
-                }
-            } else {
-                // 禁用转码：仅由于地址解析后的代理转发
-                playUrl = `/api/plugins/video/api/proxy/stream?url=${encodeURIComponent(strmRawUrl)}`;
-                playMethod = 'direct';
-            }
+            rawUrl = videoFile.split('|')[1];
         } else {
             const videoPath = (media.path + '/' + videoFile).replace(/\/+/g, '/');
-            if (source.type === 'webdav') {
-                // WebDAV 需要认证，使用流式代理
-                playUrl = `/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(videoPath)}`;
-                playMethod = 'proxy';
-            } else if (source.type === 'local') {
-                // 本地文件使用本地流代理
-                playUrl = `/api/plugins/video/api/netdisk/local-stream?path=${encodeURIComponent(videoPath)}`;
-                playMethod = 'direct';
+            if (source.type === 'local') {
+                // 💡 修复：转码服务通过 axios 请求，无法直接读取本地磁盘文件。
+                // 我们必须将其转化为内部 HTTP 代理路径。
+                const serverPort = process.env.PORT || 3002;
+                rawUrl = `http://127.0.0.1:${serverPort}/api/plugins/video/api/netdisk/local-stream?path=${encodeURIComponent(videoPath)}`;
+            } else if (source.type === 'webdav' || source.type === 'alist' || source.type === 'openlist') {
+                // 统一获取网盘直链/代理前置链接
+                if (source.type === 'webdav') {
+                    // WebDAV 链路：我们手动拼代理链接，确保认证通过
+                    // 💡 修复：转码服务是在后台运行的，它通过 axios 请求。Axios 无法识别相对路径 /api/...
+                    // 我们需要将其补全为绝对路径 (localhost:{PORT})。
+                    const serverPort = process.env.PORT || 3002;
+                    rawUrl = `http://127.0.0.1:${serverPort}/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(videoPath)}`;
+                } else {
+                    const fileInfo = await client.getFileInfo(videoPath).catch(() => null);
+                    rawUrl = fileInfo?.raw_url || `${source.url}/d${videoPath}`;
+                }
             } else {
-                // Alist 等其他源使用直链
-                const fileInfo = await client.getFileInfo(videoPath).catch(() => null);
-                playUrl = fileInfo?.raw_url || `${source.url}/d${videoPath}`;
-                playMethod = 'direct';
+                // 兜底
+                rawUrl = videoPath;
             }
+        }
+
+        // 2. 核心：统一播放决策 (从此不再区分 strm 与原生文件)
+        const transcodeSettingsRow = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
+        const transcodeEnabled = transcodeSettingsRow?.value === 'true' || transcodeSettingsRow?.value === '1';
+
+        // 如果开启了转码，且我们有 URL，则统一走 TranscodeService 下发逻辑
+        if (transcodeEnabled && rawUrl) {
+            try {
+                const qualitySettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_quality'");
+                const hwaccelSettings = db.get("SELECT value FROM settings WHERE key = 'ffmpeg_hwaccel'");
+
+                const quality = qualitySettings?.value || 'medium';
+                const hwaccel = hwaccelSettings?.value || 'none';
+                const transcodeHeaders = { 'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0' };
+
+                // 统一分流逻辑：TranscodeService 内部会根据 mediaInfo 自动决定是否 Direct Play
+                const result = await transcodeService.startTranscode(rawUrl, {
+                    quality,
+                    hwaccel,
+                    mediaId: media.id,
+                    headers: transcodeHeaders,
+                    mediaInfo: media.v_codec ? {
+                        videoCodec: media.v_codec,
+                        audioCodec: media.a_codec,
+                        duration: media.duration,
+                        format: media.container
+                    } : null
+                });
+
+                playUrl = result.playUrl;
+                sessionId = result.sessionId;
+                playMethod = result.playMethod;
+                console.log(`[Netdisk] Unified Play Method: ${playMethod} (Type: ${isStrm ? 'STRM' : 'Native'}, Probed: ${!!media.v_codec})`);
+            } catch (err) {
+                console.error('[Netdisk] Unified start transcode failed:', err.message);
+                // 降级：如果转码服务炸了，回退到普通直连
+                playUrl = rawUrl;
+                playMethod = (rawUrl.startsWith('http') && !rawUrl.includes('/api/')) ? 'direct' : 'proxy';
+            }
+        } else {
+            // 未开启转码：直接下发原始地址
+            playUrl = rawUrl;
+            playMethod = (rawUrl.startsWith('http') && !rawUrl.includes('/api/')) ? 'direct' : 'proxy';
         }
 
         // 🚀 预热缓存：如果是代理模式，提前触发重定向解析

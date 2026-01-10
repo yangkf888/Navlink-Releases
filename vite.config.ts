@@ -7,7 +7,7 @@ export default defineConfig({
     plugins: [react()],
     server: {
         host: '127.0.0.1', // 强制使用IPv4
-        port: 5173, // 使用标准端口，与后端 CORS 配置一致
+        port: 5174, // 使用 5174 端口避免冲突
         strictPort: true, // 如果端口被占用则报错而不是自动切换
         proxy: {
             // 所有API请求代理到Gateway

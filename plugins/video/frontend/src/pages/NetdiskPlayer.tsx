@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiGet, apiPost, apiDelete } from '../utils/api';
+import { TmdbCorrectModal } from '../components/TmdbCorrectModal';
 
 interface MediaItem {
     id: number;
@@ -79,6 +80,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const [isFavorite, setIsFavorite] = useState(false);
     const [isTranscoding, setIsTranscoding] = useState(false);
     const [metaData, setMetaData] = useState<{ vCodec?: string, duration?: number }>({});
+    const [isCorrectModalOpen, setIsCorrectModalOpen] = useState(false);
 
     // 💡 状态追踪 (使用 useRef 避免闭包陷阱!!)
     const maxCompletedIdxRef = useRef<number>(-1);
@@ -207,6 +209,34 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             }
         } catch (err) {
             console.error('Failed to check favorite status:', err);
+        }
+    };
+
+    const handleRefresh = async () => {
+        setLoading(true);
+        try {
+            const res = await apiPost(`/netdisk/media/${mediaId}/refresh`);
+            if (res.success) {
+                loadMediaDetail(); // 重新加载详情
+            }
+        } catch (err) {
+            console.error('Refresh failed:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUnlockMedia = async () => {
+        setLoading(true);
+        try {
+            const res = await apiPost(`/netdisk/media/${mediaId}/unlock`);
+            if (res.success) {
+                loadMediaDetail();
+            }
+        } catch (err) {
+            console.error('Unlock failed:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -537,7 +567,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                 {isFavorite ? '已收藏' : '收藏'}
                             </button>
                             <button
-                                onClick={loadMediaDetail}
+                                onClick={handleRefresh}
                                 className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border border-border-color shadow-sm"
                             >
                                 <i className="fas fa-sync-alt"></i>
@@ -585,9 +615,28 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
                     <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4 shadow-sm">
-                        <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
-                            <i className="fas fa-info-circle text-blue-400"></i>
-                            媒体详情
+                        <h3 className="text-primary font-bold flex items-center justify-between border-b border-border-color pb-2">
+                            <div className="flex items-center gap-2">
+                                <i className="fas fa-info-circle text-blue-400"></i>
+                                媒体详情
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsCorrectModalOpen(true)}
+                                    className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white rounded flex items-center gap-1.5 text-xs transition-all duration-300"
+                                >
+                                    <i className="fas fa-magic"></i>
+                                    识别修正
+                                </button>
+                                <button
+                                    onClick={handleUnlockMedia}
+                                    className="px-3 py-1 bg-secondary hover:bg-secondary-hover text-secondary hover:text-primary rounded flex items-center gap-1.5 text-xs transition-all duration-300 border border-border-color"
+                                    title="解锁手动修正，恢复系统自动识别"
+                                >
+                                    <i className="fas fa-undo"></i>
+                                    恢复自动识别
+                                </button>
+                            </div>
                         </h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
@@ -636,6 +685,19 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                     </div>
                 </div>
             </div>
+
+            {/* 纠偏弹窗 */}
+            {media && (
+                <TmdbCorrectModal
+                    isOpen={isCorrectModalOpen}
+                    mediaId={media.id}
+                    initialQuery={media.title}
+                    onClose={() => setIsCorrectModalOpen(false)}
+                    onSuccess={() => {
+                        loadMediaDetail(); // 重新加载详情以显示更正后的信息
+                    }}
+                />
+            )}
         </div>
     );
 }

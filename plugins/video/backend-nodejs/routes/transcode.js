@@ -63,21 +63,16 @@ router.get('/detect', async (req, res) => {
  * Body: { url: string, quality?: 'fast'|'medium'|'high', hwaccel?: 'none'|'nvenc'|'qsv'|'vaapi' }
  */
 router.post('/start', async (req, res) => {
-    const { url, quality = 'medium', hwaccel = 'none' } = req.body;
-
-    if (!url) {
-        return res.status(400).json({ success: false, error: '缺少视频 URL' });
-    }
-
     try {
-        console.log(`[Transcode] Received start request for URL: ${url.substring(0, 80)}...`);
-        const result = await transcodeService.startTranscode(url, { quality, hwaccel });
+        const { url, quality = 'medium', hwaccel = 'none', mediaId } = req.body;
+        console.log(`[Transcode] Received start request for URL: ${url.substring(0, 80)}... (mediaId: ${mediaId || 'none'})`);
+        const result = await transcodeService.startTranscode(url, { quality, hwaccel, mediaId });
 
         res.json({
             success: true,
             data: {
                 sessionId: result.sessionId,
-                playlistUrl: result.playlistUrl
+                playlistUrl: result.playUrl
             }
         });
     } catch (err) {
@@ -200,6 +195,94 @@ router.post('/cleanup', (req, res) => {
         transcodeService.cleanup(req.body.maxAgeMs);
         res.json({ success: true, message: '清理完成' });
     } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Video 2.0: 播放决策 API
+ * 前端传入客户端能力，后端返回最优播放策略
+ * POST /play-decision
+ * Body: { url: string, v_codec?: string, container?: string, clientCaps?: { canPlayH265?: boolean } }
+ */
+router.post('/play-decision', async (req, res) => {
+    try {
+        const { url, v_codec, container, clientCaps = {} } = req.body;
+
+        if (!url) {
+            return res.status(400).json({ success: false, error: '缺少视频 URL' });
+        }
+
+        // 默认客户端能力
+        const caps = {
+            canPlayH265: clientCaps.canPlayH265 || false,
+            canPlayMkv: clientCaps.canPlayMkv || false
+        };
+
+        const codec = (v_codec || '').toLowerCase();
+        const cont = (container || '').toLowerCase();
+
+        let decision = 'transcode'; // 默认转码
+        let reason = '';
+
+        // 决策逻辑
+        if (codec === 'h264' || codec === 'avc1') {
+            if (cont === 'mp4') {
+                decision = 'direct';
+                reason = 'H.264 + MP4 直接播放';
+            } else if (cont === 'mkv') {
+                if (caps.canPlayMkv) {
+                    decision = 'direct';
+                    reason = '客户端支持 MKV';
+                } else {
+                    decision = 'transmux';
+                    reason = 'H.264 MKV 转封装为 MP4';
+                }
+            }
+        } else if (codec === 'hevc' || codec === 'h265') {
+            if (caps.canPlayH265) {
+                if (cont === 'mp4') {
+                    decision = 'direct';
+                    reason = '客户端支持 H.265';
+                } else {
+                    decision = 'transmux';
+                    reason = 'H.265 转封装为 MP4';
+                }
+            } else {
+                decision = 'transcode';
+                reason = '客户端不支持 H.265，需转码';
+            }
+        } else {
+            decision = 'transcode';
+            reason = '未知编码，需转码';
+        }
+
+        // 如果需要 transmux 或 transcode，启动会话
+        let playUrl = url;
+        let sessionId = null;
+
+        if (decision !== 'direct') {
+            const result = await transcodeService.startTranscode(url, {
+                quality: 'medium',
+                hwaccel: 'none',
+                mediaId: req.body.mediaId,
+                mediaInfo: v_codec ? { videoCodec: v_codec } : null
+            });
+            playUrl = result.playUrl;
+            sessionId = result.sessionId;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                decision,
+                reason,
+                playUrl,
+                sessionId
+            }
+        });
+    } catch (err) {
+        console.error('[Transcode] Play decision error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

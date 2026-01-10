@@ -282,7 +282,9 @@ function migrateSchema(db) {
         { column: 'proxy_enabled', sql: 'ALTER TABLE video_sources ADD COLUMN proxy_enabled INTEGER DEFAULT 0' },
         { column: 'failure_count', sql: 'ALTER TABLE video_sources ADD COLUMN failure_count INTEGER DEFAULT 0' },
         { column: 'status_message', sql: 'ALTER TABLE video_sources ADD COLUMN status_message TEXT' },
-        { column: 'parser_url', sql: 'ALTER TABLE video_sources ADD COLUMN parser_url TEXT' }
+        { column: 'parser_url', sql: 'ALTER TABLE video_sources ADD COLUMN parser_url TEXT' },
+        // Video 2.0: 用户可配置的扫描并发数
+        { column: 'scan_concurrency', sql: 'ALTER TABLE video_sources ADD COLUMN scan_concurrency INTEGER DEFAULT 5' }
     ];
 
     for (const migration of sourcesMigrations) {
@@ -437,7 +439,11 @@ function migrateSchema(db) {
             { name: 'v_codec', type: 'TEXT' },
             { name: 'a_codec', type: 'TEXT' },
             { name: 'duration', type: 'REAL DEFAULT 0' },
-            { name: 'extra_metadata', type: 'TEXT' }
+            { name: 'extra_metadata', type: 'TEXT' },
+            // Video 2.0 新增字段
+            { name: 'probe_status', type: 'INTEGER DEFAULT 0' },  // 0:未探测, 1:成功, -1:失败
+            { name: 'is_locked', type: 'INTEGER DEFAULT 0' },     // 元数据锁定
+            { name: 'container', type: 'TEXT' }                   // 封装格式 (mp4/mkv/avi)
         ];
 
         for (const col of mediaColumnsToAdd) {

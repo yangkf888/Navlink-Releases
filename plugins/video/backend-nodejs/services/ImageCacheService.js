@@ -7,8 +7,14 @@ const sharp = require('sharp');
 // 缓存目录配置 - 存放在主程序的 data 目录下
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'video_covers');
 
+// Video 2.0: 失败名单配置
+const FAIL_THRESHOLD = 3;           // 失败次数阈值
+const FAIL_COOLDOWN = 24 * 60 * 60 * 1000; // 24 小时冷却期
+
 class ImageCacheService {
     constructor() {
+        // Video 2.0: 失败名单 Map<url, {count, lastFail}>
+        this.failedUrls = new Map();
         this.ensureCacheDir();
     }
 
@@ -24,12 +30,47 @@ class ImageCacheService {
     }
 
     /**
+     * Video 2.0: 检查 URL 是否在失败名单中
+     */
+    _isInDeathList(url) {
+        const record = this.failedUrls.get(url);
+        if (!record) return false;
+
+        // 检查冷却期
+        if (Date.now() - record.lastFail > FAIL_COOLDOWN) {
+            this.failedUrls.delete(url);
+            return false;
+        }
+
+        return record.count >= FAIL_THRESHOLD;
+    }
+
+    /**
+     * Video 2.0: 记录失败
+     */
+    _recordFailure(url) {
+        const record = this.failedUrls.get(url) || { count: 0, lastFail: 0 };
+        record.count += 1;
+        record.lastFail = Date.now();
+        this.failedUrls.set(url, record);
+
+        if (record.count >= FAIL_THRESHOLD) {
+            console.log(`[ImageCache] URL added to death list: ${url.substring(0, 100)}...`);
+        }
+    }
+
+    /**
      * 获取缓存后的图片路径
      * @param {string} imageUrl 原始图片 URL 或网盘路径
      * @param {object} headers 请求原始图片所需的 Headers
      */
     async getCachedImage(imageUrl, headers = {}) {
         if (!imageUrl) return null;
+
+        // Video 2.0: 检查失败名单
+        if (this._isInDeathList(imageUrl)) {
+            return null;
+        }
 
         // 1. 生成唯一的 Cache Key (MD5)
         const hash = crypto.createHash('md5').update(imageUrl).digest('hex');
@@ -39,11 +80,30 @@ class ImageCacheService {
         if (fs.existsSync(cachePath)) {
             const stats = fs.statSync(cachePath);
             if (stats.size > 0) {
-                return cachePath;
+                // Video 2.0: 增加 WebP 格式校验 (检查文件头部 Magic Number)
+                try {
+                    const fd = fs.openSync(cachePath, 'r');
+                    const buffer = Buffer.alloc(12);
+                    fs.readSync(fd, buffer, 0, 12, 0);
+                    fs.closeSync(fd);
+                    // WebP 格式: RIFF....WEBP
+                    const isValidWebP = buffer.toString('ascii', 0, 4) === 'RIFF' &&
+                        buffer.toString('ascii', 8, 12) === 'WEBP';
+                    if (isValidWebP) {
+                        return cachePath;
+                    } else {
+                        // 文件损坏，删除后重新下载
+                        console.warn(`[ImageCache] Corrupted cache file detected, re-downloading: ${cachePath}`);
+                        fs.unlinkSync(cachePath);
+                    }
+                } catch (e) {
+                    // 校验失败，尝试删除并重下
+                    try { fs.unlinkSync(cachePath); } catch (e2) { }
+                }
             }
         }
 
-        // 3. 缓存未抢中，下载并处理
+        // 3. 缓存未命中，下载并处理
         try {
             // 安全编码：处理中文、空格、特殊字符 (# 等)
             let safeUrl = imageUrl;
@@ -86,11 +146,16 @@ class ImageCacheService {
                 .webp({ quality: 85 })
                 .toBuffer();
 
-            // 5. 写入磁盘
-            fs.writeFileSync(cachePath, processedBuffer);
+            // 5. Video 2.0: 原子化写入 (先写临时文件再重命名)
+            const tempPath = cachePath + '.tmp';
+            fs.writeFileSync(tempPath, processedBuffer);
+            fs.renameSync(tempPath, cachePath);
+
             return cachePath;
         } catch (err) {
             console.error(`[ImageCache] Error processing ${imageUrl.substring(0, 200)}:`, err.message);
+            // Video 2.0: 记录失败
+            this._recordFailure(imageUrl);
             return null;
         }
     }

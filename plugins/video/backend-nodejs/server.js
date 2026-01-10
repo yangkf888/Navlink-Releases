@@ -18,6 +18,13 @@ module.exports = {
         // 初始化数据库
         initDatabase();
 
+        // Video 2.0: 启动后台探测队列服务
+        const { probeQueueService } = require('./services/ProbeQueueService');
+        setTimeout(() => {
+            probeQueueService.start();
+            console.log('[video] Background probe queue started');
+        }, 10000); // 延迟 10 秒启动，等待系统稳定
+
         // 创建 Router
         const router = express.Router();
 

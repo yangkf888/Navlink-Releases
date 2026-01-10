@@ -8,8 +8,10 @@ const { TmdbService } = require('./TmdbService');
 const { AlistService } = require('./AlistService');
 const { WebdavService } = require('./WebdavService');
 const { LocalService } = require('./LocalService');
-const transcodeService = require('./TranscodeService');
 const fetch = require('node-fetch');
+
+// 并发控制配置
+const DIR_SCAN_LIMIT = 5;  // 目录递归并发限制
 
 // NFO 常见文件名
 const NFO_FILES = ['movie.nfo', 'info.nfo', 'tvshow.nfo'];
@@ -253,8 +255,16 @@ class MediaScanService {
     /**
      * 处理媒体文件夹
      */
-    async processMediaFolder(client, source, folder, tmdbEnabled = true) {
+    async processMediaFolder(client, source, folder, tmdbEnabled = true, force = false) {
         const db = getDatabase();
+
+        // Video 2.0: 检查是否已锁定（用户手动编辑过的媒体不再覆盖）
+        const existingMedia = db.get('SELECT is_locked FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
+        if (existingMedia && existingMedia.is_locked && !force) {
+            console.log(`[MediaScan] Skipping locked media: ${folder.path}`);
+            return;
+        }
+
         // 复用 findMediaFolders 中获取到的数据，减少请求
         const items = folder.items || await client.list(folder.path);
 
@@ -390,52 +400,31 @@ class MediaScanService {
             } catch (err) { /* ignore */ }
         }
 
-        // 4. 视频编码及探测 (秒开关键逻辑)
+        // 4. 视频编码探测 - 改为异步后台处理 (Video 2.0 性能优化)
+        // 扫描时不再同步调用 ffprobe，由后台 ProbeQueueService 异步补全
+        // 此处仅提取容器格式并标记 probe_status=0 (待探测)
+        let container = null;
         if (videoFiles.length > 0) {
-            try {
-                const firstVideo = videoFiles[0];
-                let probeUrl = "";
-                let probeHeaders = {};
-
-                if (firstVideo.includes('|')) {
-                    // STRM 文件，直接探测原始 URL
-                    probeUrl = firstVideo.split('|')[1];
-                } else {
-                    // 普通文件，获取直链或代理
-                    const videoPath = (folder.path + '/' + firstVideo).replace(/\/+/g, '/');
-                    const info = await client.getFileInfo(videoPath);
-                    if (info) {
-                        probeUrl = info.raw_url;
-                        probeHeaders = client.getHeaders ? client.getHeaders() : {};
-                    }
-                }
-
-                if (probeUrl) {
-                    console.log(`[MediaScan] Probing codec for: ${metadata.title}`);
-                    const mediaInfo = await transcodeService.getMediaInfo(probeUrl, probeHeaders);
-                    if (mediaInfo) {
-                        metadata.v_codec = mediaInfo.videoCodec;
-                        metadata.a_codec = mediaInfo.audioCodec;
-                        metadata.duration = mediaInfo.duration;
-                    }
-                }
-            } catch (err) {
-                console.warn(`[MediaScan] Probe failed for ${metadata.title}:`, err.message);
-            }
+            const firstVideo = videoFiles[0].includes('|') ? videoFiles[0].split('|')[0] : videoFiles[0];
+            const ext = firstVideo.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+            container = ext.replace('.', ''); // mp4, mkv, avi 等
         }
+        metadata.container = container;
+        metadata.probe_status = 0; // 0=待探测，将由后台队列处理
 
         // 写入数据库
         db.run(`
             INSERT OR REPLACE INTO netdisk_media 
-            (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, container, probe_status, is_locked, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `, [
             source.id, folder.path, metadata.title, metadata.original_title || null, metadata.year,
             metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
             metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
             metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
             metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
-            metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0
+            metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
+            metadata.container || null, metadata.probe_status || 0, 0  // is_locked 默认 0
         ]);
     }
 

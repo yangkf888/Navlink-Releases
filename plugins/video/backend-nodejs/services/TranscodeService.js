@@ -194,9 +194,29 @@ class TranscodeService {
         await fs.mkdir(outputDir, { recursive: true });
 
         let mediaInfo = options.mediaInfo;
+        const mediaId = options.mediaId;
+
         if (!mediaInfo) {
             try {
                 mediaInfo = await this.getMediaInfo(inputUrl, headers);
+
+                // 💡 起播即存盘：如果探测到了新信息且有 mediaId，立即同步到数据库
+                if (mediaId && mediaInfo) {
+                    const { getDatabase } = require('../database');
+                    const db = getDatabase();
+                    if (db) {
+                        const vCodec = (mediaInfo.videoCodec || '').toLowerCase();
+                        const aCodec = (mediaInfo.audioCodec || '').toLowerCase();
+                        const container = mediaInfo.format || '';
+                        const duration = mediaInfo.duration || 0;
+
+                        console.log(`[Transcode] Persisting probe results for media ID: ${mediaId}`);
+                        db.run(
+                            'UPDATE netdisk_media SET v_codec = ?, a_codec = ?, container = ?, duration = ?, probe_status = 1 WHERE id = ?',
+                            [vCodec, aCodec, container, duration, mediaId]
+                        );
+                    }
+                }
             } catch (err) {
                 mediaInfo = { duration: 7200, videoCodec: 'h264' };
             }

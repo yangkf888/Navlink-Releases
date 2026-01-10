@@ -7,9 +7,12 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { NetdiskSource } from '../types';
-import { apiGet } from '../utils/api';
+import { apiGet, apiPost } from '../utils/api';
 import { NetdiskFilter } from '../components/NetdiskFilter';
 import { useAuth } from '../contexts/AuthContext';
+import { VirtuosoGrid } from 'react-virtuoso';
+import { ContextMenu } from '../components/ContextMenu';
+import { TmdbCorrectModal } from '../components/TmdbCorrectModal';
 
 interface MediaItem {
     id: number;
@@ -104,6 +107,10 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     // 筛选状态
     const [activeFilters, setActiveFilters] = useState<{ genres?: string; year?: number; area?: string; actor?: string; studio?: string }>({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    // 交互状态
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: MediaItem } | null>(null);
+    const [correctModal, setCorrectModal] = useState<{ mediaId: number, query: string } | null>(null);
 
     // 监听窗口大小变化及全局同步消息
     useEffect(() => {
@@ -411,6 +418,33 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         setCurrentPath(path);
     };
 
+    const handleRefreshMetadata = async (mediaId: number) => {
+        try {
+            const res = await apiPost(`/netdisk/media/${mediaId}/refresh`);
+            if (res.success) {
+                // 刷新数据视图
+                if (currentLevel === 'all') loadAllSourcesSections();
+                else if (currentLevel === 'source') loadDirectorySections(currentSourceId!);
+                else loadMediaByPath(currentSourceId!, currentPath!, page, true);
+            }
+        } catch (err) {
+            console.error('Refresh failed:', err);
+        }
+    };
+
+    const handleUnlockMedia = async (mediaId: number) => {
+        try {
+            const res = await apiPost(`/netdisk/media/${mediaId}/unlock`);
+            if (res.success) {
+                if (currentLevel === 'all') loadAllSourcesSections();
+                else if (currentLevel === 'source') loadDirectorySections(currentSourceId!);
+                else loadMediaByPath(currentSourceId!, currentPath!, page, true);
+            }
+        } catch (err) {
+            console.error('Unlock failed:', err);
+        }
+    };
+
 
     // 获取当前源名称
     const getCurrentSourceName = () => {
@@ -431,7 +465,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         <div
             key={item.id}
             onClick={() => handlePlay(item)}
-            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, item });
+            }}
+            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group relative"
         >
             {/* 封面部分 */}
             <div className="relative">
@@ -483,6 +521,19 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         {item.year}
                     </span>
                 )}
+
+                {/* 更多按钮 (右上角) */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setContextMenu({ x: rect.left, y: rect.bottom + 5, item });
+                    }}
+                    className="absolute top-2 left-2 w-7 h-7 bg-black/40 hover:bg-black/80 text-primary/80 hover:text-primary rounded-full 
+                               flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+                >
+                    <i className="fas fa-ellipsis-v text-xs"></i>
+                </button>
             </div>
 
             {/* 信息部分 (底部) */}
@@ -705,44 +756,83 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-                                    {media.map(item => renderMediaCard(item))}
-                                </div>
-
-                                {/* 无限滚动加载触发器 */}
-                                <div
-                                    ref={loadMoreRef}
-                                    className="h-16 flex items-center justify-center mt-4 cursor-pointer hover:bg-secondary/30 rounded-lg transition-colors"
-                                    onClick={() => {
+                                {/* Video 2.0: 使用 VirtuosoGrid 虚拟化渲染 */}
+                                <VirtuosoGrid
+                                    style={{ height: 'calc(100vh - 200px)' }}
+                                    totalCount={media.length}
+                                    overscan={200}
+                                    listClassName="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5"
+                                    itemContent={(index) => renderMediaCard(media[index])}
+                                    endReached={() => {
                                         if (hasMore && !loadingMore) {
                                             loadMoreMedia();
                                         }
                                     }}
-                                >
-                                    {(loadingMore || hasMore) && (
-                                        <div className="flex items-center gap-2 text-secondary text-sm">
-                                            {loadingMore ? (
-                                                <>
-                                                    <i className="fas fa-spinner animate-spin text-blue-400"></i>
-                                                    <span>正在加载...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="fas fa-arrow-down animate-bounce text-secondary"></i>
-                                                    <span>加载更多 (点击或滚动)</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                    {!hasMore && media.length > 0 && (
-                                        <span className="text-secondary text-sm">已加载全部内容</span>
-                                    )}
-                                </div>
+                                    components={{
+                                        Footer: () => (
+                                            <div className="h-16 flex items-center justify-center mt-4">
+                                                {loadingMore ? (
+                                                    <div className="flex items-center gap-2 text-secondary text-sm">
+                                                        <i className="fas fa-spinner animate-spin text-blue-400"></i>
+                                                        <span>正在加载...</span>
+                                                    </div>
+                                                ) : hasMore ? (
+                                                    <div className="flex items-center gap-2 text-secondary text-sm">
+                                                        <i className="fas fa-arrow-down animate-bounce"></i>
+                                                        <span>加载更多</span>
+                                                    </div>
+                                                ) : media.length > 0 ? (
+                                                    <span className="text-secondary text-sm">已加载全部内容</span>
+                                                ) : null}
+                                            </div>
+                                        )
+                                    }}
+                                />
                             </>
                         )}
                     </>
                 )}
             </div>
+
+            {/* 操作菜单 */}
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    items={[
+                        { label: '立即播放', icon: 'fas fa-play', onClick: () => handlePlay(contextMenu.item) },
+                        { label: '识别修正', icon: 'fas fa-magic', onClick: () => setCorrectModal({ mediaId: contextMenu.item.id, query: contextMenu.item.title }) },
+                        { label: '查看详情', icon: 'fas fa-info-circle', onClick: () => handlePlay(contextMenu.item) },
+                        {
+                            label: '刷新元数据',
+                            icon: 'fas fa-sync-alt',
+                            onClick: () => handleRefreshMetadata(contextMenu.item.id)
+                        },
+                        {
+                            label: '恢复自动识别',
+                            icon: 'fas fa-undo',
+                            onClick: () => handleUnlockMedia(contextMenu.item.id)
+                        },
+                    ]}
+                />
+            )}
+
+            {/* 纠偏弹窗 */}
+            {correctModal && (
+                <TmdbCorrectModal
+                    isOpen={true}
+                    mediaId={correctModal.mediaId}
+                    initialQuery={correctModal.query}
+                    onClose={() => setCorrectModal(null)}
+                    onSuccess={() => {
+                        // 刷新数据
+                        if (currentLevel === 'all') loadAllSourcesSections();
+                        else if (currentLevel === 'source') loadDirectorySections(currentSourceId!);
+                        else loadMediaByPath(currentSourceId!, currentPath!, page, true);
+                    }}
+                />
+            )}
         </div >
     );
 }
