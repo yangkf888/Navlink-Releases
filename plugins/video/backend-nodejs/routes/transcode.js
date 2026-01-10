@@ -106,6 +106,9 @@ router.get('/:sessionId/stream', async (req, res) => {
         return res.status(404).json({ success: false, error: '会话已过期或不存在' });
     }
 
+    // 更新最后访问时间，防止播放中被 cleanup 清理
+    session.lastAccess = Date.now();
+
     await transcodeService.proxyStream(session.inputUrl, req.headers, res);
 });
 
