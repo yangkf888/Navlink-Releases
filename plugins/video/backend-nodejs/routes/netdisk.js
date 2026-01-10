@@ -798,10 +798,11 @@ router.post('/media/:id/refresh', async (req, res) => {
         const tmdbEnabled = !!apiKey;
 
         // 调用扫描服务（force=true 绕过锁定检查）
-        await mediaScanService.processMediaFolder(client, source, { path: media.path }, tmdbEnabled, true);
+        const folderName = media.path.split('/').filter(Boolean).pop() || media.path;
+        await mediaScanService.processMediaFolder(client, source, { path: media.path, name: folderName }, tmdbEnabled, true);
 
-        // 返回更新后的数据
-        const updated = db.get('SELECT * FROM netdisk_media WHERE id = ?', [id]);
+        // 返回更新后的数据（使用 getMediaById 获取格式化后的数据）
+        const updated = mediaScanService.getMediaById(parseInt(id));
         res.json({ success: true, data: updated, message: '元数据已刷新' });
     } catch (error) {
         console.error('[Netdisk] Media refresh failed:', error);
@@ -830,9 +831,10 @@ router.post('/media/:id/unlock', async (req, res) => {
         const tmdbEnabled = !!apiKey;
 
         // 2. 立即触发一次自动扫描识别 (不带 force，这样会应用标准的识别优先级)
-        await mediaScanService.processMediaFolder(client, source, { path: media.path }, tmdbEnabled, false);
+        const folderName = media.path.split('/').filter(Boolean).pop() || media.path;
+        await mediaScanService.processMediaFolder(client, source, { path: media.path, name: folderName }, tmdbEnabled, false);
 
-        const updated = db.get('SELECT * FROM netdisk_media WHERE id = ?', [id]);
+        const updated = mediaScanService.getMediaById(parseInt(id));
         res.json({ success: true, data: updated, message: '已解锁并恢复自动识别' });
     } catch (error) {
         console.error('[Netdisk] Media unlock failed:', error);
@@ -1510,6 +1512,126 @@ router.get('/stream', async (req, res) => {
     } catch (error) {
         console.error('[StreamProxy] Critical error:', error);
         if (!res.headersSent) res.status(500).send('Internal Server Error');
+    }
+});
+
+/**
+ * 获取媒体海报列表 (TMDB)
+ */
+router.get('/media/:id/posters', async (req, res) => {
+    try {
+        const db = getDatabase();
+        const media = db.get('SELECT tmdb_id, media_type FROM netdisk_media WHERE id = ?', [req.params.id]);
+        if (!media || !media.tmdb_id) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const { TmdbService } = require('../services/TmdbService');
+        const tmdbApiKey = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'")?.value;
+        const tmdbService = new TmdbService(tmdbApiKey);
+
+        const posters = await tmdbService.getPosters(media.tmdb_id, media.media_type === 'tvshow' ? 'tv' : 'movie');
+        res.json({ success: true, data: posters });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 手动更新封面 (从远程 URL 下载并锁定)
+ */
+router.post('/media/:id/update-poster', async (req, res) => {
+    try {
+        const { posterUrl } = req.body;
+        if (!posterUrl) return res.status(400).json({ success: false, error: '未提供海报 URL' });
+
+        const db = getDatabase();
+        const media = db.get('SELECT poster_url FROM netdisk_media WHERE id = ?', [req.params.id]);
+        if (!media) return res.status(404).json({ success: false, error: '媒体不存在' });
+
+        const imageCacheService = require('../services/ImageCacheService');
+        const crypto = require('crypto');
+        const fs = require('fs');
+        const path = require('path');
+        const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'video_covers');
+
+        // 1. 如果有旧缓存，尝试物理删除
+        if (media.poster_url) {
+            const oldHash = crypto.createHash('md5').update(media.poster_url).digest('hex');
+            const oldPath = path.join(CACHE_DIR, `${oldHash}.webp`);
+            if (fs.existsSync(oldPath)) {
+                try { fs.unlinkSync(oldPath); } catch (e) { }
+            }
+        }
+
+        // 2. 更新数据库并锁定
+        db.run('UPDATE netdisk_media SET poster_url = ?, is_locked = 1 WHERE id = ?', [posterUrl, req.params.id]);
+
+        // 3. 触发立即下载
+        await imageCacheService.preCache(posterUrl);
+
+        res.json({ success: true, message: '封面已更新并锁定' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 手动上传封面 (处理、保存并锁定)
+ */
+router.post('/media/:id/upload-poster', async (req, res) => {
+    try {
+        const multiparty = require('multiparty');
+        const form = new multiparty.Form();
+
+        form.parse(req, async (err, fields, files) => {
+            if (err || !files.file || !files.file[0]) {
+                return res.status(400).json({ success: false, error: '文件上传失败' });
+            }
+
+            const file = files.file[0];
+            const db = getDatabase();
+            const media = db.get('SELECT poster_url FROM netdisk_media WHERE id = ?', [req.params.id]);
+            if (!media) return res.status(404).json({ success: false, error: '媒体不存在' });
+
+            const sharp = require('sharp');
+            const crypto = require('crypto');
+            const fs = require('fs');
+            const path = require('path');
+            const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'video_covers');
+
+            // 1. 清理旧缓存
+            if (media.poster_url) {
+                const oldHash = crypto.createHash('md5').update(media.poster_url).digest('hex');
+                const oldPath = path.join(CACHE_DIR, `${oldHash}.webp`);
+                if (fs.existsSync(oldPath)) {
+                    try { fs.unlinkSync(oldPath); } catch (e) { }
+                }
+            }
+
+            // 2. 处理新文件
+            // 使用文件大小/名称生成伪 URL 的 MD5 作为存储名，确保路径的一致性
+            // 这里我们生成一个基于媒体 ID 的特殊路径前缀
+            const uploadPseudoUrl = `local_upload_${req.params.id}_${Date.now()}`;
+            const newHash = crypto.createHash('md5').update(uploadPseudoUrl).digest('hex');
+            const newPath = path.join(CACHE_DIR, `${newHash}.webp`);
+
+            await sharp(file.path)
+                .resize({ width: 480, withoutEnlargement: true })
+                .webp({ quality: 85 })
+                .toFile(newPath);
+
+            // 3. 更新数据库并锁定
+            // 存入伪 URL 以确保前端能通过 proxy 获取
+            db.run('UPDATE netdisk_media SET poster_url = ?, is_locked = 1 WHERE id = ?', [uploadPseudoUrl, req.params.id]);
+
+            // 清理临时文件
+            try { fs.unlinkSync(file.path); } catch (e) { }
+
+            res.json({ success: true, message: '封面上传成功并锁定' });
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

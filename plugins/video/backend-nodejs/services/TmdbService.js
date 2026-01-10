@@ -162,6 +162,33 @@ class TmdbService {
     }
 
     /**
+     * 获取海报列表
+     */
+    async getPosters(tmdbId, mediaType = 'movie') {
+        if (!this.apiKey) return [];
+
+        try {
+            const path = mediaType === 'movie' ? 'movie' : 'tv';
+            const response = await fetch(`${this.baseUrl}/${path}/${tmdbId}/images?api_key=${this.apiKey}`);
+            const result = await response.json();
+
+            if (!result.posters) return [];
+
+            return result.posters.map(p => ({
+                path: p.file_path,
+                preview: `${this.imageBaseUrl}/w185${p.file_path}`,
+                full: `${this.imageBaseUrl}/w500${p.file_path}`,
+                width: p.width,
+                height: p.height,
+                vote_average: p.vote_average
+            })).sort((a, b) => b.vote_average - a.vote_average);
+        } catch (error) {
+            console.error('[TMDb] Get posters failed:', error);
+            return [];
+        }
+    }
+
+    /**
      * 智能匹配 - 根据标题和年份自动匹配最佳结果
      */
     async match(title, year = null, type = 'auto') {

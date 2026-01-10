@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { apiPost } from '../utils/api';
 
 interface TmdbResult {
-    id: number;
+    tmdb_id: number;
     title: string;
     original_title: string;
     media_type: 'movie' | 'tv';
     release_date?: string;
     first_air_date?: string;
-    poster_path?: string;
+    poster?: string;
     overview: string;
     vote_average: number;
 }
@@ -125,13 +125,13 @@ export function TmdbCorrectModal({ mediaId, initialQuery, isOpen, onClose, onSuc
 
                     {results.map((item) => (
                         <div
-                            key={`${item.media_type}-${item.id}`}
+                            key={`${item.media_type}-${item.tmdb_id}`}
                             className="group flex gap-4 p-4 bg-tertiary/20 hover:bg-tertiary/50 border border-border-color rounded-2xl transition-all duration-300 cursor-default"
                         >
                             <div className="w-20 sm:w-24 aspect-[2/3] rounded-lg overflow-hidden flex-shrink-0 bg-secondary shadow-lg border border-border-color">
-                                {item.poster_path ? (
+                                {item.poster ? (
                                     <img
-                                        src={`https://image.tmdb.org/t/p/w200${item.poster_path}`}
+                                        src={item.poster}
                                         alt={item.title}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                         loading="lazy"
@@ -167,14 +167,14 @@ export function TmdbCorrectModal({ mediaId, initialQuery, isOpen, onClose, onSuc
                                 </div>
                                 <div className="mt-4 flex justify-end">
                                     <button
-                                        onClick={() => handleApply(item.id, item.media_type)}
+                                        onClick={() => handleApply(item.tmdb_id, item.media_type)}
                                         disabled={applying !== null}
                                         className={`px-5 py-2 rounded-xl text-xs font-black transition-all shadow-sm
-                                                  ${applying === item.id
+                                                  ${applying === item.tmdb_id
                                                 ? 'bg-blue-600/50 text-white animate-pulse'
                                                 : 'bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white hover:shadow-blue-600/30'}`}
                                     >
-                                        {applying === item.id ? (
+                                        {applying === item.tmdb_id ? (
                                             <><i className="fas fa-circle-notch fa-spin mr-2"></i>处理中...</>
                                         ) : (
                                             <><i className="fas fa-check-circle mr-1.5"></i>应用匹配</>

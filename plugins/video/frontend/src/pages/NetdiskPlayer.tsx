@@ -215,12 +215,15 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const handleRefresh = async () => {
         setLoading(true);
         try {
-            const res = await apiPost(`/netdisk/media/${mediaId}/refresh`);
-            if (res.success) {
-                loadMediaDetail(); // 重新加载详情
+            const res = await apiPost<MediaItem>(`/netdisk/media/${mediaId}/refresh`);
+            if (res.success && res.data) {
+                setMedia(res.data);
+            } else {
+                alert('刷新失败: ' + (res.error || '未知错误'));
             }
         } catch (err) {
             console.error('Refresh failed:', err);
+            alert('刷新失败，请稍后重试');
         } finally {
             setLoading(false);
         }
@@ -229,12 +232,17 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
     const handleUnlockMedia = async () => {
         setLoading(true);
         try {
-            const res = await apiPost(`/netdisk/media/${mediaId}/unlock`);
-            if (res.success) {
-                loadMediaDetail();
+            const res = await apiPost<MediaItem>(`/netdisk/media/${mediaId}/unlock`);
+            if (res.success && res.data) {
+                // 直接使用返回的数据更新状态，因为 unlock 会触发重新扫描，可能改变 ID
+                setMedia(res.data);
+                alert('已恢复自动识别，媒体信息已刷新');
+            } else {
+                alert('操作失败: ' + (res.error || '未知错误'));
             }
         } catch (err) {
             console.error('Unlock failed:', err);
+            alert('操作失败，请刷新页面重试');
         } finally {
             setLoading(false);
         }

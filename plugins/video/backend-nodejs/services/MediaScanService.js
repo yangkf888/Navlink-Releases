@@ -412,20 +412,45 @@ class MediaScanService {
         metadata.container = container;
         metadata.probe_status = 0; // 0=待探测，将由后台队列处理
 
-        // 写入数据库
-        db.run(`
-            INSERT OR REPLACE INTO netdisk_media 
-            (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, container, probe_status, is_locked, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        `, [
-            source.id, folder.path, metadata.title, metadata.original_title || null, metadata.year,
-            metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
-            metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
-            metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
-            metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
-            metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
-            metadata.container || null, metadata.probe_status || 0, 0  // is_locked 默认 0
-        ]);
+        // 写入数据库 - 使用 UPDATE 或 INSERT 以保持已有记录的 ID 不变
+        const existingRecord = db.get('SELECT id FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
+
+        if (existingRecord) {
+            // 已存在，使用 UPDATE 保持 ID 不变
+            db.run(`
+                UPDATE netdisk_media SET 
+                    title = ?, original_title = ?, year = ?, overview = ?,
+                    poster_url = ?, fanart_url = ?, rating = ?, genres = ?,
+                    media_type = ?, tmdb_id = ?, video_files = ?, nfo_parsed = ?,
+                    director = ?, actor = ?, area = ?, tagline = ?, studio = ?,
+                    extra_metadata = ?, v_codec = ?, a_codec = ?, duration = ?,
+                    container = ?, probe_status = ?, is_locked = 0, scanned_at = datetime('now')
+                WHERE id = ?
+            `, [
+                metadata.title, metadata.original_title || null, metadata.year,
+                metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
+                metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
+                metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
+                metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
+                metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
+                metadata.container || null, metadata.probe_status || 0, existingRecord.id
+            ]);
+        } else {
+            // 不存在，使用 INSERT
+            db.run(`
+                INSERT INTO netdisk_media 
+                (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, container, probe_status, is_locked, scanned_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            `, [
+                source.id, folder.path, metadata.title, metadata.original_title || null, metadata.year,
+                metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
+                metadata.media_type, metadata.tmdb_id, JSON.stringify(videoFiles), metadata.nfo_parsed,
+                metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
+                metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
+                metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
+                metadata.container || null, metadata.probe_status || 0, 0  // is_locked 默认 0
+            ]);
+        }
     }
 
     parseTitle(name) {

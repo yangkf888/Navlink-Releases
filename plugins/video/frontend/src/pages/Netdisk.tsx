@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { ContextMenu } from '../components/ContextMenu';
 import { TmdbCorrectModal } from '../components/TmdbCorrectModal';
+import { PosterPickerModal } from '../components/PosterPickerModal';
 
 interface MediaItem {
     id: number;
@@ -111,6 +112,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     // 交互状态
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: MediaItem } | null>(null);
     const [correctModal, setCorrectModal] = useState<{ mediaId: number, query: string } | null>(null);
+    const [posterPicker, setPosterPicker] = useState<{ mediaId: number, title: string } | null>(null);
 
     // 监听窗口大小变化及全局同步消息
     useEffect(() => {
@@ -476,7 +478,19 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 <div className="aspect-[2/3] overflow-hidden bg-secondary">
                     {item.poster_url ? (
                         <img
-                            src={item.poster_url.startsWith('http') ? `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}` : item.poster_url}
+                            src={(() => {
+                                if (!item.poster_url) return '';
+                                // 1. 手动上传的伪 URL -> 走 Proxy
+                                if (item.poster_url.startsWith('local_upload_')) {
+                                    return `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}`;
+                                }
+                                // 2. 已经是本站 API (WebDAV/Local 生成的代理链接) -> 直接使用，避免双重代理失败
+                                if (item.poster_url.startsWith('/api/')) {
+                                    return item.poster_url;
+                                }
+                                // 3. 外部 HTTP 链接 -> 走 Proxy 以获得缓存优化
+                                return `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(item.poster_url)}`;
+                            })()}
                             alt={item.title}
                             className="video-cover w-full h-full object-cover"
                             loading="lazy"
@@ -808,6 +822,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     items={[
                         { label: '立即播放', icon: 'fas fa-play', onClick: () => handlePlay(contextMenu.item) },
                         { label: '识别修正', icon: 'fas fa-magic', onClick: () => setCorrectModal({ mediaId: contextMenu.item.id, query: contextMenu.item.title }) },
+                        { label: '更换封面', icon: 'fas fa-image', onClick: () => setPosterPicker({ mediaId: contextMenu.item.id, title: contextMenu.item.title }) },
                         { label: '查看详情', icon: 'fas fa-info-circle', onClick: () => handlePlay(contextMenu.item) },
                         {
                             label: '刷新元数据',
@@ -832,6 +847,21 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                     onClose={() => setCorrectModal(null)}
                     onSuccess={() => {
                         // 刷新数据
+                        if (currentLevel === 'all') loadAllSourcesSections();
+                        else if (currentLevel === 'source') loadDirectorySections(currentSourceId!);
+                        else loadMediaByPath(currentSourceId!, currentPath!, page, true);
+                    }}
+                />
+            )}
+
+            {/* 海报更换弹窗 */}
+            {posterPicker && (
+                <PosterPickerModal
+                    isOpen={true}
+                    mediaId={posterPicker.mediaId}
+                    title={posterPicker.title}
+                    onClose={() => setPosterPicker(null)}
+                    onSuccess={() => {
                         if (currentLevel === 'all') loadAllSourcesSections();
                         else if (currentLevel === 'source') loadDirectorySections(currentSourceId!);
                         else loadMediaByPath(currentSourceId!, currentPath!, page, true);
