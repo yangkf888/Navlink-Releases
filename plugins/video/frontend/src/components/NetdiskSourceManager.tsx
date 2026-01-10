@@ -9,6 +9,131 @@ interface NetdiskSourceManagerProps {
     onSourceChange?: () => void;
 }
 
+interface EditablePathRowProps {
+    source: NetdiskSource;
+    pathObj: any;
+    idx: number;
+    onUpdate: (nextPaths: any[]) => void;
+    onScan: () => void;
+    onDelete: () => void;
+    onClearIndex: () => void;
+    onShowPicker: () => void;
+    scanningStatus?: any;
+}
+
+function EditablePathRow({ source, pathObj, idx, onUpdate, onScan, onDelete, onClearIndex, onShowPicker, scanningStatus }: EditablePathRowProps) {
+    const [localName, setLocalName] = useState(pathObj.name);
+    const [localPath, setLocalPath] = useState(pathObj.path);
+
+    // 当外部 pathObj 发生非交互性变更（如 loadSources 加载完成）时，同步本地状态
+    useEffect(() => {
+        setLocalName(pathObj.name);
+        setLocalPath(pathObj.path);
+    }, [pathObj.name, pathObj.path]);
+
+    const handleBlur = () => {
+        // 只有当内容发生实质变化时才触发昂贵的 API 调用
+        if (localName !== pathObj.name || localPath !== pathObj.path) {
+            const next = [...(source.scan_paths as any[])];
+            next[idx] = { ...next[idx], name: localName, path: localPath };
+            onUpdate(next);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 bg-secondary/50 p-3 rounded-lg border border-border-color">
+            <div className="flex-1 flex items-center gap-2 min-w-[300px]">
+                <input
+                    type="text"
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
+                    onBlur={handleBlur}
+                    placeholder="媒体库名称 (如: 电影、剧集)"
+                    className="w-1/3 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
+                />
+                <input
+                    type="text"
+                    value={localPath}
+                    onChange={(e) => setLocalPath(e.target.value)}
+                    onBlur={handleBlur}
+                    placeholder="媒体库路径 (网盘中的目录路径)"
+                    className="flex-1 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
+                />
+                <button
+                    onClick={onShowPicker}
+                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-primary transition-colors"
+                >
+                    <i className="fas fa-folder-open"></i>
+                </button>
+            </div>
+            <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
+                    <input
+                        type="checkbox"
+                        checked={pathObj.tmdb_enabled !== false}
+                        onChange={(e) => {
+                            const next = [...(source.scan_paths as any[])];
+                            next[idx] = { ...next[idx], tmdb_enabled: e.target.checked };
+                            onUpdate(next);
+                        }}
+                        className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
+                    />
+                    TMDB
+                </label>
+                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
+                    <input
+                        type="checkbox"
+                        checked={!!pathObj.hidden}
+                        onChange={(e) => {
+                            const next = [...(source.scan_paths as any[])];
+                            next[idx] = { ...next[idx], hidden: e.target.checked };
+                            onUpdate(next);
+                        }}
+                        className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
+                    />
+                    隐藏
+                </label>
+                <button
+                    onClick={onScan}
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${scanningStatus?.scanning
+                        ? 'bg-blue-600 text-primary animate-pulse'
+                        : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                        }`}
+                >
+                    <i className={`fas ${scanningStatus?.scanning ? 'fa-spinner fa-spin' : 'fa-sync-alt'}`}></i>
+                    {scanningStatus?.scanning ? '正在扫描' : '扫描'}
+                </button>
+                <button
+                    onClick={async () => {
+                        try {
+                            const res = await apiPost<any>('/netdisk/retry-failed-images', {});
+                            if (res.success) {
+                                // 这里可以触发一个全局提示，或者通过 prop 传回
+                                alert(res.message || '重试已启动');
+                            }
+                        } catch (e) {
+                            console.error('Failed to retry images:', e);
+                        }
+                    }}
+                    className="px-2 py-1 bg-amber-500/20 text-amber-500 rounded hover:bg-amber-500/30 text-xs transition-colors"
+                    title="立即重试该目录下加载失败的封面图片"
+                >
+                    <i className="fas fa-image mr-1"></i> 重试封面
+                </button>
+                <button
+                    onClick={onClearIndex}
+                    className="px-2 py-1 bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 text-xs transition-colors"
+                >
+                    <i className="fas fa-eraser mr-1"></i> 清理索引
+                </button>
+                <button onClick={onDelete} className="p-1.5 text-secondary hover:text-red-400 transition-colors">
+                    <i className="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerProps) {
     const [sources, setSources] = useState<NetdiskSource[]>([]);
     const [loading, setLoading] = useState(true);
@@ -618,112 +743,36 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                         {/* 表头 */}
                                                         {(Array.isArray(source.scan_paths) ? source.scan_paths : []).length > 0 && (
                                                             <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-secondary uppercase tracking-wider">
-                                                                <div className="w-[calc(33.333%-10px)] ml-1">媒体库名称</div>
-                                                                <div className="flex-1">媒体库路径</div>
-                                                                <div className="w-[200px] text-right pr-12">操作</div>
+                                                                <div className="w-1/4 ml-1">媒体库名称</div>
+                                                                <div className="w-1/3">媒体库路径</div>
+                                                                <div className="flex-1 text-right pr-6">操作</div>
                                                             </div>
                                                         )}
-                                                        {(Array.isArray(source.scan_paths) ? source.scan_paths : []).map((pathObj: any, idx: number) => (
-                                                            <div key={idx} className="flex flex-wrap items-center gap-2 bg-secondary/50 p-3 rounded-lg border border-border-color">
-                                                                <div className="flex-1 flex items-center gap-2 min-w-[300px]">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={pathObj.name}
-                                                                        onChange={(e) => {
-                                                                            const next = [...(source.scan_paths as any[])];
-                                                                            next[idx] = { ...next[idx], name: e.target.value };
-                                                                            handleUpdateScanPaths(source, next);
-                                                                        }}
-                                                                        placeholder="媒体库名称 (如: 电影、剧集)"
-                                                                        className="w-1/3 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
-                                                                        title="显示在前端侧边栏的名称"
-                                                                    />
-                                                                    <input
-                                                                        type="text"
-                                                                        value={pathObj.path}
-                                                                        onChange={(e) => {
-                                                                            const next = [...(source.scan_paths as any[])];
-                                                                            next[idx] = { ...next[idx], path: e.target.value };
-                                                                            handleUpdateScanPaths(source, next);
-                                                                        }}
-                                                                        placeholder="媒体库路径 (网盘中的目录路径)"
-                                                                        className="flex-1 px-2 py-1.5 bg-secondary text-primary border border-border-color rounded text-xs focus:border-blue-500 outline-none hover:border-gray-600 transition-colors"
-                                                                        title="网盘中实际存放媒体的目录路径"
-                                                                    />
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setPickerSourceId(source.id);
-                                                                            setPickerMode('edit');
-                                                                            setPickerEditIndex(idx);
-                                                                            setPickerOpen(true);
-                                                                        }}
-                                                                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-primary transition-colors"
-                                                                        title="浏览选择"
-                                                                    >
-                                                                        <i className="fas fa-folder-open"></i>
-                                                                    </button>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors" title="启用后，若缺少本地 NFO 或封面，将通过 TMDB 补全数据">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={pathObj.tmdb_enabled !== false}
-                                                                            onChange={(e) => {
-                                                                                const next = [...(source.scan_paths as any[])];
-                                                                                next[idx] = { ...next[idx], tmdb_enabled: e.target.checked };
-                                                                                handleUpdateScanPaths(source, next);
-                                                                            }}
-                                                                            className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
-                                                                        />
-                                                                        TMDB
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!pathObj.hidden}
-                                                                            onChange={(e) => {
-                                                                                const next = [...(source.scan_paths as any[])];
-                                                                                next[idx] = { ...next[idx], hidden: e.target.checked };
-                                                                                handleUpdateScanPaths(source, next);
-                                                                            }}
-                                                                            className="w-3 h-3 rounded border-gray-600 bg-secondary text-blue-500 focus:ring-0"
-                                                                        />
-                                                                        隐藏
-                                                                    </label>
-                                                                    <button
-                                                                        onClick={() => handleScan(source.id, pathObj.path)}
-                                                                        className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${scanningStatuses[source.id]?.paths?.[pathObj.path]?.scanning
-                                                                            ? 'bg-blue-600 text-primary animate-pulse'
-                                                                            : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                                                                            }`}
-                                                                    >
-                                                                        <i className={`fas ${scanningStatuses[source.id]?.paths?.[pathObj.path]?.scanning ? 'fa-spinner fa-spin' : 'fa-sync-alt'}`}></i>
-                                                                        {scanningStatuses[source.id]?.paths?.[pathObj.path]?.scanning ? '正在扫描' : '扫描'}
-                                                                    </button>
-                                                                    {scanningStatuses[source.id]?.paths?.[pathObj.path]?.scanning && (
-                                                                        <span className="text-[10px] text-blue-400 animate-pulse">
-                                                                            {scanningStatuses[source.id]?.paths?.[pathObj.path]?.message}
-                                                                        </span>
-                                                                    )}
-                                                                    <button
-                                                                        onClick={() => handleClearIndex(source.id, pathObj.path)}
-                                                                        className="px-2 py-1 bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 text-xs transition-colors"
-                                                                    >
-                                                                        <i className="fas fa-eraser mr-1"></i> 清理索引
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const next = (source.scan_paths as any[]).filter((_, i) => i !== idx);
-                                                                            handleUpdateScanPaths(source, next);
-                                                                        }}
-                                                                        className="p-1.5 text-secondary hover:text-red-400 transition-colors"
-                                                                        title="删除目录"
-                                                                    >
-                                                                        <i className="fas fa-times"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                        {(Array.isArray(source.scan_paths) ? source.scan_paths : []).map((pathObj: any, idx: number) => {
+                                                            // 为每个输入框维护一个独立的本地状态，解决输入过程中的抖动和丢焦点问题
+                                                            return (
+                                                                <EditablePathRow
+                                                                    key={`${source.id}-${idx}`}
+                                                                    source={source}
+                                                                    pathObj={pathObj}
+                                                                    idx={idx}
+                                                                    onUpdate={(nextPaths) => handleUpdateScanPaths(source, nextPaths)}
+                                                                    onScan={() => handleScan(source.id, pathObj.path)}
+                                                                    onDelete={() => {
+                                                                        const next = (source.scan_paths as any[]).filter((_, i) => i !== idx);
+                                                                        handleUpdateScanPaths(source, next);
+                                                                    }}
+                                                                    onClearIndex={() => handleClearIndex(source.id, pathObj.path)}
+                                                                    onShowPicker={() => {
+                                                                        setPickerSourceId(source.id);
+                                                                        setPickerMode('edit');
+                                                                        setPickerEditIndex(idx);
+                                                                        setPickerOpen(true);
+                                                                    }}
+                                                                    scanningStatus={scanningStatuses[source.id]?.paths?.[pathObj.path]}
+                                                                />
+                                                            );
+                                                        })}
                                                         {(Array.isArray(source.scan_paths) ? source.scan_paths : []).length === 0 && (
                                                             <div className="text-center py-4 text-gray-600 italic text-xs">
                                                                 未配置扫描目录，将扫描全量资源

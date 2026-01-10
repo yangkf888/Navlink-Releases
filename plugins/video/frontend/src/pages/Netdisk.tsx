@@ -529,10 +529,15 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setContextMenu({ x: rect.left, y: rect.bottom + 5, item });
                     }}
-                    className="absolute top-2 left-2 w-7 h-7 bg-black/40 hover:bg-black/80 text-primary/80 hover:text-primary rounded-full 
-                               flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+                    className="absolute top-2 left-2 w-7 h-7 
+                               bg-black/40 hover:bg-blue-600 
+                               dark:bg-black/60 dark:hover:bg-blue-600
+                               text-white shadow-md border border-white/10
+                               flex items-center justify-center opacity-0 group-hover:opacity-100
+                               transition-all duration-300 z-[30] active:scale-90 rounded-full"
+                    title="更多选项"
                 >
-                    <i className="fas fa-ellipsis-v text-xs"></i>
+                    <i className="fas fa-ellipsis-v text-[10px]"></i>
                 </button>
             </div>
 

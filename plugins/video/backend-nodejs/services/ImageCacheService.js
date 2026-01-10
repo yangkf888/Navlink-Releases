@@ -13,8 +13,6 @@ const FAIL_COOLDOWN = 24 * 60 * 60 * 1000; // 24 小时冷却期
 
 class ImageCacheService {
     constructor() {
-        // Video 2.0: 失败名单 Map<url, {count, lastFail}>
-        this.failedUrls = new Map();
         this.ensureCacheDir();
     }
 
@@ -30,32 +28,50 @@ class ImageCacheService {
     }
 
     /**
-     * Video 2.0: 检查 URL 是否在失败名单中
+     * Video 2.0: 检查 URL 是否在失败名单中 (数据库持久化版)
      */
     _isInDeathList(url) {
-        const record = this.failedUrls.get(url);
-        if (!record) return false;
+        const { getDatabase } = require('../database');
+        const db = getDatabase();
+        if (!db) return false;
 
-        // 检查冷却期
-        if (Date.now() - record.lastFail > FAIL_COOLDOWN) {
-            this.failedUrls.delete(url);
+        try {
+            const record = db.get('SELECT fail_count, last_fail_at FROM failed_images WHERE url = ?', [url]);
+            if (!record) return false;
+
+            // 检查冷却期
+            const lastFailAt = new Date(record.last_fail_at).getTime();
+            if (Date.now() - lastFailAt > FAIL_COOLDOWN) {
+                db.run('DELETE FROM failed_images WHERE url = ?', [url]);
+                return false;
+            }
+
+            return record.fail_count >= FAIL_THRESHOLD;
+        } catch (err) {
             return false;
         }
-
-        return record.count >= FAIL_THRESHOLD;
     }
 
     /**
-     * Video 2.0: 记录失败
+     * Video 2.0: 记录失败 (数据库持久化版)
      */
     _recordFailure(url) {
-        const record = this.failedUrls.get(url) || { count: 0, lastFail: 0 };
-        record.count += 1;
-        record.lastFail = Date.now();
-        this.failedUrls.set(url, record);
+        const { getDatabase } = require('../database');
+        const db = getDatabase();
+        if (!db) return;
 
-        if (record.count >= FAIL_THRESHOLD) {
-            console.log(`[ImageCache] URL added to death list: ${url.substring(0, 100)}...`);
+        try {
+            const record = db.get('SELECT fail_count FROM failed_images WHERE url = ?', [url]);
+            if (!record) {
+                db.run('INSERT INTO failed_images (url, fail_count, last_fail_at) VALUES (?, 1, CURRENT_TIMESTAMP)', [url]);
+            } else {
+                db.run(
+                    'UPDATE failed_images SET fail_count = fail_count + 1, last_fail_at = CURRENT_TIMESTAMP WHERE url = ?',
+                    [url]
+                );
+            }
+        } catch (err) {
+            console.error(`[ImageCache] Failed to record failure to DB:`, err.message);
         }
     }
 
@@ -158,6 +174,13 @@ class ImageCacheService {
             this._recordFailure(imageUrl);
             return null;
         }
+    }
+
+    /**
+     * Video 2.0: 预缓存图片 (供后台队列调用)
+     */
+    async preCache(imageUrl, headers = {}) {
+        return await this.getCachedImage(imageUrl, headers);
     }
 
     /**

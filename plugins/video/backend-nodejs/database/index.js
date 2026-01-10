@@ -224,6 +224,13 @@ function initSchema(db) {
         );
         CREATE INDEX IF NOT EXISTS idx_netdisk_media_source ON netdisk_media(source_id);
         CREATE INDEX IF NOT EXISTS idx_netdisk_media_type ON netdisk_media(media_type);
+
+        -- 图片下载失败名单表 (持久化)
+        CREATE TABLE IF NOT EXISTS failed_images (
+            url TEXT PRIMARY KEY,
+            fail_count INTEGER DEFAULT 0,
+            last_fail_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);

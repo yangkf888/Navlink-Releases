@@ -183,11 +183,25 @@ router.put('/sources/:id', (req, res) => {
         db.run(`UPDATE netdisk_sources SET ${updates.join(', ')} WHERE id = ?`, values);
 
         // 如果修改了扫描路径且源已启用，自动触发一次增量扫描
+        // 优化：仅当路径 (path) 发生变化或新增路径时才触发扫描，单纯修改名称 (name) 不再触发
         if (scan_paths !== undefined && (enabled === undefined || enabled)) {
-            console.log(`[Netdisk] Scan paths updated for source ${id}, triggering auto-scan...`);
-            mediaScanService.scanSource(parseInt(id), 5).catch(err => {
-                console.error('[Netdisk] Auto-scan failed:', err);
-            });
+            try {
+                const oldSource = db.get('SELECT scan_paths FROM netdisk_sources WHERE id = ?', [id]);
+                const oldPaths = JSON.parse(oldSource?.scan_paths || '[]');
+                const newPaths = typeof scan_paths === 'string' ? JSON.parse(scan_paths) : scan_paths;
+
+                const hasPathChange = newPaths.some((np) => !oldPaths.some((op) => op.path === np.path));
+
+                if (hasPathChange) {
+                    console.log(`[Netdisk] Critical scan paths updated for source ${id}, triggering auto-scan...`);
+                    mediaScanService.scanSource(parseInt(id), 5).catch(err => {
+                        console.error('[Netdisk] Auto-scan failed:', err);
+                    });
+                }
+            } catch (e) {
+                // 解析失败则默认不触发，避免崩溃
+                console.error('[Netdisk] Failed to compare scan paths:', e);
+            }
         }
 
         // 清除缓存
@@ -455,8 +469,8 @@ router.get('/scan/:sourceId/status', (req, res) => {
  */
 router.get('/probe/status', (req, res) => {
     try {
-        const { probeQueueService } = require('../services/ProbeQueueService');
-        const status = probeQueueService.getStatus();
+        const { scanQueueService } = require('../services/ScanQueueService');
+        const status = scanQueueService.getStatus();
 
         // 获取待探测/已探测/失败的数量
         const db = getDatabase();
@@ -1496,6 +1510,38 @@ router.get('/stream', async (req, res) => {
     } catch (error) {
         console.error('[StreamProxy] Critical error:', error);
         if (!res.headersSent) res.status(500).send('Internal Server Error');
+    }
+});
+
+/**
+ * 重新尝试下载失败的封面图片 (高优先级)
+ */
+router.post('/retry-failed-images', async (req, res) => {
+    try {
+        const { scanQueueService } = require('../services/ScanQueueService');
+        const db = getDatabase();
+
+        // 获取失败超过 1 次的 URL (因为 1 次可能是临时网络波动，3 次以上是被持久化排除的)
+        // 我们尝试拉取所有在 failed_images 表中的 URL 重新推进 instantRetry 队列
+        const failedUrls = db.all('SELECT url FROM failed_images').map(row => row.url);
+
+        if (failedUrls.length === 0) {
+            return res.json({ success: true, message: '没有需要重试的图片' });
+        }
+
+        // 清空数据库中的失败记录，给它们一次重生的机会
+        db.run('DELETE FROM failed_images');
+
+        // 推入高优先级队列
+        scanQueueService.addInstantRetry(failedUrls);
+
+        res.json({
+            success: true,
+            message: `已将 ${failedUrls.length} 张失败图片加入高优先级重试队列`
+        });
+    } catch (error) {
+        console.error('[Netdisk] Failed to retry images:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

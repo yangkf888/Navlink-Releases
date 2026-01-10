@@ -401,7 +401,7 @@ class MediaScanService {
         }
 
         // 4. 视频编码探测 - 改为异步后台处理 (Video 2.0 性能优化)
-        // 扫描时不再同步调用 ffprobe，由后台 ProbeQueueService 异步补全
+        // 扫描时不再同步调用 ffprobe，由后台 ScanQueueService 异步补全
         // 此处仅提取容器格式并标记 probe_status=0 (待探测)
         let container = null;
         if (videoFiles.length > 0) {

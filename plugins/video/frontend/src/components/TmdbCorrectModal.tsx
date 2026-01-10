@@ -72,10 +72,10 @@ export function TmdbCorrectModal({ mediaId, initialQuery, isOpen, onClose, onSuc
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-secondary/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/90 animate-in fade-in duration-300">
+            <div className="bg-secondary border border-border-color rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* 头部 */}
-                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/5">
+                <div className="px-6 py-4 border-b border-border-color flex items-center justify-between bg-white/[0.03] dark:bg-white/[0.03] light:bg-black/[0.03]">
                     <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                         <i className="fas fa-magic text-blue-400"></i>
                         识别修正
@@ -89,89 +89,96 @@ export function TmdbCorrectModal({ mediaId, initialQuery, isOpen, onClose, onSuc
                 <div className="p-6 pb-2">
                     <div className="flex gap-2">
                         <div className="relative flex-1">
-                            <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-secondary"></i>
+                            <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-secondary/50"></i>
                             <input
                                 type="text"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                 placeholder="输入影视名称进行搜索..."
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 text-primary rounded-xl border border-white/10 
-                                         focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 text-primary rounded-xl border border-border-color 
+                                         focus:border-blue-500/50 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-secondary/30"
                             />
                         </div>
                         <button
                             onClick={handleSearch}
                             disabled={loading}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all disabled:opacity-50"
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-600/20 active:scale-95"
                         >
                             {loading ? <i className="fas fa-spinner fa-spin"></i> : '搜 索'}
                         </button>
                     </div>
-                    <p className="mt-3 text-xs text-secondary/60 flex items-center gap-1">
-                        <i className="fas fa-info-circle"></i>
-                        提示：修正后系统将锁定该记录，不再自动更新数据。
+                    <p className="mt-3 text-[10px] text-secondary/60 flex items-center gap-1.5 px-1 font-medium italic">
+                        <i className="fas fa-info-circle text-blue-400/70"></i>
+                        提示：修正后系统将自动加锁，人工修正过的数据不会被后续扫描覆盖
                     </p>
                 </div>
 
                 {/* 结果列表 */}
-                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-3 custom-scrollbar">
                     {results.length === 0 && !loading && (
-                        <div className="py-20 text-center text-secondary opacity-50">
-                            <i className="fas fa-search text-4xl mb-4"></i>
-                            <p>输入关键词开始重新匹配</p>
+                        <div className="py-20 text-center text-secondary opacity-30">
+                            <i className="fas fa-search text-5xl mb-4"></i>
+                            <p className="text-sm">输入关键词开始重新匹配</p>
                         </div>
                     )}
 
                     {results.map((item) => (
                         <div
                             key={`${item.media_type}-${item.id}`}
-                            className="group flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-blue-500/50 hover:bg-white/10 transition-all duration-300"
+                            className="group flex gap-4 p-4 bg-tertiary/20 hover:bg-tertiary/50 border border-border-color rounded-2xl transition-all duration-300 cursor-default"
                         >
-                            <div className="w-20 sm:w-24 aspect-[2/3] rounded-lg overflow-hidden flex-shrink-0 bg-secondary shadow-lg">
+                            <div className="w-20 sm:w-24 aspect-[2/3] rounded-lg overflow-hidden flex-shrink-0 bg-secondary shadow-lg border border-border-color">
                                 {item.poster_path ? (
                                     <img
                                         src={`https://image.tmdb.org/t/p/w200${item.poster_path}`}
                                         alt={item.title}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                        loading="lazy"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-secondary">
-                                        <i className="fas fa-image"></i>
+                                    <div className="w-full h-full flex items-center justify-center text-secondary/30">
+                                        <i className="fas fa-image text-3xl"></i>
                                     </div>
                                 )}
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-primary font-bold truncate text-base sm:text-lg" title={item.title}>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <h3 className="text-primary font-bold truncate text-base sm:text-lg tracking-tight" title={item.title}>
                                             {item.title || item.original_title}
                                         </h3>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${item.media_type === 'movie' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${item.media_type === 'movie' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
                                             {item.media_type === 'movie' ? '电影' : '剧集'}
                                         </span>
                                     </div>
-                                    <div className="text-secondary text-xs mb-2 flex items-center gap-3">
-                                        <span>{(item.release_date || item.first_air_date || '').split('-')[0]}</span>
-                                        <span className="flex items-center gap-1 text-yellow-500/80">
+                                    <div className="flex items-center gap-3 mb-2.5">
+                                        <span className="text-secondary/80 text-[11px] font-bold bg-secondary px-2 py-0.5 rounded">
+                                            {(item.release_date || item.first_air_date || '未知年份').split('-')[0]}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 text-yellow-500 font-bold text-[11px]">
                                             <i className="fas fa-star text-[10px]"></i>
                                             {item.vote_average.toFixed(1)}
                                         </span>
                                     </div>
-                                    <p className="text-secondary/80 text-xs line-clamp-2 leading-relaxed">
-                                        {item.overview || '暂无简介...'}
+                                    <p className="text-secondary/70 text-xs line-clamp-2 leading-relaxed font-medium">
+                                        {item.overview || '暂无内容简介...'}
                                     </p>
                                 </div>
-                                <div className="mt-3 flex justify-end">
+                                <div className="mt-4 flex justify-end">
                                     <button
                                         onClick={() => handleApply(item.id, item.media_type)}
                                         disabled={applying !== null}
-                                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all
+                                        className={`px-5 py-2 rounded-xl text-xs font-black transition-all shadow-sm
                                                   ${applying === item.id
                                                 ? 'bg-blue-600/50 text-white animate-pulse'
-                                                : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}
+                                                : 'bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white hover:shadow-blue-600/30'}`}
                                     >
-                                        {applying === item.id ? '正在应用...' : '应用匹配'}
+                                        {applying === item.id ? (
+                                            <><i className="fas fa-circle-notch fa-spin mr-2"></i>处理中...</>
+                                        ) : (
+                                            <><i className="fas fa-check-circle mr-1.5"></i>应用匹配</>
+                                        )}
                                     </button>
                                 </div>
                             </div>
