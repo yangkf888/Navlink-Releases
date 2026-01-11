@@ -9,12 +9,15 @@ const imageCacheService = require('./ImageCacheService');
 const os = require('os');
 
 // 并发及延迟配置
-const PROBE_CONCURRENCY = 1; // 降低视频探测并发 (从 2 降到 1)
-const IMAGE_CONCURRENCY = 2; // 降低下载图片并发 (从 3 降到 2)
-const PROBE_DELAY = 1500;     // 增加探测间隔
-const IMAGE_DELAY = 300;          // 图片下载间隔
-const LOAD_THRESHOLD = 1.5;   // 降低负载阈值，更敏锐地停机避让 (从 2.5 降到 1.5)
-const BATCH_SIZE = 10;        // 缩小一批次的任务量 (从 20 降到 10)
+const PROBE_CONCURRENCY = 1; // 保持低并发探测
+const IMAGE_CONCURRENCY = 1; // 降低下载图片并发 (从 2 降到 1)
+const BATCH_SIZE = 6;         // 进一步缩小批次量，确保平稳
+
+// 🚀 v2.0.7 呼吸式调度配置 (高频小步快跑模式)
+const REFRESH_DELAY = 1000;   // NFO/TMDB 补全间隔 (1秒一个，3000部约50分钟)
+const PROBE_DELAY = 2000;     // 视频探测间隔 (2秒一个，3000部约1.5小时)
+const IMAGE_DELAY = 500;      // 图片处理间隔
+const IDLE_SLEEP = 30000;     // 全部空闲时的长深度睡眠
 
 class ScanQueueService {
     constructor() {
@@ -23,7 +26,7 @@ class ScanQueueService {
         this.processedCount = 0;
         this.failedCount = 0;
         this.lastActivity = null;
-        this.isPausedByPlayback = false; // 是否因为正在播放而暂停 (优先级最高)
+        this.isPausedByPlayback = false;
 
         // 内存中的临时即时重试队列 (高优先级)
         this.instantRetryUrls = [];
@@ -35,7 +38,7 @@ class ScanQueueService {
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        console.log('[ScanQueue] Unified background scan service started');
+        console.log('[ScanQueue] Unified V2.0.7 background scan service started (Breathing Mode)');
         this._runLoop();
     }
 
@@ -56,7 +59,6 @@ class ScanQueueService {
         } else {
             this.instantRetryUrls.push(urls);
         }
-        // 如果服务没起，尝试拉起
         if (!this.isRunning) this.start();
     }
 
@@ -89,58 +91,94 @@ class ScanQueueService {
     }
 
     /**
-     * 主循环
+     * 主循环 (🚀 v2.0.7 分层呼吸逻辑)
      */
     async _runLoop() {
         while (this.isRunning) {
             // 1. 优先处理即时重试队列
             if (this.instantRetryUrls.length > 0) {
                 const url = this.instantRetryUrls.shift();
-                console.log(`[ScanQueue] Processing high-priority retry: ${url.substring(0, 50)}...`);
                 await imageCacheService.preCache(url);
                 continue;
             }
 
-            // 2. 检查系统暂停标记 (播放避让或负载过高)
+            // 2. 播放避让逻辑 (最高优先级)
             if (this.isPausedByPlayback) {
-                await this._sleep(15000); // 播放中，延长休眠时间
+                await this._sleep(30000); // 播放中，进入 30 秒深度避让
                 continue;
             }
 
-            const load = os.loadavg()[0];
-            if (load > LOAD_THRESHOLD) {
-                this.isPaused = true;
-                await this._sleep(10000);
-                continue;
-            }
-            this.isPaused = false;
-
-            // 3. 获取待处理任务 (视频探测占 BATCH_SIZE / 2, 图片预缓存占 BATCH_SIZE / 2)
-            const probeItems = this._getPendingProbeItems(Math.floor(BATCH_SIZE / 2));
-            const imageItems = this._getPendingImageUrls(Math.floor(BATCH_SIZE / 2));
-
-            if (probeItems.length === 0 && imageItems.length === 0) {
-                await this._sleep(15000); // 全部空闲时休眠
+            // 3. 分层获取任务
+            // A. 元数据补完任务 (nfo_parsed = 0)
+            const refreshItems = this._getPendingRefreshItems(1);
+            if (refreshItems.length > 0) {
+                await this._refreshMetadata(refreshItems[0]);
+                await this._sleep(REFRESH_DELAY + Math.random() * 2000);
                 continue;
             }
 
-            // 执行探测任务
-            const probePromises = probeItems.map(async (item) => {
-                if (!this.isRunning) return;
-                await this._probeItem(item);
-                await this._sleep(PROBE_DELAY + Math.random() * 500);
-            });
+            // B. 视频探测任务 (probe_status = 0)
+            const probeItems = this._getPendingProbeItems(1);
+            if (probeItems.length > 0) {
+                await this._probeItem(probeItems[0]);
+                await this._sleep(PROBE_DELAY + Math.random() * 3000);
+                continue;
+            }
 
-            // 执行图片预缓存任务
-            const imagePromises = imageItems.map(async (url) => {
-                if (!this.isRunning) return;
-                console.log(`[ScanQueue] Pre-caching image: ${url.substring(0, 60)}...`);
-                await imageCacheService.preCache(url);
-                await this._sleep(IMAGE_DELAY + Math.random() * 200);
-            });
+            // C. 图片缓存任务
+            const imageItems = this._getPendingImageUrls(1);
+            if (imageItems.length > 0) {
+                await imageCacheService.preCache(imageItems[0]);
+                await this._sleep(IMAGE_DELAY + Math.random() * 1000);
+                continue;
+            }
 
-            await Promise.allSettled([...probePromises, ...imagePromises]);
+            // 4. 全部空闲时进入深度睡眠
             this.lastActivity = new Date().toISOString();
+            await this._sleep(IDLE_SLEEP);
+        }
+    }
+
+    /**
+     * 获取待补全元数据的媒体项
+     */
+    _getPendingRefreshItems(limit) {
+        const db = getDatabase();
+        try {
+            return db.all(
+                `SELECT id, source_id, path, title, video_files 
+                 FROM netdisk_media 
+                 WHERE nfo_parsed = 0 AND is_locked = 0
+                 ORDER BY scanned_at DESC 
+                 LIMIT ?`,
+                [limit]
+            );
+        } catch (err) { return []; }
+    }
+
+    /**
+     * 补全元数据实操 (读 NFO / TMDB)
+     */
+    async _refreshMetadata(item) {
+        const { mediaScanService } = require('./MediaScanService');
+        const db = getDatabase();
+        try {
+            console.log(`[ScanQueue] Background refreshing metadata for: ${item.title}`);
+            const source = db.get('SELECT * FROM netdisk_sources WHERE id = ?', [item.source_id]);
+            if (!source) return;
+
+            const { getNetdiskClient } = require('../routes/netdisk');
+            const client = await getNetdiskClient(source);
+            const folder = { path: item.path, name: item.title };
+
+            // 💡 调用 MediaScanService 的 processMediaFolder，并设 force = true
+            // 由于是后台单个处理，IO 压力受 REFRESH_DELAY 保护
+            await mediaScanService.processMediaFolder(client, source, folder, true, true);
+            this.processedCount++;
+        } catch (err) {
+            console.warn(`[ScanQueue] Failed to refresh metadata for ${item.title}:`, err.message);
+            // 标记为已处理以避免死循环，或者增加错误计数
+            db.run('UPDATE netdisk_media SET nfo_parsed = -1 WHERE id = ?', [item.id]);
         }
     }
 
@@ -158,20 +196,15 @@ class ScanQueueService {
                  LIMIT ?`,
                 [limit]
             );
-        } catch (err) {
-            return [];
-        }
+        } catch (err) { return []; }
     }
 
     /**
      * 获取待预缓存的图片 URL
-     * 条件：netdisk_media 中有 poster_url，但本地没有缓存文件，且不在失败名单中
      */
     _getPendingImageUrls(limit) {
         const db = getDatabase();
         try {
-            // 这里我们只选网络资源 (AList, WebDAV) 的封面，跳过本地资源封面 (本地资源由 ImageCacheService 自动识别并跳过存储)
-            // 同时排除已在 failed_images 表中的 URL
             return db.all(
                 `SELECT m.poster_url 
                  FROM netdisk_media m
@@ -185,13 +218,11 @@ class ScanQueueService {
                  LIMIT ?`,
                 [limit]
             ).map(row => row.poster_url);
-        } catch (err) {
-            return [];
-        }
+        } catch (err) { return []; }
     }
 
     /**
-     * 探测单个媒体项 (原有逻辑)
+     * 探测单个媒体项
      */
     async _probeItem(item) {
         const db = getDatabase();
@@ -213,12 +244,11 @@ class ScanQueueService {
                     this._markStatus(item.id, -1);
                     return;
                 }
-                // 使用转码服务的流代理 (必须是绝对路径以供 axios 使用)
                 const port = process.env.PORT || 3002;
                 probeUrl = `http://127.0.0.1:${port}/api/plugins/video/api/netdisk/stream?sourceId=${source.id}&path=${encodeURIComponent(item.path + '/' + firstVideo)}`;
             }
 
-            console.log(`[ScanQueue] Probing: ${item.title}`);
+            console.log(`[ScanQueue] Probing in background: ${item.title}`);
             const mediaInfo = await transcodeService.getMediaInfo(probeUrl, {});
 
             if (mediaInfo && mediaInfo.videoCodec) {
@@ -226,7 +256,7 @@ class ScanQueueService {
                     `UPDATE netdisk_media 
                      SET v_codec = ?, a_codec = ?, duration = ?, container = ?, probe_status = 1 
                      WHERE id = ?`,
-                    [mediaInfo.videoCodec, mediaInfo.audioCodec || null, mediaInfo.duration || 0, mediaInfo.format || null, item.id]
+                    [mediaInfo.videoCodec, mediaInfo.audioCodec || null, mediaInfo.duration || 0, (mediaInfo.format || '').split(',')[0], item.id]
                 );
                 this.processedCount++;
             } else {

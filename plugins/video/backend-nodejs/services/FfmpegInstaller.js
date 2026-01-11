@@ -13,6 +13,7 @@ class FfmpegInstaller {
         this.binDir = path.join(this.baseDir, 'data', 'bin');
         this.tempDir = path.join(this.baseDir, 'data', 'temp_install');
         this.ffmpegPath = path.join(this.binDir, 'ffmpeg');
+        this.ffprobePath = path.join(this.binDir, 'ffprobe');
 
         this.isInstalling = false;
         this.progress = 0;
@@ -28,7 +29,8 @@ class FfmpegInstaller {
             status: this.status,
             progress: this.progress,
             error: this.error,
-            path: fs.existsSync(this.ffmpegPath) ? this.ffmpegPath : null
+            path: fs.existsSync(this.ffmpegPath) ? this.ffmpegPath : null,
+            ffprobePath: fs.existsSync(this.ffprobePath) ? this.ffprobePath : null
         };
     }
 
@@ -69,16 +71,26 @@ class FfmpegInstaller {
             // 我们通过通配符查找更稳妥
             await execAsync(`tar -xf "${tarPath}" -C "${this.tempDir}"`);
 
-            // 5. 查找解压后的二进制文件并移动
-            const foundBinary = this._findBinary(this.tempDir, 'ffmpeg');
-            if (!foundBinary) {
+            // 5. 查找解压后的二进制文件并移动 (ffmpeg, ffprobe)
+            const foundFfmpeg = this._findBinary(this.tempDir, 'ffmpeg');
+            const foundFfprobe = this._findBinary(this.tempDir, 'ffprobe');
+
+            if (!foundFfmpeg) {
                 throw new Error('ffmpeg binary not found in extracted archive');
             }
 
-            // 移动并重命名
+            // 移动并重命名 ffmpeg
             if (fs.existsSync(this.ffmpegPath)) fs.unlinkSync(this.ffmpegPath);
-            fs.renameSync(foundBinary, this.ffmpegPath);
+            fs.renameSync(foundFfmpeg, this.ffmpegPath);
             fs.chmodSync(this.ffmpegPath, 0o755); // 赋予执行权限
+
+            // 如果有 ffprobe (johnvansickle 的包通常都有)，也一并处理
+            if (foundFfprobe) {
+                if (fs.existsSync(this.ffprobePath)) fs.unlinkSync(this.ffprobePath);
+                fs.renameSync(foundFfprobe, this.ffprobePath);
+                fs.chmodSync(this.ffprobePath, 0o755); // 赋予执行权限
+                console.log('[FfmpegInstaller] ffprobe also installed');
+            }
 
             // 6. 清理
             fs.rmSync(this.tempDir, { recursive: true, force: true });

@@ -14,7 +14,7 @@ interface EditablePathRowProps {
     pathObj: any;
     idx: number;
     onUpdate: (nextPaths: any[]) => void;
-    onScan: () => void;
+    onScan: (force: boolean) => void;
     onDelete: () => void;
     onClearIndex: () => void;
     onShowPicker: () => void;
@@ -93,16 +93,29 @@ function EditablePathRow({ source, pathObj, idx, onUpdate, onScan, onDelete, onC
                     />
                     隐藏
                 </label>
-                <button
-                    onClick={onScan}
-                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${scanningStatus?.scanning
-                        ? 'bg-blue-600 text-primary animate-pulse'
-                        : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                        }`}
-                >
-                    <i className={`fas ${scanningStatus?.scanning ? 'fa-spinner fa-spin' : 'fa-sync-alt'}`}></i>
-                    {scanningStatus?.scanning ? '正在扫描' : '扫描'}
-                </button>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => onScan(false)}
+                        disabled={scanningStatus?.scanning}
+                        className={`px-2 py-1 rounded-l text-[10px] transition-all flex items-center gap-1 ${scanningStatus?.scanning
+                            ? 'bg-blue-600/50 text-primary cursor-not-allowed'
+                            : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                            }`}
+                        title="仅扫描新增或变动的内容 (极速)"
+                    >
+                        <i className={`fas ${scanningStatus?.scanning ? 'fa-spinner fa-spin' : 'fa-plus-circle'}`}></i>
+                        {scanningStatus?.scanning ? '正在扫描' : '扫描新内容'}
+                    </button>
+                    <button
+                        onClick={() => onScan(true)}
+                        disabled={scanningStatus?.scanning}
+                        className="px-2 py-1 bg-blue-600/10 text-blue-400/70 hover:bg-blue-600/40 hover:text-blue-300 rounded-r text-[10px] transition-all border-l border-blue-500/20"
+                        title="强制重新刮削该目录下所有内容 (耗时)"
+                    >
+                        <i className="fas fa-redo-alt"></i>
+                        刷新全部
+                    </button>
+                </div>
                 <button
                     onClick={async () => {
                         try {
@@ -140,6 +153,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
     const [saving, setSaving] = useState(false);
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
     const [scanningStatuses, setScanningStatuses] = useState<Record<number, any>>({});
+    const [globalStatus, setGlobalStatus] = useState<any>(null);
 
     // 对话框状态
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -207,7 +221,20 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
 
     // 扫描状态轮询
     useEffect(() => {
+        const fetchGlobalStatus = async () => {
+            try {
+                const res = await apiGet<any>('/netdisk/probe/status');
+                if (res.success && res.data) {
+                    setGlobalStatus(res.data);
+                }
+            } catch (e) {
+                console.warn('Failed to fetch global probe status:', e);
+            }
+        };
+
+        fetchGlobalStatus();
         const interval = setInterval(() => {
+            fetchGlobalStatus();
             sources.forEach(source => {
                 if (source.enabled) {
                     apiGet<any>(`/netdisk/scan/${source.id}/status`).then(res => {
@@ -426,14 +453,16 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
         );
     };
 
-    const handleScan = async (sourceId: number, path?: string) => {
+    const handleScan = async (sourceId: number, path?: string, force: boolean = false) => {
         try {
-            const res = await apiPost(`/netdisk/scan`, { sourceId, path });
+            const res = await apiPost(`/netdisk/scan`, { sourceId, path, force });
             if (res.success) {
                 setAlertDialog({
                     isOpen: true,
-                    title: '扫描已启动',
-                    message: path ? `正在扫描目录: ${path}` : '正在全量扫描...',
+                    title: force ? '全量刷新已启动' : '增量扫描已启动',
+                    message: force
+                        ? (path ? `正在强制刷新目录: ${path}` : '正在强制全量刷新...')
+                        : (path ? `正在扫描新内容: ${path}` : '正在扫描新增资源...'),
                     variant: 'info'
                 });
             }
@@ -548,6 +577,36 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {globalStatus && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-500/20 rounded-lg text-[11px]">
+                            <div className="flex items-center gap-1.5" title="后台队列是否正在运行">
+                                <i className={`fas fa-circle text-[8px] ${globalStatus.isRunning ? 'text-green-500 animate-pulse' : 'text-gray-500'}`}></i>
+                                <span className="text-secondary uppercase font-bold tracking-wider">后台扫描队列</span>
+                            </div>
+                            <div className="w-px h-3 bg-blue-500/20"></div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
+                                    <span className="text-blue-400 font-bold">{globalStatus.pendingNfo || 0}</span>
+                                    <span className="text-secondary">待补全</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-purple-400 font-bold">{globalStatus.pending || 0}</span>
+                                    <span className="text-secondary">待探测</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-green-400 font-bold">{globalStatus.locked || 0}</span>
+                                    <span className="text-secondary">已锁定</span>
+                                </div>
+                                {globalStatus.isPausedByPlayback && (
+                                    <div className="flex items-center gap-1 text-orange-400 animate-pulse px-1.5 py-0.5 bg-orange-400/10 rounded">
+                                        <i className="fas fa-pause-circle"></i>
+                                        <span>正在播放，后台避让中</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {selectedIds.length > 0 && (
                         <>
                             <button
@@ -687,11 +746,18 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                     <td className="p-3">
                                         <div className="flex items-center gap-1">
                                             <button
-                                                onClick={() => handleScan(source.id)}
+                                                onClick={() => handleScan(source.id, undefined, false)}
                                                 className="p-1.5 text-secondary hover:text-green-400 transition-colors"
-                                                title="立即全量扫描"
+                                                title="扫描新内容 (增量扫描)"
                                             >
                                                 <i className="fas fa-sync-alt"></i>
+                                            </button>
+                                            <button
+                                                onClick={() => handleScan(source.id, undefined, true)}
+                                                className="p-1.5 text-secondary hover:text-red-400 transition-colors"
+                                                title="刷新全部 (强制全量重新刮削)"
+                                            >
+                                                <i className="fas fa-redo-alt"></i>
                                             </button>
                                             <button
                                                 onClick={() => handleTest(source)}
@@ -778,7 +844,7 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                                     pathObj={pathObj}
                                                                     idx={idx}
                                                                     onUpdate={(nextPaths) => handleUpdateScanPaths(source, nextPaths)}
-                                                                    onScan={() => handleScan(source.id, pathObj.path)}
+                                                                    onScan={(force) => handleScan(source.id, pathObj.path, force)}
                                                                     onDelete={() => {
                                                                         const next = (source.scan_paths as any[]).filter((_, i) => i !== idx);
                                                                         handleUpdateScanPaths(source, next);

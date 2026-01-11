@@ -440,10 +440,9 @@ router.post('/search', async (req, res) => {
 router.post('/scan/:sourceId', async (req, res) => {
     try {
         const { sourceId } = req.params;
-        const { maxDepth = 3 } = req.body;
-
+        const { force = false, maxDepth = 3 } = req.body;
         // 异步执行扫描，立即返回
-        mediaScanService.scanSource(parseInt(sourceId), maxDepth).catch(err => {
+        mediaScanService.scanSource(parseInt(sourceId), maxDepth, null, force).catch(err => {
             console.error('[Netdisk] Scan failed:', err);
         });
 
@@ -480,14 +479,18 @@ router.get('/probe/status', (req, res) => {
         const pending = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = 0')?.count || 0;
         const success = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = 1')?.count || 0;
         const failed = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE probe_status = -1')?.count || 0;
+        const locked = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE is_locked = 1')?.count || 0;
+        const pendingNfo = db.get('SELECT COUNT(*) as count FROM netdisk_media WHERE nfo_parsed = 0')?.count || 0;
 
         res.json({
             success: true,
             data: {
                 ...status,
-                pending,
-                success,
-                failed
+                pending,      // 待探测
+                success,      // 已探测
+                failed,       // 探测失败
+                locked,       // 已锁定 (不更新)
+                pendingNfo    // 待补全元数据
             }
         });
     } catch (error) {
@@ -997,6 +1000,28 @@ router.post('/media/:id/play', async (req, res) => {
                 externalPlayUrl = videoPath;
             }
         }
+        // 2. ⚡️ 即时探测补偿 (Video 2.0.6 Performance Hack)
+        // 如果扫描时跳过了探测，或者它是刚通过全量加速入库的，在这里进行即时补偿
+        if (media.probe_status === 0) {
+            console.log(`[Netdisk] On-demand probing for ${media.title} before playback...`);
+            try {
+                const headers = client.getHeaders ? client.getHeaders() : {};
+                const mediaInfo = await transcodeService.getMediaInfo(rawUrl, headers);
+                if (mediaInfo) {
+                    db.run(
+                        `UPDATE netdisk_media SET v_codec = ?, a_codec = ?, duration = ?, container = ?, probe_status = 1 WHERE id = ?`,
+                        [mediaInfo.videoCodec, mediaInfo.audioCodec || null, mediaInfo.duration || 0, (mediaInfo.format || '').split(',')[0], media.id]
+                    );
+                    // 更新当前内存中的对象，避免后续转码判断使用旧数据
+                    media.v_codec = mediaInfo.videoCodec;
+                    media.a_codec = mediaInfo.audioCodec;
+                    media.duration = mediaInfo.duration;
+                    media.container = (mediaInfo.format || '').split(',')[0];
+                }
+            } catch (err) {
+                console.warn(`[Netdisk] On-demand probe failed:`, err.message);
+            }
+        }
 
         // 2. 核心：统一播放决策 (从此不再区分 strm 与原生文件)
         const transcodeSettingsRow = db.get("SELECT value FROM settings WHERE key = 'strm_transcode_enabled'");
@@ -1114,8 +1139,8 @@ router.delete('/media/source/:sourceId', (req, res) => {
 // 新增：单目录扫描
 router.post('/scan', async (req, res) => {
     try {
-        const { sourceId, path } = req.body;
-        mediaScanService.scanSource(parseInt(sourceId), 5, path).catch(err => {
+        const { sourceId, path, force = false } = req.body;
+        mediaScanService.scanSource(parseInt(sourceId), 5, path, force).catch(err => {
             console.error('[Netdisk] Single scan failed:', err);
         });
         res.json({ success: true });
@@ -1670,6 +1695,9 @@ router.post('/retry-failed-images', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// 导出工具函数供其他服务使用
+router.getNetdiskClient = getNetdiskClient;
 
 module.exports = router;
 

@@ -71,6 +71,26 @@ class TranscodeService {
                 if (isAvail) {
                     this.ffmpegPath = p;
                     ffmpeg.setFfmpegPath(p);
+
+                    // 🚀 同步设置 ffprobe 路径 (防止在某些环境下找不到 ffprobe)
+                    // 逻辑：尝试在 ffmpeg 同级目录下找 ffprobe，或者直接用 'ffprobe'
+                    const ffprobePath = p.replace(/ffmpeg$/, 'ffprobe');
+                    try {
+                        const isProbeAvail = await new Promise((resolve) => {
+                            const proc = spawn(ffprobePath, ['-version']);
+                            proc.on('error', () => resolve(false));
+                            proc.on('close', (code) => resolve(code === 0));
+                        });
+                        if (isProbeAvail) {
+                            ffmpeg.setFfprobePath(ffprobePath);
+                            // console.log(`[Transcode] Using ffprobe: ${ffprobePath}`);
+                        } else {
+                            ffmpeg.setFfprobePath('ffprobe');
+                        }
+                    } catch (e) {
+                        ffmpeg.setFfprobePath('ffprobe');
+                    }
+
                     console.log(`[Transcode] Using FFmpeg: ${p}`);
                     return { available: true, path: p };
                 }
