@@ -117,8 +117,8 @@ const PromoArea = () => {
         if (!itemToDelete) return;
 
         const newConfig = { ...config };
-        const tabIndex = newConfig.promo.findIndex(p => p.name === activeTabName);
-        if (tabIndex !== -1) {
+        const tabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
+        if (tabIndex !== undefined && tabIndex !== -1 && newConfig.promo) {
             newConfig.promo[tabIndex].items = newConfig.promo[tabIndex].items.filter(i => i.id !== itemToDelete.id);
             setConfig(newConfig);
         }
@@ -128,8 +128,8 @@ const PromoArea = () => {
 
     const handleSaveLink = (newItem: LinkItem) => {
         const newConfig = { ...config };
-        const tabIndex = newConfig.promo.findIndex(p => p.name === activeTabName);
-        if (tabIndex === -1) return;
+        const tabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
+        if (tabIndex === undefined || tabIndex === -1 || !newConfig.promo) return;
 
         const items = [...newConfig.promo[tabIndex].items];
 
@@ -139,8 +139,8 @@ const PromoArea = () => {
             if (itemIndex !== -1) {
                 // Preserve isAd property if it exists
                 const originalItem = items[itemIndex];
-                items[itemIndex] = { 
-                    ...newItem, 
+                items[itemIndex] = {
+                    ...newItem,
                     isAd: originalItem.isAd,
                     color: newItem.color || '#000000',
                     icon: newItem.icon || 'fa-solid fa-link'
@@ -148,8 +148,8 @@ const PromoArea = () => {
             }
         } else {
             // Add
-            items.push({ 
-                ...newItem, 
+            items.push({
+                ...newItem,
                 isAd: false,
                 color: newItem.color || '#000000',
                 icon: newItem.icon || 'fa-solid fa-link'
@@ -162,18 +162,18 @@ const PromoArea = () => {
 
     const handleMoveLink = (item: LinkItem, targetTabName: string) => {
         const newConfig = { ...config };
-        const sourceTabIndex = newConfig.promo.findIndex(p => p.name === activeTabName);
-        const targetTabIndex = newConfig.promo.findIndex(p => p.name === targetTabName);
+        const sourceTabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
+        const targetTabIndex = newConfig.promo?.findIndex(p => p.name === targetTabName);
 
-        if (sourceTabIndex === -1 || targetTabIndex === -1) return;
+        if (sourceTabIndex === undefined || sourceTabIndex === -1 || targetTabIndex === undefined || targetTabIndex === -1 || !newConfig.promo) return;
 
         // Remove from source tab
         newConfig.promo[sourceTabIndex].items = newConfig.promo[sourceTabIndex].items.filter(i => i.id !== item.id);
 
         // Add to target tab (preserve isAd property)
-        const sourceItem = config.promo[sourceTabIndex].items.find(i => i.id === item.id);
-        newConfig.promo[targetTabIndex].items.push({ 
-            ...item, 
+        const sourceItem = config.promo?.[sourceTabIndex].items.find(i => i.id === item.id);
+        newConfig.promo[targetTabIndex].items.push({
+            ...item,
             isAd: sourceItem?.isAd || false,
             color: item.color || '#000000',
             icon: item.icon || 'fa-solid fa-link'
@@ -184,11 +184,11 @@ const PromoArea = () => {
 
     const handleCrossSectionMove = (item: LinkItem, targetSection: 'category' | 'promo', targetId: string, targetSubId?: string) => {
         const newConfig = { ...config };
-        
+
         if (targetSection === 'category') {
             // Move from promo to category
-            const sourceTabIndex = newConfig.promo.findIndex(p => p.name === activeTabName);
-            if (sourceTabIndex === -1) return;
+            const sourceTabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
+            if (sourceTabIndex === undefined || sourceTabIndex === -1 || !newConfig.promo) return;
 
             // Remove from source promo tab
             newConfig.promo[sourceTabIndex].items = newConfig.promo[sourceTabIndex].items.filter(i => i.id !== item.id);
@@ -230,8 +230,8 @@ const PromoArea = () => {
         if (sourceIndex === destinationIndex) return;
 
         const newConfig = { ...config };
-        const tabIndex = newConfig.promo.findIndex(p => p.name === activeTabName);
-        if (tabIndex === -1) return;
+        const tabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
+        if (tabIndex === undefined || tabIndex === -1 || !newConfig.promo) return;
 
         const items = [...newConfig.promo[tabIndex].items];
         const [removed] = items.splice(sourceIndex, 1);
@@ -337,7 +337,11 @@ const PromoArea = () => {
                                                     `}>
                                                         {!item.isAd && item.icon && (
                                                             <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-                                                                <Icon icon={item.icon} className="text-[28px]" style={{ color: item.color || '#ddd' }} />
+                                                                {item.icon.includes('fa-') || item.icon.includes(':') ? (
+                                                                    <Icon icon={item.icon} className="text-[28px]" style={{ color: item.color || '#ddd' }} />
+                                                                ) : (
+                                                                    <img src={item.icon} className="w-7 h-7 object-contain" alt="" />
+                                                                )}
                                                             </div>
                                                         )}
                                                         {item.isAd && <span className="text-[10px] border border-gray-300 rounded px-1 text-gray-400 flex-shrink-0">Ad</span>}
