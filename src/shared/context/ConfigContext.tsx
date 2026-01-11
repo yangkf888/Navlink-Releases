@@ -76,30 +76,27 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Initial Load
     useEffect(() => {
         const init = async () => {
-            // --- 1. Auth Check (Background) ---
+            // --- 1. Auth Check (Wait for verification) ---
             const token = localStorage.getItem('auth_token');
             if (token) {
-                // Don't await this! Let it run in background.
-                (async () => {
-                    try {
-                        console.log('[ConfigContext] 后台验证Token中...');
-                        const response = await fetch('/api/verify', {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
+                try {
+                    console.log('[ConfigContext] 正在验证身份...');
+                    const response = await fetch('/api/verify', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
 
-                        if (response.ok) {
-                            console.log('[ConfigContext] ✅ Token有效');
-                            setIsAuthenticated(true);
-                        } else if (response.status === 401 || response.status === 403) {
-                            console.warn('[ConfigContext] ⚠️ Token已失效');
-                            localStorage.removeItem('auth_token');
-                            setIsAuthenticated(false);
-                        }
-                    } catch (err) {
-                        console.error('[ConfigContext] ❌ Token验证失败:', err);
+                    if (response.ok) {
+                        console.log('[ConfigContext] ✅ 验证通过');
+                        setIsAuthenticated(true);
+                    } else if (response.status === 401 || response.status === 403) {
+                        console.warn('[ConfigContext] ⚠️ 身份验证失效');
+                        localStorage.removeItem('auth_token');
                         setIsAuthenticated(false);
                     }
-                })();
+                } catch (err) {
+                    console.error('[ConfigContext] ❌ 身份验证异常:', err);
+                    setIsAuthenticated(false);
+                }
             }
 
             // --- 2. Config Load Strategy ---
