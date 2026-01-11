@@ -539,7 +539,27 @@ export function useDockerNetworks(serverId: string | null) {
     loadNetworks();
   }, [loadNetworks]);
 
-  return { networks, loading, error, loadNetworks };
+  const removeNetwork = useCallback(async (networkId: string) => {
+    if (!serverId) throw new Error('未选择服务器');
+    const token = localStorage.getItem('auth_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE}/servers/${serverId}/networks/${networkId}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || '删除网络失败');
+    }
+    await loadNetworks();
+  }, [serverId, loadNetworks]);
+
+  return { networks, loading, error, loadNetworks, removeNetwork };
 }
 
 /**

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Network, DockerServer } from '../../types/docker';
+import { Network, DockerServer, Container } from '../../types/docker';
 import { Icon } from '@/shared/components/common/Icon';
 import ServerTabs from '../ServerTabs';
 
 interface NetworkListProps {
     networks: Network[];
+    containers: Container[];
     loading: boolean;
     error: string | null;
     servers: DockerServer[];
@@ -12,18 +13,24 @@ interface NetworkListProps {
     onSelectServer: (server: DockerServer) => void;
     onAddServer: () => void;
     onRefresh: () => void;
+    onDeleteNetwork: (networkId: string) => void;
 }
 
 export const NetworkList: React.FC<NetworkListProps> = ({
     networks,
+    containers,
     loading,
     error,
     servers,
     selectedServerId,
     onSelectServer,
     onAddServer,
-    onRefresh
+    onRefresh,
+    onDeleteNetwork
 }) => {
+    const isNetworkInUse = (networkName: string) => {
+        return containers.some(c => c.networks && c.networks.includes(networkName));
+    };
     if (loading) {
         return (
             <div className="space-y-4">
@@ -72,7 +79,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
         <div className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-4 overflow-hidden">
-                    <h2 className="text-xl font-bold text-gray-800 whitespace-nowrap">网络列表</h2>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">网络列表</h2>
                     <ServerTabs
                         servers={servers}
                         selectedServerId={selectedServerId}
@@ -80,44 +87,64 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                         onAddServer={onAddServer}
                     />
                 </div>
-                <button onClick={onRefresh} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:text-[var(--theme-primary)] hover:border-[var(--theme-primary)] transition self-end md:self-auto">
+                <button onClick={onRefresh} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition self-end md:self-auto shadow-sm">
                     <Icon icon="fa-solid fa-refresh" />
                     <span>刷新</span>
                 </button>
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="hidden md:block bg-white dark:bg-transparent border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-medium">
+                    <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400 font-bold">
                         <tr>
-                            <th className="px-6 py-3">名称 / ID</th>
-                            <th className="px-6 py-3">驱动</th>
-                            <th className="px-6 py-3">范围</th>
-                            <th className="px-6 py-3">内部</th>
+                            <th className="px-6 py-4">名称 / ID</th>
+                            <th className="px-6 py-4">驱动</th>
+                            <th className="px-6 py-4">范围</th>
+                            <th className="px-6 py-4">内部</th>
+                            <th className="px-6 py-4 text-right">操作</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {networks.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                                     暂无网络
                                 </td>
                             </tr>
                         ) : networks.map(network => (
-                            <tr key={network.id} className="hover:bg-gray-50/50 transition-colors">
+                            <tr key={network.id} className="hover:bg-gray-50/50 dark:hover:bg-transparent transition-colors">
                                 <td className="px-6 py-4">
-                                    <div className="font-bold text-gray-800">{network.name}</div>
-                                    <div className="text-xs text-gray-400 font-mono mt-0.5">{network.id ? network.id.substring(0, 12) : '-'}</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="font-bold text-gray-800 dark:text-gray-200">{network.name}</div>
+                                        {isNetworkInUse(network.name) && (
+                                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-green-500 text-white uppercase tracking-wider">
+                                                使用中
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700 w-fit">{network.id ? network.id.substring(0, 12) : '-'}</div>
                                 </td>
-                                <td className="px-6 py-4 text-sm text-gray-600">{network.driver}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">{network.scope}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">
+                                <td className="px-6 py-4">
+                                    <span className="px-2 py-0.5 bg-blue-500 text-white rounded text-[10px] font-bold uppercase tracking-wider">{network.driver}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="px-2 py-0.5 bg-purple-500 text-white rounded text-[10px] font-bold uppercase tracking-wider">{network.scope}</span>
+                                </td>
+                                <td className="px-6 py-4">
                                     {network.internal ? (
-                                        <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs">Yes</span>
+                                        <span className="text-white bg-green-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Yes</span>
                                     ) : (
-                                        <span className="text-gray-400 bg-gray-50 px-2 py-0.5 rounded text-xs">No</span>
+                                        <span className="text-white bg-gray-400 dark:bg-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">No</span>
                                     )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button
+                                        onClick={() => onDeleteNetwork(network.id)}
+                                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white rounded-lg hover:brightness-110 transition shadow-sm"
+                                    >
+                                        删除
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -128,31 +155,46 @@ export const NetworkList: React.FC<NetworkListProps> = ({
             {/* Mobile Card View */}
             <div className="md:hidden space-y-3">
                 {networks.length === 0 ? (
-                    <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm border border-gray-100">
+                    <div className="bg-white dark:bg-gray-900/50 rounded-xl p-8 text-center text-gray-500 dark:text-gray-400 shadow-sm border border-gray-100 dark:border-gray-800">
                         暂无网络
                     </div>
                 ) : networks.map(network => (
-                    <div key={network.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <div key={network.id} className="bg-white dark:bg-gray-900/50 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
                         <div className="flex justify-between items-start mb-2">
                             <div>
-                                <div className="font-bold text-gray-800 text-lg">{network.name}</div>
-                                <div className="text-xs text-gray-400 font-mono mt-0.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
+                                <div className="flex items-center gap-2">
+                                    <div className="font-bold text-gray-800 dark:text-gray-100 text-lg">{network.name}</div>
+                                    {isNetworkInUse(network.name) && (
+                                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-green-500 text-white uppercase tracking-wider">
+                                            使用中
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700 w-fit">
                                     {network.id ? network.id.substring(0, 12) : '-'}
                                 </div>
                             </div>
-                            {network.internal && (
-                                <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs">Internal</span>
-                            )}
+                            <div className="flex flex-col gap-2 items-end">
+                                {network.internal && (
+                                    <span className="text-white bg-green-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono">Internal</span>
+                                )}
+                                <button
+                                    onClick={() => onDeleteNetwork(network.id)}
+                                    className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white rounded-lg hover:brightness-110 transition shadow-sm"
+                                >
+                                    删除
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mt-3">
+                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400 mt-3">
                             <div>
-                                <span className="text-gray-400 text-xs block">Driver</span>
-                                {network.driver}
+                                <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase block mb-1">Driver</span>
+                                <span className="px-1.5 py-0.5 bg-blue-500 text-white rounded text-[10px] font-bold uppercase">{network.driver}</span>
                             </div>
                             <div>
-                                <span className="text-gray-400 text-xs block">Scope</span>
-                                {network.scope}
+                                <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase block mb-1">Scope</span>
+                                <span className="px-1.5 py-0.5 bg-purple-500 text-white rounded text-[10px] font-bold uppercase">{network.scope}</span>
                             </div>
                         </div>
                     </div>

@@ -91,7 +91,7 @@ function DockerApp() {
 
   const { images, loading: imagesLoading, error: imagesError, removeImage, pruneImages, loadImages, pullImage } = useDockerImages(selectedServer?.id || null);
   const { info, loading: infoLoading, loadInfo } = useDockerSystemInfo(selectedServer?.id || null);
-  const { networks, loading: networksLoading, error: networksError, loadNetworks } = useDockerNetworks(selectedServer?.id || null);
+  const { networks, loading: networksLoading, error: networksError, loadNetworks, removeNetwork } = useDockerNetworks(selectedServer?.id || null);
   const { volumes, loading: volumesLoading, error: volumesError, removeVolume, pruneVolumes, loadVolumes } = useDockerVolumes(selectedServer?.id || null);
 
   // Track if we have performed the initial redirect to default server
@@ -481,6 +481,7 @@ function DockerApp() {
               {activeView === 'images' && (
                 <ImageList
                   images={images}
+                  containers={containers}
                   loading={imagesLoading}
                   error={imagesError}
                   servers={servers}
@@ -538,6 +539,7 @@ function DockerApp() {
               {activeView === 'networks' && (
                 <NetworkList
                   networks={networks}
+                  containers={containers}
                   loading={networksLoading}
                   error={networksError}
                   servers={servers}
@@ -545,6 +547,18 @@ function DockerApp() {
                   onSelectServer={setSelectedServer}
                   onAddServer={() => setShowServerForm(true)}
                   onRefresh={loadNetworks}
+                  onDeleteNetwork={(id) => {
+                    showConfirm('确认删除', '确定要删除此网络吗？', async () => {
+                      try {
+                        await removeNetwork(id);
+                        showAlert('删除成功', '网络已成功删除', 'success');
+                      } catch (e: any) {
+                        showAlert('删除失败', e.message, 'error');
+                      } finally {
+                        hideConfirm();
+                      }
+                    });
+                  }}
                 />
               )}
 
@@ -605,24 +619,20 @@ function DockerApp() {
                         <button
                           onClick={async () => {
                             try {
-                              console.log('Testing connection for server:', server.id);
                               const result = await testConnection(server.id);
-                              console.log('Test connection result in App:', result);
-
                               if (result.success) {
                                 showAlert('连接成功', `延迟: ${result.latency}ms`, 'success');
                               } else {
-                                console.error('Test connection failed with result:', result);
                                 showAlert('连接失败', result.error || '未知错误', 'error');
                               }
                             } catch (error: any) {
-                              console.error('Connection test failed with error:', error);
                               showAlert('连接失败', error.message || '未知错误', 'error');
                             }
                           }}
-                          className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+                          className="px-3 py-1.5 text-xs font-bold bg-blue-600 dark:bg-blue-600 text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm shadow-blue-500/10"
                         >
-                          测试
+                          <Icon icon="fa-solid fa-bolt" className="text-[10px]" />
+                          <span>测试连接</span>
                         </button>
                         {server.is_default !== 1 && (
                           <button
@@ -634,10 +644,10 @@ function DockerApp() {
                                 showAlert('设置失败', error.message, 'error');
                               }
                             }}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition flex items-center gap-1"
+                            className="px-3 py-1.5 text-xs font-bold bg-amber-500 dark:bg-amber-500 text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm shadow-amber-500/10"
                             title="设为默认"
                           >
-                            <Icon icon="fa-solid fa-star" className="text-xs" />
+                            <Icon icon="fa-solid fa-star" className="text-[10px]" />
                             <span>设为默认</span>
                           </button>
                         )}
@@ -646,10 +656,10 @@ function DockerApp() {
                             setEditingServer(server);
                             setShowServerForm(true);
                           }}
-                          className="px-3 py-1.5 text-sm bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition flex items-center gap-1"
-                          title="编辑"
+                          className="px-3 py-1.5 text-xs font-bold bg-gray-500 dark:bg-gray-600 text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+                          title="编辑项目"
                         >
-                          <Icon icon="fa-solid fa-pen" className="text-xs" />
+                          <Icon icon="fa-solid fa-pen-to-square" className="text-[10px]" />
                           <span>编辑</span>
                         </button>
                         <button
@@ -665,10 +675,10 @@ function DockerApp() {
                               }
                             });
                           }}
-                          className="px-3 py-1.5 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition flex items-center gap-1"
-                          title="删除"
+                          className="px-3 py-1.5 text-xs font-bold bg-red-500 dark:bg-red-600 text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm shadow-red-500/10"
+                          title="删除服务器"
                         >
-                          <Icon icon="fa-solid fa-trash" className="text-xs" />
+                          <Icon icon="fa-solid fa-trash-can" className="text-[10px]" />
                           <span>删除</span>
                         </button>
                       </div>

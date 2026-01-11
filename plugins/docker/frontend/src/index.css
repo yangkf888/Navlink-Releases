@@ -28,3 +28,10 @@
 .border-gray-100 {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
+
+/* 强制清理深色模式下的列表悬停高亮 */
+[data-theme="dark"] .hover\:bg-gray-50\/50:hover,
+[data-theme="dark"] tr:hover,
+[data-theme="dark"] .group:hover {
+  background-color: transparent !important;
+}

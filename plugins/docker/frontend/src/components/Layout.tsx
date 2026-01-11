@@ -28,9 +28,9 @@ export function Layout({
     // 注意：postMessage 空侧边栏配置现在由 App.tsx 处理，避免重复发送
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden transition-colors">
             {/* 桌面端侧边栏 */}
-            <div className="hidden lg:flex w-60 flex-shrink-0 border-r border-gray-200">
+            <div className="hidden lg:flex w-60 flex-shrink-0 border-r border-gray-200 dark:border-gray-800">
                 <Sidebar
                     activeView={activeView}
                     onViewChange={onViewChange}
@@ -47,7 +47,7 @@ export function Layout({
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setMobileOpen(false)}
                     />
-                    <div className="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-2xl">
+                    <div className="absolute left-0 top-0 bottom-0 w-60 bg-white dark:bg-gray-900 shadow-2xl">
                         <Sidebar
                             activeView={activeView}
                             onViewChange={onViewChange}
@@ -64,20 +64,20 @@ export function Layout({
             {/* 主内容区域 */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* 移动端顶部栏 */}
-                <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
+                <div className="lg:hidden sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setMobileOpen(true)}
-                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                             >
                                 <i className="fas fa-bars text-lg"></i>
                             </button>
-                            <h1 className="text-lg font-bold text-gray-800">Docker管理</h1>
+                            <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Docker管理</h1>
                         </div>
                         <div className="flex items-center gap-2">
                             {selectedServer && (
-                                <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                                <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
                                     <span className={`w-2 h-2 rounded-full ${selectedServer.status === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                     <span className="max-w-[100px] truncate">{selectedServer.name}</span>
                                 </span>
