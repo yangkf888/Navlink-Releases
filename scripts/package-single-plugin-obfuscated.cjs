@@ -29,6 +29,8 @@ let currentVersion = ''; // 将从 manifest.json 中动态读取
 const OBFUSCATE_IGNORE = [
     'server.js',          // 插件入口，必须明文导出
     'FfmpegInstaller.js', // 包含复杂路径和下载逻辑
+    'MediaScanService.js', // 核心单例服务，混淆会导致方法引用失败
+    'ScanQueueService.js', // 背景队列服务，混淆可能导致呼吸模式逻辑异常
     'obfuscate.js'        // 自身
 ];
 

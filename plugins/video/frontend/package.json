@@ -1,6 +1,6 @@
 {
     "name": "video-plugin-frontend",
-    "version": "2.0.5",
+    "version": "2.0.7",
     "description": "Video Plugin Frontend - Video Aggregation and Playback",
     "type": "module",
     "scripts": {

@@ -142,7 +142,7 @@ class MediaScanService {
                 status.total += mediaFolders.length;
 
                 // 2. 处理该根路径下的所有子文件夹 (并行处理，限制并发)
-                const concurrency = 2; // 👈 降低并发，减轻 VPS 压力
+                const concurrency = 5; // 🚀 恢复并发，加速扫描过程
                 for (let i = 0; i < mediaFolders.length; i += concurrency) {
                     const chunk = mediaFolders.slice(i, i + concurrency);
                     await Promise.all(chunk.map(async (folder, index) => {
@@ -160,8 +160,6 @@ class MediaScanService {
                             console.error(`[MediaScan] Failed to process ${folder.path}:`, err.message);
                         }
                     }));
-                    // 每处理完一批，强制休息一下，让 CPU 喘口气处理 API 请求
-                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 status.paths[folderEntry.path].scanning = false;
                 status.paths[folderEntry.path].message = '扫描完成';
@@ -198,14 +196,34 @@ class MediaScanService {
     }
 
     /**
-     * 递归查找媒体文件夹 (💡 优化：改为顺序执行，避免网络 IO 瞬间爆发)
+     * 递归查找媒体文件夹 (💡 优化：支持 mtime 指纹对比，没变动则跳过)
      */
-    async findMediaFolders(client, path, maxDepth, currentDepth = 0) {
+    async findMediaFolders(client, path, maxDepth, currentDepth = 0, force = false) {
         if (currentDepth > maxDepth) return [];
 
+        const db = getDatabase();
         const result = [];
         try {
+            // 1. 获取目录信息与文件列表
             const items = await client.list(path);
+
+            // 💡 关键性能优化：mtime 指纹检查 (仅对本地或支持 mtime 的网盘有效)
+            // 如果不是强制重扫，且数据库中已有该路径，且 mtime 没变，则直接跳过深度递归
+            if (!force) {
+                try {
+                    const info = await client.getFileInfo(path).catch(() => null);
+                    if (info && info.mtime) {
+                        const mtimeStr = new Date(info.mtime).toISOString();
+                        const existing = db.get('SELECT id FROM netdisk_media WHERE path = ? AND scanned_at >= ?', [path, mtimeStr]);
+                        if (existing) {
+                            // 🚀 命中缓存指纹：此目录及其子目录均无变化，直接跳过整个分支
+                            // console.log(`[MediaScan] Skip unchanged folder branch: ${path}`);
+                            return [];
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
             const videos = items.filter(f => !f.is_dir && this.isVideoFile(f.name));
 
             // 找出有效的子目录（排除干扰项）
@@ -236,14 +254,14 @@ class MediaScanService {
                 });
             }
 
-            // 💡 关键优化：不再使用 Promise.all，改为顺序递归子目录
-            // 虽然耗时略长，但对服务器极其友好，避免触发 AList/网盘并发限制
-            for (const dir of dirs) {
+            // 💡 优化：回归受控并发递归，显著提升 SMB/Local 检索效率
+            const subFoldersResults = await Promise.all(dirs.map(dir => {
                 const subPath = (path + '/' + dir.name).replace(/\/+/g, '/');
-                const subFolders = await this.findMediaFolders(client, subPath, maxDepth, currentDepth + 1);
+                return this.findMediaFolders(client, subPath, maxDepth, currentDepth + 1, force);
+            }));
+
+            for (const subFolders of subFoldersResults) {
                 result.push(...subFolders);
-                // 给 API 预留处理空间
-                if (currentDepth < 2) await new Promise(resolve => setTimeout(resolve, 50));
             }
         } catch (err) {
             console.error(`[MediaScan] List ${path} failed:`, err.message);
@@ -350,46 +368,55 @@ class MediaScanService {
             extra_metadata: {}
         };
 
-        // 1. 解析 NFO
-        if (nfoFile) {
-            try {
-                const nfoPath = (folder.path + '/' + nfoFile.name).replace(/\/+/g, '/');
-                const info = await client.getFileInfo(nfoPath);
-                if (info && info.raw_url) {
-                    const headers = client.getHeaders ? client.getHeaders() : {};
-                    const content = await this.fetchNfoContent(info.raw_url, headers);
-                    const parsed = this.parseNfo(content, metadata.title);
-                    if (parsed) metadata = { ...metadata, ...parsed, nfo_parsed: 1 };
-                }
-            } catch (err) { /* ignore */ }
+        // 🚀 v2.0.7 影子扫描模式：跳过高延迟的 NFO 与 TMDB 逻辑，实现秒级落库
+        if (force) {
+            // 1. 解析 NFO (仅在强制刷新或单项刷新时执行)
+            if (nfoFile) {
+                try {
+                    const nfoPath = (folder.path + '/' + nfoFile.name).replace(/\/+/g, '/');
+                    const info = await client.getFileInfo(nfoPath);
+                    if (info && info.raw_url) {
+                        const headers = client.getHeaders ? client.getHeaders() : {};
+                        const content = await this.fetchNfoContent(info.raw_url, headers);
+                        const parsed = this.parseNfo(content, metadata.title);
+                        if (parsed) metadata = { ...metadata, ...parsed, nfo_parsed: 1 };
+                    }
+                } catch (err) { /* ignore */ }
+            }
+
+            // 2. 获取海报路径 (由于异步加载，全量扫描时不再强制下载)
+            if (posterFile && !metadata.poster_url) {
+                const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
+                metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
+            }
+            if (fanartFile && !metadata.fanart_url) {
+                const fanartPath = (folder.path + '/' + fanartFile.name).replace(/\/+/g, '/');
+                metadata.fanart_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(fanartPath)}`;
+            }
+
+            // 3. TMDB 回退
+            if (tmdbEnabled && (!metadata.nfo_parsed || !metadata.poster_url)) {
+                try {
+                    const match = await this.tmdbService.match(metadata.title, metadata.year);
+                    if (match) {
+                        if (!metadata.overview) metadata.overview = match.overview;
+                        if (!metadata.poster_url) metadata.poster_url = match.poster;
+                        if (!metadata.fanart_url) metadata.fanart_url = match.backdrop;
+                        metadata.tmdb_id = match.tmdb_id;
+                        if (!metadata.year) metadata.year = parseInt(match.year);
+                    }
+                } catch (err) { /* ignore */ }
+            }
+        } else {
+            // 💡 极速模式：即使不读 NFO，也尽可能识别本地海报路径，用于前端显示
+            if (posterFile) {
+                const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
+                metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
+            }
         }
 
-        // 2. 获取图片路径 (🚀 统一使用路径代理模式，确保永不过期且支持持久化缓存)
-        if (posterFile && !metadata.poster_url) {
-            const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
-            metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
-        }
-        if (fanartFile && !metadata.fanart_url) {
-            const fanartPath = (folder.path + '/' + fanartFile.name).replace(/\/+/g, '/');
-            metadata.fanart_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(fanartPath)}`;
-        }
-
-        // 3. TMDB 回退
-        if (tmdbEnabled && (!metadata.nfo_parsed || !metadata.poster_url)) {
-            try {
-                const match = await this.tmdbService.match(metadata.title, metadata.year);
-                if (match) {
-                    if (!metadata.overview) metadata.overview = match.overview;
-                    if (!metadata.poster_url) metadata.poster_url = match.poster;
-                    if (!metadata.fanart_url) metadata.fanart_url = match.backdrop;
-                    metadata.tmdb_id = match.tmdb_id;
-                    if (!metadata.year) metadata.year = parseInt(match.year);
-                }
-            } catch (err) { /* ignore */ }
-        }
-
-        // 4. 视频编码探测 (🚀 回归同步探测：扫完即得，不再依赖异步队列)
-        if (videoFiles.length > 0) {
+        // 4. 视频编码探测 (🚀 性能优化：全量扫描跳过探测，单项刷新模式才进行探测)
+        if (videoFiles.length > 0 && force) {
             try {
                 const firstVideoRaw = videoFiles[0];
                 let probeUrl = "";
@@ -407,7 +434,7 @@ class MediaScanService {
                 }
 
                 if (probeUrl) {
-                    // ⚡️ Turbo Probe: 仅探测关键信息，不耗费过多 CPU
+                    // ⚡️ 即时同步探测：仅在刷新或手动操作时触发
                     const mediaInfo = await transcodeService.getMediaInfo(probeUrl, probeHeaders);
                     if (mediaInfo) {
                         metadata.v_codec = mediaInfo.videoCodec;
@@ -418,13 +445,16 @@ class MediaScanService {
                 }
                 metadata.probe_status = 1; // 标记已探测
             } catch (err) {
-                console.warn(`[MediaScan] Fast probe failed for ${metadata.title}:`, err.message);
-                metadata.probe_status = 0; // 失败则交给后台重试
+                console.warn(`[MediaScan] Probe failed for ${metadata.title}:`, err.message);
+                metadata.probe_status = 0;
             }
+        } else if (videoFiles.length > 0) {
+            // 全量扫描模式：标记待探测，交给异步队列处理
+            metadata.probe_status = 0;
         }
 
         // 写入数据库 - 使用 UPDATE 或 INSERT 以保持已有记录的 ID 不变
-        const existingRecord = db.get('SELECT id, poster_url, tmdb_id, is_locked, video_files FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
+        const existingRecord = db.get('SELECT id, poster_url, tmdb_id, is_locked, video_files, probe_status, v_codec FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
 
         if (existingRecord) {
             // 💡 保护逻辑 1：如果扫描出的视频列表为空，但数据库里已有视频，则保留原有视频列表（防止 404）
