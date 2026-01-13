@@ -275,5 +275,11 @@ export interface Settings {
     ffmpeg_path: string;
     ffmpeg_hwaccel: 'none' | 'nvenc' | 'qsv' | 'vaapi' | 'auto';
     ffmpeg_quality: 'fast' | 'medium' | 'high';
+
+    // 并发设置
+    scan_concurrency: number;
+    image_concurrency: number;
+    metadata_concurrency: number;
+    probe_concurrency: number;
 }
 

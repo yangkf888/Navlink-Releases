@@ -16,9 +16,14 @@ const BATCH_SIZE = 5;         // 降低并发以解决 SQLite 锁争用
 
 // 🚀 v2.0.8 激进调度配置 (高性能模式)
 const REFRESH_DELAY = 50;     // 元数据补齐极速模式
-const PROBE_DELAY = 500;
-const IMAGE_DELAY = 100;
+const PROBE_DELAY = 1000;
+const IMAGE_DELAY = 200;
 const IDLE_SLEEP = 10000;
+
+// 初始默认并发 (之后会从数据库动态加载)
+let CURRENT_PROBE_CONCURRENCY = 3;
+let CURRENT_IMAGE_CONCURRENCY = 5;
+let CURRENT_BATCH_SIZE = 5;
 
 class ScanQueueService {
     constructor() {
@@ -98,9 +103,12 @@ class ScanQueueService {
      */
     async _runLoop() {
         while (this.isRunning) {
+            // 0. 动态加载最新的并发配置
+            this._loadConcurrencyConfig();
+
             // 1. 优先处理即时重试队列 (批量处理)
             if (this.instantRetryUrls.length > 0) {
-                const batch = this.instantRetryUrls.splice(0, IMAGE_CONCURRENCY);
+                const batch = this.instantRetryUrls.splice(0, CURRENT_IMAGE_CONCURRENCY);
                 await Promise.all(batch.map(url => imageCacheService.preCache(url)));
                 continue;
             }
@@ -115,7 +123,7 @@ class ScanQueueService {
             let hasWork = false;
 
             // A. 图片缓存任务 (最优先级：确保用户能尽快看到封面)
-            const imageItems = this._getPendingImageUrls(IMAGE_CONCURRENCY);
+            const imageItems = this._getPendingImageUrls(CURRENT_IMAGE_CONCURRENCY);
             if (imageItems.length > 0) {
                 hasWork = true;
                 await Promise.all(imageItems.map(url => {
@@ -133,7 +141,7 @@ class ScanQueueService {
             }
 
             // B. 元数据补完任务 (并发模式：加速 NFO 和系列信息识别)
-            const refreshItems = this._getPendingRefreshItems(BATCH_SIZE);
+            const refreshItems = this._getPendingRefreshItems(CURRENT_BATCH_SIZE);
             if (refreshItems.length > 0) {
                 hasWork = true;
                 // 🚀 将串行改为并发处理 (每批处理 BATCH_SIZE 个)
@@ -164,7 +172,7 @@ class ScanQueueService {
             }
 
             // C. 视频探测任务 (最低优先级：最后处理技术参数)
-            const probeItems = this._getPendingProbeItems(PROBE_CONCURRENCY);
+            const probeItems = this._getPendingProbeItems(CURRENT_PROBE_CONCURRENCY);
             if (probeItems.length > 0) {
                 hasWork = true;
                 await Promise.all(probeItems.map(item => this._probeItem(item)));
@@ -177,6 +185,27 @@ class ScanQueueService {
                 this.lastActivity = new Date().toISOString();
                 await this._sleep(IDLE_SLEEP);
             }
+        }
+    }
+
+    /**
+     * 从数据库动态加载并发配置
+     */
+    _loadConcurrencyConfig() {
+        try {
+            const db = getDatabase();
+            const config = db.all("SELECT key, value FROM settings WHERE key IN ('image_concurrency', 'metadata_concurrency', 'probe_concurrency')");
+
+            config.forEach(item => {
+                const val = parseInt(item.value);
+                if (isNaN(val)) return;
+
+                if (item.key === 'image_concurrency') CURRENT_IMAGE_CONCURRENCY = val;
+                if (item.key === 'metadata_concurrency') CURRENT_BATCH_SIZE = val;
+                if (item.key === 'probe_concurrency') CURRENT_PROBE_CONCURRENCY = val;
+            });
+        } catch (e) {
+            // 忽略错误，使用上次或默认值
         }
     }
 

@@ -10,8 +10,8 @@ const { WebdavService } = require('./WebdavService');
 const { LocalService } = require('./LocalService');
 const fetch = require('node-fetch');
 
-// 并发控制配置
-const DIR_SCAN_LIMIT = 5;  // 目录递归并发限制
+// 并发控制配置 (由数据库 settings 表驱动)
+let DIR_SCAN_LIMIT = 5;  // 目录递归并发限制 (默认值)
 
 // NFO 常见文件名
 const NFO_FILES = ['movie.nfo', 'info.nfo', 'tvshow.nfo'];
@@ -82,10 +82,19 @@ class MediaScanService {
             throw new Error('网盘源不存在');
         }
 
-        // 获取 TMDB API Key
+        // 获取 TMDB API Key 及并发设置
         const tmdbSetting = db.get("SELECT value FROM settings WHERE key = 'tmdb_api_key'");
         if (tmdbSetting?.value) {
             this.tmdbService.setApiKey(tmdbSetting.value);
+        }
+
+        const scanConcurrencySetting = db.get("SELECT value FROM settings WHERE key = 'scan_concurrency'");
+        if (scanConcurrencySetting?.value) {
+            try {
+                DIR_SCAN_LIMIT = parseInt(scanConcurrencySetting.value) || 5;
+            } catch (e) {
+                DIR_SCAN_LIMIT = 5;
+            }
         }
 
         // 创建网盘客户端
@@ -149,7 +158,7 @@ class MediaScanService {
 
                 console.log(`[MediaScan] Processing ${mediaFolders.length} folders for ${folderEntry.path}...`);
                 // 2. 处理该根路径下的所有子文件夹 (并行处理，限制并发)
-                const concurrency = 5; // 🚀 恢复并发，加速扫描过程
+                const concurrency = DIR_SCAN_LIMIT; // 🚀 使用动态并发配置
                 for (let i = 0; i < mediaFolders.length; i += concurrency) {
                     const chunk = mediaFolders.slice(i, i + concurrency);
                     await Promise.all(chunk.map(async (folder, index) => {

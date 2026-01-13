@@ -566,6 +566,78 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                 </div>
             </div>
 
+            {/* 扫描与性能设置 */}
+            <div className="bg-secondary/50 rounded-xl p-6 border border-border-color">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <i className="fas fa-bolt text-blue-400"></i>
+                    </div>
+                    <h3 className="text-lg font-bold">扫描与性能控制</h3>
+                </div>
+
+                <p className="text-secondary text-sm mb-6">
+                    根据服务器配置调整并发处理速度。数值越高处理越快，但也更消耗 CPU 和网盘带宽。
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-secondary text-sm mb-2">目录扫描并发 (默认: 5)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={settings.scan_concurrency || 5}
+                            onChange={e => setSettings(prev => ({ ...prev, scan_concurrency: parseInt(e.target.value) || 5 }))}
+                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
+                                     focus:border-blue-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-secondary mt-1">初始扫描时递归查找目录的并发数</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-secondary text-sm mb-2">图片缓存并发 (默认: 5)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={settings.image_concurrency || 5}
+                            onChange={e => setSettings(prev => ({ ...prev, image_concurrency: parseInt(e.target.value) || 5 }))}
+                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
+                                     focus:border-blue-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-secondary mt-1">后台静默拉取封面图片到本地的并发数</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-secondary text-sm mb-2">元数据补全并发 (默认: 5)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={settings.metadata_concurrency || 5}
+                            onChange={e => setSettings(prev => ({ ...prev, metadata_concurrency: parseInt(e.target.value) || 5 }))}
+                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
+                                     focus:border-blue-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-secondary mt-1">解析 NFO 文件或匹配 TMDB 数据的并发数</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-secondary text-sm mb-2">视频探测并发 (默认: 3)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={settings.probe_concurrency || 3}
+                            onChange={e => setSettings(prev => ({ ...prev, probe_concurrency: parseInt(e.target.value) || 3 }))}
+                            className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
+                                     focus:border-blue-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-secondary mt-1">使用 ffprobe 获取视频技术参数的并发数 (较耗 CPU)</p>
+                    </div>
+                </div>
+            </div>
+
             {/* 保存按钮 */}
             <button
                 onClick={handleSave}
