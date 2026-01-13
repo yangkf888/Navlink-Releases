@@ -87,6 +87,14 @@ const SOURCE_PREVIEW_COUNT = 6;
 
 // 视图层级
 type ViewLevel = 'all' | 'source' | 'directory';
+type ViewMode = 'default' | 'date' | 'collection' | 'category' | 'tag';
+
+interface GroupInfo {
+    key: string;
+    name: string;
+    covers: string[];  // 最多4个封面
+    count: number;
+}
 
 export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [sources, setSources] = useState<NetdiskSource[]>([]);
@@ -106,13 +114,20 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [currentSourceId, setCurrentSourceId] = useState<number | null>(null);
 
     // 筛选状态
-    const [activeFilters, setActiveFilters] = useState<{ genres?: string; year?: number; area?: string; actor?: string; studio?: string }>({});
+    const [activeFilters, setActiveFilters] = useState<{
+        genres?: string; year?: number; area?: string; actor?: string; studio?: string;
+        series?: string; tags?: string; date?: string; sort?: string
+    }>({});
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     // 交互状态
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: MediaItem } | null>(null);
     const [correctModal, setCorrectModal] = useState<{ mediaId: number, query: string } | null>(null);
     const [posterPicker, setPosterPicker] = useState<{ mediaId: number, title: string } | null>(null);
+
+    // 聚合视图状态
+    const [viewMode, setViewMode] = useState<ViewMode>('default');
+    const [groupedData, setGroupedData] = useState<GroupInfo[]>([]);
 
     // 监听窗口大小变化及全局同步消息
     useEffect(() => {
@@ -164,9 +179,20 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         loadSources();
     }, []);
 
+    // 🚀 视图切换时清空筛选条件
+    useEffect(() => {
+        if (viewMode !== 'default') {
+            setActiveFilters({});
+        }
+    }, [viewMode]);
+
     // 根据层级加载数据
     useEffect(() => {
-        if (currentLevel === 'all' && sourcesLoaded && sources.length > 0) {
+        if (!sourcesLoaded) return;
+
+        if (viewMode !== 'default') {
+            loadGroupedData();
+        } else if (currentLevel === 'all' && sources.length > 0) {
             loadAllSourcesSections();
         } else if (currentLevel === 'source' && currentSourceId) {
             loadDirectorySections(currentSourceId, activeFilters);
@@ -175,7 +201,25 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             loadMediaByPath(currentSourceId, currentPath, 1, true);
             pollScanStatus(currentSourceId);
         }
-    }, [currentLevel, currentSourceId, currentPath, sources, sourcesLoaded, activeFilters]);
+    }, [currentLevel, currentSourceId, currentPath, sources, sourcesLoaded, activeFilters, viewMode]);
+
+    // 加载聚合分组数据
+    const loadGroupedData = async () => {
+        const sid = currentSourceId || sources.filter(s => s.enabled)[0]?.id;
+        if (!sid) return;
+
+        setLoading(true);
+        try {
+            const res = await apiGet<GroupInfo[]>(`/netdisk/media/groups?sourceId=${sid}&viewType=${viewMode}${currentPath ? `&path=${encodeURIComponent(currentPath)}` : ''}`);
+            if (res.success && res.data) {
+                setGroupedData(res.data);
+            }
+        } catch (error) {
+            console.error('[Netdisk] Failed to load grouped data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
 
     const { isAuthenticated } = useAuth();
@@ -198,12 +242,15 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             const enabledSources = sources.filter(s => s.enabled);
             const promises = enabledSources.map(async (source) => {
                 // 构建筛选参数
-                let url = `/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}`;
+                let url = `/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}&sort=${activeFilters.sort || 'latest'}`;
                 if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
                 if (activeFilters.year) url += `&year=${activeFilters.year}`;
                 if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
                 if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
                 if (activeFilters.studio) url += `&studio=${encodeURIComponent(activeFilters.studio)}`;
+                if (activeFilters.series) url += `&series=${encodeURIComponent(activeFilters.series)}`;
+                if (activeFilters.tags) url += `&tags=${encodeURIComponent(activeFilters.tags)}`;
+                if (activeFilters.date) url += `&date=${activeFilters.date}`;
 
                 const res = await apiGet<MediaItem[]>(url);
                 if (res.success && res.data && res.data.length > 0) {
@@ -229,7 +276,10 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     };
 
     // 加载网盘源的扫描目录板块（类似 Category 子分类概览）
-    const loadDirectorySections = async (srcId: number, filters?: { genres?: string; year?: number; area?: string; actor?: string; studio?: string }) => {
+    const loadDirectorySections = async (srcId: number, filters?: {
+        genres?: string; year?: number; area?: string; actor?: string; studio?: string;
+        series?: string; tags?: string; date?: string
+    }) => {
         setLoading(true);
         try {
             // 构建查询参数
@@ -239,6 +289,9 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             if (filters?.area) url += `&area=${encodeURIComponent(filters.area)}`;
             if (filters?.actor) url += `&actor=${encodeURIComponent(filters.actor)}`;
             if (filters?.studio) url += `&studio=${encodeURIComponent(filters.studio)}`;
+            if (filters?.series) url += `&series=${encodeURIComponent(filters.series)}`;
+            if (filters?.tags) url += `&tags=${encodeURIComponent(filters.tags)}`;
+            if (filters?.date) url += `&date=${filters.date}`;
 
             const res = await apiGet<{ groups: MediaGroup[] }>(url);
             if (res.success && res.data) {
@@ -312,7 +365,17 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         }
 
         try {
-            const res = await apiGet<MediaItem[]>(`/netdisk/media?sourceId=${srcId}&path=${encodeURIComponent(path)}&type=all&limit=${PAGE_SIZE}&offset=${(pageNum - 1) * PAGE_SIZE}`);
+            let url = `/netdisk/media?sourceId=${srcId}&path=${encodeURIComponent(path)}&type=all&limit=${PAGE_SIZE}&offset=${(pageNum - 1) * PAGE_SIZE}&sort=${activeFilters.sort || 'latest'}`;
+            if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
+            if (activeFilters.year) url += `&year=${activeFilters.year}`;
+            if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
+            if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
+            if (activeFilters.studio) url += `&studio=${encodeURIComponent(activeFilters.studio)}`;
+            if (activeFilters.series) url += `&series=${encodeURIComponent(activeFilters.series)}`;
+            if (activeFilters.tags) url += `&tags=${encodeURIComponent(activeFilters.tags)}`;
+            if (activeFilters.date) url += `&date=${activeFilters.date}`;
+
+            const res = await apiGet<MediaItem[]>(url);
             if (res.success && res.data) {
                 if (reset) {
                     setMedia(res.data);
@@ -463,6 +526,85 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     };
 
     // 渲染媒体卡片 (统一样式：对齐视频站 VideoCard)
+    // 渲染集合卡片
+    const renderCollectionCard = (group: GroupInfo) => (
+        <div
+            key={group.key}
+            onClick={() => {
+                // 点击后进入详情视图：保持当前层级，但应用聚合过滤
+                if (viewMode === 'date') setActiveFilters(prev => ({ ...prev, year: parseInt(group.key) }));
+                else if (viewMode === 'collection') setActiveFilters(prev => ({ ...prev, series: group.key }));
+                else if (viewMode === 'category') setActiveFilters(prev => ({ ...prev, genres: group.key }));
+                else if (viewMode === 'tag') setActiveFilters(prev => ({ ...prev, tags: group.key }));
+
+                // 🚀 切换到默认视图以触发数据加载
+                setViewMode('default');
+
+                // 🚀 优化跳转逻辑：点击系列后，进入“三级视图”（列表模式）以更好地支持过滤
+                if (currentLevel !== 'directory') {
+                    setCurrentLevel('directory');
+                    // 如果在全部视图点击，需要锁定到一个源
+                    if (currentLevel === 'all' && sources.length > 0) {
+                        setCurrentSourceId(currentSourceId || sources[0].id);
+                    }
+                    // 系列视图本身带有 path 信息的话，锁定到对应目录
+                    if (group.key && !currentPath) {
+                        setCurrentPath('/'); // 回退到根路径下的全局过滤
+                    }
+                }
+            }}
+            className="group relative cursor-pointer"
+        >
+            <div className="relative aspect-[2/3] transition-transform duration-300 group-hover:-translate-y-2">
+                {/* 叠层效果背景 2 */}
+                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-2 -translate-y-2 border border-border-color shadow-sm"></div>
+                {/* 叠层效果背景 1 */}
+                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-1 -translate-y-1 border border-border-color shadow-sm"></div>
+                {/* 主封面 */}
+                <div className="absolute inset-0 bg-secondary rounded-lg overflow-hidden border border-border-color shadow-md">
+                    {group.covers && group.covers.length > 0 ? (
+                        group.count > 2 && group.covers.length >= 4 ? (
+                            // 多封面 2x2 网格布局
+                            <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
+                                {group.covers.slice(0, 4).map((cover, idx) => (
+                                    <img
+                                        key={idx}
+                                        src={cover.startsWith('/api/') ? cover : `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(cover)}`}
+                                        className="w-full h-full object-cover"
+                                        alt={`${group.name}-${idx}`}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            // 单封面
+                            <img
+                                src={group.covers[0].startsWith('/api/') ? group.covers[0] : `/api/plugins/video/api/proxy/image?url=${encodeURIComponent(group.covers[0])}`}
+                                className="w-full h-full object-cover"
+                                alt={group.name}
+                            />
+                        )
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/80">
+                            <i className="fas fa-layer-group text-3xl text-secondary"></i>
+                        </div>
+                    )}
+                    {/* 数量角标 */}
+                    <div className="absolute bottom-2 right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                        {group.count}
+                    </div>
+                </div>
+            </div>
+            <div className="mt-2 text-center">
+                <p className="text-primary text-sm font-medium truncate group-hover:text-red-400 transition-colors" title={group.name}>
+                    {group.name}
+                </p>
+                <p className="text-secondary text-[10px] uppercase tracking-wider mt-0.5">
+                    {viewMode === 'date' ? '加入合集' : '媒体合集'}
+                </p>
+            </div>
+        </div>
+    );
+
     const renderMediaCard = (item: MediaItem) => (
         <div
             key={item.id}
@@ -636,6 +778,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         <div className="min-h-full bg-secondary">
             {/* 顶部工具栏 - 使用 sticky 定位以保持原本的顶部停留效果，或者直接随页面滚动 */}
             <div className="sticky top-0 z-20 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 py-2.5 lg:py-4 border-b border-border-color glass-effect backdrop-blur-md flex-wrap">
+
                 {/* 当前位置标题 */}
                 <span className="text-primary font-medium">
                     {currentLevel === 'all'
@@ -646,24 +789,50 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 </span>
 
 
-                {/* 筛选组件（所有视图层级显示） */}
+                {/* 过滤器/视图切换区域 */}
                 {(currentSourceId || (sources.length > 0 && sources[0]?.id)) && (
-                    <div className="flex-1">
-                        <NetdiskFilter
-                            sourceId={currentSourceId || sources[0]?.id}
-                            onFilterChange={(filters) => {
-                                setActiveFilters(filters);
-                                // 根据当前视图层级重新加载数据
-                                if (currentLevel === 'all') {
-                                    loadAllSourcesSections();
-                                } else if (currentLevel === 'source' && currentSourceId) {
-                                    loadDirectorySections(currentSourceId, filters);
-                                } else if (currentLevel === 'directory' && currentSourceId && currentPath) {
-                                    loadMediaByPath(currentSourceId, currentPath, 1, true);
-                                }
-                            }}
-                            isMobile={isMobile}
-                        />
+                    <div className="flex items-center gap-4 flex-1">
+                        <div className="flex-1">
+                            <NetdiskFilter
+                                sourceId={currentSourceId || sources[0]?.id}
+                                onFilterChange={(filters) => {
+                                    setActiveFilters(filters);
+                                    if (viewMode !== 'default') {
+                                        loadGroupedData();
+                                    } else if (currentLevel === 'all') {
+                                        loadAllSourcesSections();
+                                    } else if (currentLevel === 'source' && currentSourceId) {
+                                        loadDirectorySections(currentSourceId, filters);
+                                    } else if (currentLevel === 'directory' && currentSourceId && currentPath) {
+                                        loadMediaByPath(currentSourceId, currentPath, 1, true);
+                                    }
+                                }}
+                                isMobile={isMobile}
+                                viewMode={viewMode}
+                                onViewModeChange={(mode) => setViewMode(mode as ViewMode)}
+                            />
+                        </div>
+
+                        {/* 视图模式切换 */}
+                        <div className="hidden lg:flex items-center bg-secondary/80 rounded-lg p-1 border border-border-color">
+                            {[
+                                { id: 'default', icon: 'fa-th-large', label: '默认' },
+                                { id: 'date', icon: 'fa-calendar-alt', label: '日期' },
+                                { id: 'collection', icon: 'fa-layer-group', label: '系列' },
+                                { id: 'category', icon: 'fa-tags', label: '分类' },
+                                { id: 'tag', icon: 'fa-hashtag', label: '标签' }
+                            ].map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setViewMode(item.id as ViewMode)}
+                                    title={item.label}
+                                    className={`px-3 py-1.5 rounded-md text-xs transition-all flex items-center gap-1.5 ${viewMode === item.id ? 'bg-blue-500 text-white shadow-sm' : 'text-secondary hover:text-primary hover:bg-secondary'}`}
+                                >
+                                    <i className={`fas ${item.icon}`}></i>
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -676,9 +845,51 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 )}
             </div>
 
+            {/* 聚合过滤提示栏 */}
+            {(activeFilters.series || activeFilters.tags || activeFilters.date) && (
+                <div className="px-6 py-2 bg-blue-500/10 border-b border-blue-500/30 flex items-center gap-3">
+                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i className="fas fa-filter"></i>
+                        当前合集:
+                    </span>
+                    <div className="flex items-center gap-2">
+                        {activeFilters.series && (
+                            <span className="px-2 py-0.5 bg-blue-500 text-white text-[11px] rounded flex items-center gap-2">
+                                系列: {activeFilters.series}
+                                <i className="fas fa-times cursor-pointer hover:text-white/70" onClick={() => setActiveFilters(prev => { const n = { ...prev }; delete n.series; return n; })}></i>
+                            </span>
+                        )}
+                        {activeFilters.tags && (
+                            <span className="px-2 py-0.5 bg-blue-500 text-white text-[11px] rounded flex items-center gap-2">
+                                标签: {activeFilters.tags}
+                                <i className="fas fa-times cursor-pointer hover:text-white/70" onClick={() => setActiveFilters(prev => { const n = { ...prev }; delete n.tags; return n; })}></i>
+                            </span>
+                        )}
+                        {activeFilters.date && (
+                            <span className="px-2 py-0.5 bg-blue-500 text-white text-[11px] rounded flex items-center gap-2">
+                                日期: {activeFilters.date}
+                                <i className="fas fa-times cursor-pointer hover:text-white/70" onClick={() => setActiveFilters(prev => { const n = { ...prev }; delete n.date; return n; })}></i>
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* 内容区域 */}
             <div className="p-4 lg:p-6 space-y-8">
-                {currentLevel === 'all' ? (
+                {viewMode !== 'default' ? (
+                    /* 聚合视图 (日期/合集/分类/标签) */
+                    groupedData.length === 0 ? (
+                        <div className="text-center py-12 text-secondary">
+                            <i className="fas fa-layer-group text-4xl mb-4 opacity-50"></i>
+                            <p>未发现以此维度聚合的内容</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 lg:gap-10">
+                            {groupedData.map(group => renderCollectionCard(group))}
+                        </div>
+                    )
+                ) : currentLevel === 'all' ? (
                     /* 一级视图：全部网盘（类似 SourceOverview） */
                     sourceSections.length === 0 ? (
                         <div className="text-center py-12 text-secondary">
@@ -761,9 +972,22 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 ) : (
                     /* 三级视图：目录下的媒体列表（类似 Category 列表模式） */
                     <>
-                        {/* 目录标题 */}
+                        {/* 🚀 返回按钮替代文件夹图标 */}
                         <div className="flex items-center gap-2">
-                            <i className="fas fa-folder text-yellow-400"></i>
+                            <button
+                                onClick={() => {
+                                    if (Object.keys(activeFilters).length > 0) {
+                                        setActiveFilters({});
+                                    } else {
+                                        setCurrentLevel('source');
+                                        setCurrentPath('');
+                                    }
+                                }}
+                                className="text-blue-500"
+                                title="返回"
+                            >
+                                <i className="fas fa-arrow-left text-xl"></i>
+                            </button>
                             <h1 className="text-xl font-bold text-primary">{getCurrentDirectoryName()}</h1>
                         </div>
 

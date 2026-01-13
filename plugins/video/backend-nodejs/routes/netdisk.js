@@ -535,7 +535,11 @@ router.get('/media', (req, res) => {
             area: area || undefined,
             rating: rating || undefined,
             actor: actor || undefined,
-            studio: studio || undefined
+            studio: studio || undefined,
+            series: req.query.series || undefined,
+            tags: req.query.tags || undefined,
+            date: req.query.date || undefined,
+            sort: req.query.sort || undefined
         };
 
         let media = mediaScanService.getMedia(parseInt(sourceId), filterOptions);
@@ -612,7 +616,10 @@ router.get('/media/grouped', (req, res) => {
             year: year || undefined,
             area: area || undefined,
             actor: actor || undefined,
-            studio: studio || undefined
+            studio: studio || undefined,
+            series: req.query.series || undefined,
+            tags: req.query.tags || undefined,
+            date: req.query.date || undefined
         };
 
         // 解析扫描路径
@@ -669,6 +676,25 @@ router.get('/media/grouped', (req, res) => {
         res.json({ success: true, data: { groups: nonEmptyGroups } });
     } catch (error) {
         console.error('[Netdisk] Failed to get grouped media:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取媒体分组聚合 (新: 日期、合集、分类、标签)
+ */
+router.get('/media/groups', (req, res) => {
+    try {
+        const { sourceId, viewType = 'date', path } = req.query;
+
+        if (!sourceId) {
+            return res.status(400).json({ success: false, error: '缺少 sourceId' });
+        }
+
+        const groups = mediaScanService.getMediaGroups(parseInt(sourceId), viewType, { path });
+        res.json({ success: true, data: groups });
+    } catch (error) {
+        console.error('[Netdisk] Failed to get media groups:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -1288,28 +1314,52 @@ router.get('/image-proxy', async (req, res) => {
             return res.status(404).send('File not found');
         }
 
-        const targetUrl = externalUrl || imageUrl;
+        let targetUrl = externalUrl || imageUrl;
 
-        // 🚀 这里是关键：使用 ImageCacheService 进行持久化缓存并转换为 WebP
+        // 🚀 v2.0.9: 增加直链解析逻辑 (针对 PikPak 等需要重定向的海报源)
+        if (source.type === 'alist' || source.type === 'webdav') {
+            try {
+                const resolvedUrl = await resolveRealUrl(targetUrl, authHeaders);
+                if (resolvedUrl && resolvedUrl !== targetUrl) {
+                    console.log(`[ImageProxy] Resolved real URL: ${resolvedUrl.substring(0, 100)}...`);
+                    // 如果 Host 变了，剥离认证头防止 400
+                    try {
+                        const u = new URL(resolvedUrl);
+                        const o = new URL(targetUrl);
+                        if (u.host !== o.host) {
+                            delete authHeaders['Authorization'];
+                        }
+                    } catch (e) { }
+                    targetUrl = resolvedUrl;
+                }
+            } catch (err) {
+                console.warn(`[ImageProxy] Failed to resolve real URL:`, err.message);
+            }
+        }
+
+        // 🚀 使用 ImageCacheService 进行持久化缓存并转换为 WebP
         const cachedPath = await imageCacheService.getCachedImage(targetUrl, authHeaders);
         if (cachedPath && fs.existsSync(cachedPath)) {
             return res.sendFile(path.resolve(cachedPath));
         }
 
-        console.log(`[ImageProxy] Streaming: ${targetUrl.substring(0, 100)}`);
+        console.log(`[ImageProxy] Streaming fallback: ${targetUrl.substring(0, 100)}`);
         const fetch = require('node-fetch');
         try {
             const response = await fetch(targetUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    'Accept': '*/*',
+                    'Accept': 'image/*,*/*',
                     ...authHeaders
                 },
                 redirect: 'follow',
                 timeout: 30000
             });
 
-            if (!response.ok) return res.status(response.status).send(`Fetch failed`);
+            if (!response.ok) {
+                console.error(`[ImageProxy] Fetch failed: ${response.status} for ${targetUrl.substring(0, 100)}`);
+                return res.status(response.status).send(`Fetch failed: ${response.status}`);
+            }
 
             const contentType = response.headers.get('content-type') || 'image/jpeg';
             res.setHeader('Content-Type', contentType);

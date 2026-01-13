@@ -17,8 +17,11 @@ class DatabaseWrapper {
         this.db.pragma('journal_mode = WAL');
         this.db.pragma('foreign_keys = ON');
 
-        // 设置 WAL 自动 checkpoint 阈值（1000页后自动checkpoint）
-        this.db.pragma('wal_autocheckpoint = 1000');
+        // 🚀 解决 database is locked 的关键：设置 busy_timeout
+        this.db.pragma('busy_timeout = 10000');
+
+        // 设置 WAL 自动 checkpoint 阈值
+        this.db.pragma('wal_autocheckpoint = 2000');
 
         // 启动定期 checkpoint（每30秒）
         this.startCheckpointTimer();

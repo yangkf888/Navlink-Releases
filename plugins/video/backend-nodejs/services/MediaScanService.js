@@ -15,8 +15,8 @@ const DIR_SCAN_LIMIT = 5;  // 目录递归并发限制
 
 // NFO 常见文件名
 const NFO_FILES = ['movie.nfo', 'info.nfo', 'tvshow.nfo'];
-// 封面图片常见文件名
-const POSTER_FILES = ['poster.jpg', 'poster.png', 'folder.jpg', 'cover.jpg', 'cover.png'];
+// 封面图片常见文件名 (增加 thumb.jpg 优先级)
+const POSTER_FILES = ['poster.jpg', 'poster.png', 'folder.jpg', 'cover.jpg', 'cover.png', 'thumb.jpg'];
 // fanart 文件名
 const FANART_FILES = ['fanart.jpg', 'fanart.png', 'backdrop.jpg', 'background.jpg'];
 // 视频扩展名
@@ -65,8 +65,14 @@ class MediaScanService {
      * @param {number} maxDepth - 最大扫描深度
      * @param {string} specificPath - 可选，指定扫描的子路径
      */
-    async scanSource(sourceId, maxDepth = 5, specificPath = null) {
-        console.log(`[MediaScan] Starting scan for source ${sourceId}, maxDepth=${maxDepth}, specificPath=${specificPath}`);
+    async scanSource(sourceId, maxDepth = 5, specificPath = null, force = false) {
+        // 🚀 防止重复扫描
+        if (this.scanningStatus[sourceId]?.scanning && !force) {
+            console.log(`[MediaScan] Source ${sourceId} is already scanning, skipping...`);
+            return { success: true, message: '已经在扫描中' };
+        }
+
+        console.log(`[MediaScan] Starting scan for source ${sourceId}, maxDepth=${maxDepth}, specificPath=${specificPath}, force=${force}`);
         const db = getDatabase();
 
         // 获取网盘源信息
@@ -134,13 +140,14 @@ class MediaScanService {
             for (const folderEntry of foldersToScan) {
                 const tmdbEnabled = folderEntry.tmdb_enabled !== false; // 默认为启用
                 status.paths[folderEntry.path].message = '正在检索目录结构...';
-                console.log(`[MediaScan] Finding media in: ${folderEntry.path}, tmdbEnabled=${tmdbEnabled}`);
-                const mediaFolders = await this.findMediaFolders(client, folderEntry.path, maxDepth);
+                console.log(`[MediaScan] Finding media in: ${folderEntry.path}, tmdbEnabled=${tmdbEnabled}, force=${force}`);
+                const mediaFolders = await this.findMediaFolders(client, folderEntry.path, maxDepth, 0, force);
 
                 status.paths[folderEntry.path].total = mediaFolders.length;
                 status.paths[folderEntry.path].message = `发现 ${mediaFolders.length} 个媒体文件夹，准备处理...`;
                 status.total += mediaFolders.length;
 
+                console.log(`[MediaScan] Processing ${mediaFolders.length} folders for ${folderEntry.path}...`);
                 // 2. 处理该根路径下的所有子文件夹 (并行处理，限制并发)
                 const concurrency = 5; // 🚀 恢复并发，加速扫描过程
                 for (let i = 0; i < mediaFolders.length; i += concurrency) {
@@ -155,7 +162,7 @@ class MediaScanService {
                         status.message = `正在扫描 (${status.progress}/${status.total})`;
 
                         try {
-                            await this.processMediaFolder(client, source, folder, tmdbEnabled);
+                            await this.processMediaFolder(client, source, folder, tmdbEnabled, force);
                         } catch (err) {
                             console.error(`[MediaScan] Failed to process ${folder.path}:`, err.message);
                         }
@@ -272,7 +279,7 @@ class MediaScanService {
     /**
      * 处理媒体文件夹
      */
-    async processMediaFolder(client, source, folder, tmdbEnabled = true, force = false) {
+    async processMediaFolder(client, source, folder, tmdbEnabled = true, force = false, isBackground = false, skipProbe = false) {
         const db = getDatabase();
 
         // 1. 基础资源发现
@@ -283,8 +290,6 @@ class MediaScanService {
             console.warn(`[MediaScan] Skip processing empty folder: ${folder.path}`);
             return;
         }
-
-        const transcodeService = require('./TranscodeService');
 
         // 查找 NFO 和视频
         let nfoFile = items.find(f => !f.is_dir && NFO_FILES.includes(f.name.toLowerCase()));
@@ -368,7 +373,14 @@ class MediaScanService {
             extra_metadata: {}
         };
 
-        // 🚀 v2.0.7 影子扫描模式：跳过高延迟的 NFO 与 TMDB 逻辑，实现秒级落库
+        // � 优先：如果文件夹下有明确的海报文件，它是最高优先级
+        let localPosterUrl = null;
+        if (posterFile) {
+            const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
+            localPosterUrl = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
+        }
+
+        // 🚀 v2.0.7 影子扫描模式：处理 NFO 与 TMDB
         if (force) {
             // 1. 解析 NFO (仅在强制刷新或单项刷新时执行)
             if (nfoFile) {
@@ -384,18 +396,19 @@ class MediaScanService {
                 } catch (err) { /* ignore */ }
             }
 
-            // 2. 获取海报路径 (由于异步加载，全量扫描时不再强制下载)
-            if (posterFile && !metadata.poster_url) {
-                const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
-                metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
+            // 2. 覆盖逻辑：如果本地有海报，则强制使用本地海报（覆盖 NFO 中的远程链接）
+            if (localPosterUrl) {
+                metadata.poster_url = localPosterUrl;
             }
+
+            // 3. 获取剧照路径
             if (fanartFile && !metadata.fanart_url) {
                 const fanartPath = (folder.path + '/' + fanartFile.name).replace(/\/+/g, '/');
                 metadata.fanart_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(fanartPath)}`;
             }
 
-            // 3. TMDB 回退
-            if (tmdbEnabled && (!metadata.nfo_parsed || !metadata.poster_url)) {
+            // 4. TMDB 回退
+            if (tmdbEnabled && (!metadata.poster_url)) {
                 try {
                     const match = await this.tmdbService.match(metadata.title, metadata.year);
                     if (match) {
@@ -407,16 +420,18 @@ class MediaScanService {
                     }
                 } catch (err) { /* ignore */ }
             }
+
+            // 💡 关键修复：只要是强制刷新（包含后台补全任务），都标记为已解析，防止重复进入队列
+            metadata.nfo_parsed = 1;
         } else {
-            // 💡 极速模式：即使不读 NFO，也尽可能识别本地海报路径，用于前端显示
-            if (posterFile) {
-                const posterPath = (folder.path + '/' + posterFile.name).replace(/\/+/g, '/');
-                metadata.poster_url = `/api/plugins/video/api/netdisk/image-proxy?sourceId=${source.id}&path=${encodeURIComponent(posterPath)}`;
+            // 💡 极速模式：优先使用本地识别的海报
+            if (localPosterUrl) {
+                metadata.poster_url = localPosterUrl;
             }
         }
 
         // 4. 视频编码探测 (🚀 性能优化：全量扫描跳过探测，单项刷新模式才进行探测)
-        if (videoFiles.length > 0 && force) {
+        if (videoFiles.length > 0 && force && !skipProbe) {
             try {
                 const firstVideoRaw = videoFiles[0];
                 let probeUrl = "";
@@ -435,6 +450,7 @@ class MediaScanService {
 
                 if (probeUrl) {
                     // ⚡️ 即时同步探测：仅在刷新或手动操作时触发
+                    const transcodeService = require('./TranscodeService');
                     const mediaInfo = await transcodeService.getMediaInfo(probeUrl, probeHeaders);
                     if (mediaInfo) {
                         metadata.v_codec = mediaInfo.videoCodec;
@@ -448,6 +464,8 @@ class MediaScanService {
                 console.warn(`[MediaScan] Probe failed for ${metadata.title}:`, err.message);
                 metadata.probe_status = 0;
             }
+        } else if (skipProbe) {
+            metadata.probe_status = 0; // 确保显式标记为待探测
         } else if (videoFiles.length > 0) {
             // 全量扫描模式：标记待探测，交给异步队列处理
             metadata.probe_status = 0;
@@ -476,7 +494,8 @@ class MediaScanService {
                     media_type = ?, tmdb_id = ?, video_files = ?, nfo_parsed = ?,
                     director = ?, actor = ?, area = ?, tagline = ?, studio = ?,
                     extra_metadata = ?, v_codec = ?, a_codec = ?, duration = ?,
-                    container = ?, probe_status = ?, scanned_at = datetime('now')
+                    container = ?, probe_status = ?, series = ?, tags = ?,
+                    scanned_at = datetime('now')
                 WHERE id = ?
             `, [
                 metadata.title, metadata.original_title || null, metadata.year,
@@ -485,14 +504,16 @@ class MediaScanService {
                 metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
                 metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
                 metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
-                metadata.container || null, metadata.probe_status || 0, existingRecord.id
+                metadata.container || null, metadata.probe_status || 0,
+                metadata.series || null, metadata.tags || null,
+                existingRecord.id
             ]);
         } else {
-            // 不存在，使用 INSERT
+            // 不存在，使用 INSERT (scanned_at 和 created_at 默认 datetime('now'))
             db.run(`
                 INSERT INTO netdisk_media 
-                (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, container, probe_status, is_locked, scanned_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                (source_id, path, title, original_title, year, overview, poster_url, fanart_url, rating, genres, media_type, tmdb_id, video_files, nfo_parsed, director, actor, area, tagline, studio, extra_metadata, v_codec, a_codec, duration, container, probe_status, series, tags, is_locked, scanned_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             `, [
                 source.id, folder.path, metadata.title, metadata.original_title || null, metadata.year,
                 metadata.overview, metadata.poster_url, metadata.fanart_url, metadata.rating, metadata.genres || null,
@@ -500,7 +521,9 @@ class MediaScanService {
                 metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
                 metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
                 metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
-                metadata.container || null, metadata.probe_status || 0, 0  // is_locked 默认 0
+                metadata.container || null, metadata.probe_status || 0,
+                metadata.series || null, metadata.tags || null,
+                0  // is_locked 默认 0
             ]);
         }
     }
@@ -554,6 +577,11 @@ class MediaScanService {
                         if (val) extra['rating'] = val;
                     } else if (tag === 'genre') {
                         (extra['genre'] = extra['genre'] || []).push(value.replace(/<[^>]+>/g, '').trim());
+                    } else if (tag === 'tag') {
+                        (extra['tag'] = extra['tag'] || []).push(value.replace(/<[^>]+>/g, '').trim());
+                    } else if (tag === 'set') {
+                        const setName = value.match(/<name[^>]*>([\s\S]*?)<\/name>/i)?.[1].trim();
+                        if (setName) extra['set'] = setName;
                     }
                 } else {
                     if (extra[tag]) {
@@ -565,14 +593,32 @@ class MediaScanService {
                 }
             }
 
-            const arrayFields = ['genre', 'director', 'actor'];
-            arrayFields.forEach(f => { if (Array.isArray(extra[f])) extra[f] = extra[f].join(', '); });
+            const arrayFields = ['genre', 'director', 'actor', 'tag'];
+            arrayFields.forEach(f => {
+                if (Array.isArray(extra[f])) {
+                    let flat = [];
+                    extra[f].forEach(v => {
+                        if (typeof v === 'string' && (v.includes(',') || v.includes('，'))) {
+                            flat.push(...v.split(/[,，]/).map(s => s.trim()));
+                        } else {
+                            flat.push(v);
+                        }
+                    });
+                    extra[f] = [...new Set(flat.filter(Boolean))].join(', ');
+                } else if (typeof extra[f] === 'string' && (extra[f].includes(',') || extra[f].includes('，'))) {
+                    const split = extra[f].split(/[,，]/).map(s => s.trim()).filter(Boolean);
+                    extra[f] = [...new Set(split)].join(', ');
+                }
+            });
+
+            // 🚀 v2.1.0: 系列解析
+            const seriesName = extra.set || extra.series;
 
             return {
                 title: extra.title || fallbackTitle,
                 original_title: extra.originaltitle || extra.original_title,
                 year: parseInt(extra.year || extra.premiered) || null,
-                overview: extra.plot || extra.outline || extra.summary,
+                overview: (extra.plot || extra.outline || extra.summary || '').replace(/<[^>]+>/g, '').trim(),
                 rating: parseFloat(extra.rating) || null,
                 genres: extra.genre,
                 director: extra.director,
@@ -580,6 +626,8 @@ class MediaScanService {
                 area: extra.country || extra.region,
                 tagline: extra.tagline,
                 studio: extra.studio,
+                series: extra.set || extra.series,
+                tags: extra.tag,
                 media_type: content.includes('<tvshow>') ? 'tvshow' : 'movie',
                 extra_metadata: extra
             };
@@ -596,18 +644,21 @@ class MediaScanService {
         let sql = 'SELECT * FROM netdisk_media WHERE source_id = ?';
         const params = [sourceId];
 
+
+
         if (options.type && options.type !== 'all') {
             sql += ' AND media_type = ?';
             params.push(options.type);
         }
 
-        // 按路径前缀筛选
-        if (options.path) {
+        // 按路径前缀筛选 (忽略根路径，防止干扰全局过滤)
+        if (options.path && options.path !== '/' && options.path !== '') {
             sql += ' AND path LIKE ?';
             params.push(options.path + '%');
         }
 
         // NFO 筛选条件
+        // 🚀 分类和标签在数据库中是逗号分隔的字符串，必须用 LIKE %...%
         if (options.genres) {
             sql += ' AND genres LIKE ?';
             params.push('%' + options.genres + '%');
@@ -632,10 +683,43 @@ class MediaScanService {
             sql += ' AND studio LIKE ?';
             params.push('%' + options.studio + '%');
         }
+        if (options.series) {
+            sql += ' AND series = ?';
+            params.push(options.series);
+        }
+        if (options.tags) {
+            sql += ' AND tags LIKE ?';
+            params.push('%' + options.tags + '%');
+        }
+        if (options.date) {
+            sql += " AND strftime('%Y-%m-%d', created_at) = ?";
+            params.push(options.date);
+        }
 
-        sql += ' ORDER BY title ASC';
-        if (options.limit) { sql += ' LIMIT ?'; params.push(options.limit); }
-        if (options.offset) { sql += ' OFFSET ?'; params.push(options.offset); }
+        // 排序逻辑
+        switch (options.sort) {
+            case 'year':
+                sql += ' ORDER BY year DESC, created_at DESC';
+                break;
+            case 'title':
+                sql += ' ORDER BY title COLLATE NOCASE ASC';
+                break;
+            case 'rating':
+                sql += ' ORDER BY COALESCE(rating, 0) DESC, created_at DESC';
+                break;
+            case 'resolution':
+                // 根据 video_files 中的分辨率排序（简化处理：用 title 中可能包含的分辨率关键字）
+                sql += " ORDER BY CASE WHEN title LIKE '%4K%' OR title LIKE '%2160%' THEN 1 WHEN title LIKE '%1080%' THEN 2 WHEN title LIKE '%720%' THEN 3 ELSE 4 END, created_at DESC";
+                break;
+            case 'latest':
+            default:
+                sql += ' ORDER BY created_at DESC';
+                break;
+        }
+        if (options.limit) { sql += ' LIMIT ?'; params.push(parseInt(options.limit)); }
+        if (options.offset) { sql += ' OFFSET ?'; params.push(parseInt(options.offset)); }
+
+
 
         return db.all(sql, params).map(item => ({
             ...item,
@@ -687,6 +771,18 @@ class MediaScanService {
         if (options.studio) {
             sql += ' AND studio LIKE ?';
             params.push('%' + options.studio + '%');
+        }
+        if (options.series) {
+            sql += ' AND series = ?';
+            params.push(options.series);
+        }
+        if (options.tags) {
+            sql += ' AND tags LIKE ?';
+            params.push('%' + options.tags + '%');
+        }
+        if (options.date) {
+            sql += " AND strftime('%Y-%m-%d', created_at) = ?";
+            params.push(options.date);
         }
 
         const result = db.get(sql, params);
@@ -798,6 +894,79 @@ class MediaScanService {
                 .map(([value, count]) => ({ value, count }))
                 .sort(sortByCount)
         };
+    }
+
+    /**
+     * 获取媒体分组（用于聚合视图）
+     */
+    getMediaGroups(sourceId, type = 'date', options = {}) {
+        const db = getDatabase();
+        let sql = '';
+        const params = [sourceId];
+
+        // 基础过滤条件
+        let where = 'WHERE source_id = ?';
+        if (options.path) {
+            where += ' AND path LIKE ?';
+            params.push(options.path + '%');
+        }
+
+        if (type === 'date') {
+            // 按发行年份聚合
+            where += " AND year IS NOT NULL AND year > 0";
+            sql = `
+                SELECT 
+                    CAST(year AS TEXT) as key,
+                    CAST(year AS TEXT) || '年' as name,
+                    GROUP_CONCAT(poster_url) as covers,
+                    COUNT(*) as count
+                FROM netdisk_media
+                ${where}
+                GROUP BY year
+                ORDER BY year DESC
+            `;
+        } else if (type === 'collection') {
+            // 按系列/合集聚合
+            where += " AND series IS NOT NULL AND series != ''";
+            sql = `
+                SELECT 
+                    series as key,
+                    series as name,
+                    GROUP_CONCAT(poster_url) as covers,
+                    COUNT(*) as count
+                FROM netdisk_media
+                ${where}
+                GROUP BY series
+                ORDER BY count DESC
+            `;
+        } else if (type === 'category' || type === 'tag') {
+            // 按标签或分类聚合
+            const field = type === 'category' ? 'genres' : 'tags';
+            const all = db.all(`SELECT ${field}, poster_url FROM netdisk_media ${where} AND ${field} IS NOT NULL AND ${field} != ''`, params);
+
+            const groupMap = new Map();
+            for (const item of all) {
+                const values = item[field].split(',').map(v => v.trim()).filter(Boolean);
+                for (const val of values) {
+                    if (!groupMap.has(val)) {
+                        groupMap.set(val, { key: val, name: val, covers: [], count: 0 });
+                    }
+                    const group = groupMap.get(val);
+                    if (group.covers.length < 4 && item.poster_url) {
+                        group.covers.push(item.poster_url);
+                    }
+                    group.count++;
+                }
+            }
+            return Array.from(groupMap.values()).sort((a, b) => b.count - a.count);
+        }
+
+        if (!sql) return [];
+        // 转换 covers 字符串为数组，最多取4个
+        return db.all(sql, params).map(row => ({
+            ...row,
+            covers: row.covers ? row.covers.split(',').slice(0, 4) : []
+        }));
     }
 }
 

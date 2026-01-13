@@ -219,6 +219,9 @@ function initSchema(db) {
             a_codec TEXT,
             duration REAL DEFAULT 0,
             extra_metadata TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            series TEXT,
+            tags TEXT,
             UNIQUE(source_id, path),
             FOREIGN KEY (source_id) REFERENCES netdisk_sources(id) ON DELETE CASCADE
         );
@@ -450,7 +453,10 @@ function migrateSchema(db) {
             // Video 2.0 新增字段
             { name: 'probe_status', type: 'INTEGER DEFAULT 0' },  // 0:未探测, 1:成功, -1:失败
             { name: 'is_locked', type: 'INTEGER DEFAULT 0' },     // 元数据锁定
-            { name: 'container', type: 'TEXT' }                   // 封装格式 (mp4/mkv/avi)
+            { name: 'container', type: 'TEXT' },                   // 封装格式 (mp4/mkv/avi)
+            { name: 'created_at', type: 'DATETIME' },
+            { name: 'series', type: 'TEXT' },
+            { name: 'tags', type: 'TEXT' }
         ];
 
         for (const col of mediaColumnsToAdd) {
