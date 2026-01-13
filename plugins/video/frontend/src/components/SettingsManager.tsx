@@ -591,8 +591,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                      focus:border-blue-500 focus:outline-none"
                         />
-                        <p className="text-[10px] text-secondary mt-1">
-                            <i className="fas fa-info-circle mr-1"></i>
+                        <p className="text-xs text-black dark:text-white mt-1.5 leading-relaxed">
+                            <i className="fas fa-info-circle mr-1.5 text-blue-500"></i>
                             影响阶段: 初始手动扫描。主要消耗网络/API 请求次数，对磁盘 IO 影响较小。
                         </p>
                     </div>
@@ -608,8 +608,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                      focus:border-blue-500 focus:outline-none"
                         />
-                        <p className="text-[10px] text-amber-500/80 mt-1">
-                            <i className="fas fa-exclamation-triangle mr-1"></i>
+                        <p className="text-xs text-black dark:text-white mt-1.5 leading-relaxed">
+                            <i className="fas fa-exclamation-triangle mr-1.5 text-amber-500"></i>
                             影响阶段: 后台静默。**高 IO 负载**: 涉及频繁的小文件写入，调高会显著增加磁盘压力。
                         </p>
                     </div>
@@ -625,8 +625,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                      focus:border-blue-500 focus:outline-none"
                         />
-                        <p className="text-[10px] text-secondary mt-1">
-                            <i className="fas fa-info-circle mr-1"></i>
+                        <p className="text-xs text-black dark:text-white mt-1.5 leading-relaxed">
+                            <i className="fas fa-info-circle mr-1.5 text-blue-500"></i>
                             影响阶段: 后台静默。主要消耗网络请求（NFO下载/TMDB），涉及少量 NFO 解析。
                         </p>
                     </div>
@@ -642,8 +642,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                      focus:border-blue-500 focus:outline-none"
                         />
-                        <p className="text-[10px] text-red-500/80 mt-1">
-                            <i className="fas fa-microchip mr-1"></i>
+                        <p className="text-xs text-black dark:text-white mt-1.5 leading-relaxed">
+                            <i className="fas fa-microchip mr-1.5 text-red-500"></i>
                             影响阶段: 后台静默。**中到高 CPU 负载**: 调用 ffprobe 涉及视频流读取解析。
                         </p>
                     </div>
