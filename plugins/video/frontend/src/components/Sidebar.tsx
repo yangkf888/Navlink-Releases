@@ -160,7 +160,7 @@ export function Sidebar({
                 <div className="flex flex-col">
                     <h1 className={`text-lg font-bold ${titleColor} flex items-center gap-2 tracking-tight`}>
                         <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-primary text-sm`}></i>
+                            <i className={`fas ${activeModule === 'tv' ? 'fa-tv' : 'fa-play-circle'} text-white text-sm`}></i>
                         </div>
                         {activeModule === 'tv' ? '电视直播' : '视频中心'}
                     </h1>

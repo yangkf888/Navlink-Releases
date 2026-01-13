@@ -73,7 +73,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
         });
 
         if (res.success) {
-            setProxyTestResult({ valid: res.data?.valid || false, message: res.data?.message || '测试完成' });
+            setProxyTestResult({ valid: (res as any).valid || false, message: (res as any).message || '测试完成' });
         } else {
             setProxyTestResult({ valid: false, message: res.error || '测试失败' });
         }
@@ -89,7 +89,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
         });
 
         if (res.success) {
-            setTmdbTestResult({ valid: res.data?.valid || false, message: res.data?.message || '测试完成' });
+            setTmdbTestResult({ valid: (res as any).valid || false, message: (res as any).message || '测试完成' });
         } else {
             setTmdbTestResult({ valid: false, message: res.error || '测试失败' });
         }
@@ -273,8 +273,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                 <button
                                     onClick={handleTestProxy}
                                     disabled={testingProxy || !settings.proxy_host || !settings.proxy_port}
-                                    className="px-4 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 
-                                             transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 bg-blue-600 dark:bg-blue-500 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 
+                                             transition-colors disabled:opacity-50 flex items-center gap-2 text-white"
                                 >
                                     {testingProxy ? (
                                         <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -283,7 +283,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                                     )}
                                 </button>
                                 {proxyTestResult && (
-                                    <span className={`text-sm ${proxyTestResult.valid ? 'text-green-400' : 'text-red-400'}`}>
+                                    <span className={`text-sm font-medium ${proxyTestResult.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                         <i className={`fas fa-${proxyTestResult.valid ? 'check' : 'times'} mr-1`}></i>
                                         {proxyTestResult.message}
                                     </span>
@@ -379,8 +379,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                         <button
                             onClick={handleTestTmdb}
                             disabled={testingTmdb || !settings.tmdb_api_key}
-                            className="px-4 py-2 bg-purple-500 rounded-lg hover:bg-purple-600 
-                                     transition-colors disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 bg-purple-600 dark:bg-purple-500 rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 
+                                     transition-colors disabled:opacity-50 flex items-center gap-2 text-white"
                         >
                             {testingTmdb ? (
                                 <><i className="fas fa-spinner fa-spin"></i> 测试中...</>
@@ -389,7 +389,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                             )}
                         </button>
                         {tmdbTestResult && (
-                            <span className={`text-sm ${tmdbTestResult.valid ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`text-sm font-medium ${tmdbTestResult.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                 <i className={`fas fa-${tmdbTestResult.valid ? 'check' : 'times'} mr-1`}></i>
                                 {tmdbTestResult.message}
                             </span>
@@ -570,8 +570,8 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
             <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-6 py-3 bg-red-500 rounded-lg hover:bg-red-600 
-                         transition-colors disabled:opacity-50 font-medium"
+                className="px-6 py-3 bg-red-600 dark:bg-red-500 rounded-lg hover:bg-red-700 dark:hover:bg-red-600 
+                         transition-colors disabled:opacity-50 font-medium text-white"
             >
                 {saving ? (
                     <><i className="fas fa-spinner fa-spin mr-2"></i> 保存中...</>

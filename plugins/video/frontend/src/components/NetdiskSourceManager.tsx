@@ -61,13 +61,13 @@ function EditablePathRow({ source, pathObj, idx, onUpdate, onScan, onDelete, onC
                 />
                 <button
                     onClick={onShowPicker}
-                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-primary transition-colors"
+                    className="px-2 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-xs text-primary transition-colors"
                 >
                     <i className="fas fa-folder-open"></i>
                 </button>
             </div>
             <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
+                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-primary cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <input
                         type="checkbox"
                         checked={pathObj.tmdb_enabled !== false}
@@ -80,7 +80,7 @@ function EditablePathRow({ source, pathObj, idx, onUpdate, onScan, onDelete, onC
                     />
                     TMDB
                 </label>
-                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-secondary cursor-pointer hover:bg-gray-700 transition-colors">
+                <label className="flex items-center gap-1.5 px-2 py-1 bg-secondary border border-border-color rounded text-[10px] text-primary cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <input
                         type="checkbox"
                         checked={!!pathObj.hidden}
@@ -815,8 +815,8 @@ export function NetdiskSourceManager({ onSourceChange }: NetdiskSourceManagerPro
                                                         </button>
                                                     </div>
 
-                                                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 text-[11px] text-blue-300/80 leading-relaxed shadow-inner">
-                                                        <div className="font-bold mb-1 flex items-center gap-1 text-blue-400">
+                                                    <div className="bg-blue-500/10 dark:bg-blue-500/5 border border-blue-500/30 dark:border-blue-500/20 rounded-lg p-3 text-[11px] text-blue-700 dark:text-blue-300/80 leading-relaxed shadow-sm">
+                                                        <div className="font-bold mb-1 flex items-center gap-1 text-blue-800 dark:text-blue-400">
                                                             <i className="fas fa-lightbulb"></i> 使用小贴士：
                                                         </div>
                                                         <ul className="list-disc list-inside space-y-0.5 opacity-80">
