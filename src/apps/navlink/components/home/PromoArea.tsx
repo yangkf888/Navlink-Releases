@@ -62,9 +62,18 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
         >
             <div className={`relative group h-full rounded-lg transition-all duration-200 ${isDragging ? 'shadow-2xl ring-2 ring-[var(--theme-primary)]' : ''
                 }`}>
-                <div className={`flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
-                    ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'bg-[#f9f9f9] border-transparent hover:bg-gray-100'}
-                `}>
+                <a
+                    href={!isManageMode ? ensureProtocol(item.url || '') : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                        if (isManageMode) e.preventDefault();
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
+                        ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'bg-[#f9f9f9] border-transparent hover:bg-gray-100'}
+                        ${!isManageMode ? 'cursor-pointer' : 'cursor-move'}
+                    `}
+                >
                     {!item.isAd && item.icon && (
                         <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
                             {item.icon.includes('fa-') || item.icon.includes(':') ? (
@@ -88,31 +97,31 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                             )}
                         </div>
                     )}
-                </div>
-
-                {isAuthenticated && isManageMode && (
-                    <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
-                        <button
-                            onClick={(e) => onEditClick(e, item)}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
-                            title="编辑"
-                        >
-                            <Icon icon="fa-solid fa-pen" className="text-[10px]" />
-                        </button>
-                        <button
-                            onClick={(e) => onDeleteClick(e, item)}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
-                            title="删除"
-                        >
-                            <Icon icon="fa-solid fa-trash" className="text-[10px]" />
-                        </button>
-                    </div>
-                )}
+                </a>
             </div>
+
+            {isAuthenticated && isManageMode && (
+                <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
+                    <button
+                        onClick={(e) => onEditClick(e, item)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
+                        title="编辑"
+                    >
+                        <Icon icon="fa-solid fa-pen" className="text-[10px]" />
+                    </button>
+                    <button
+                        onClick={(e) => onDeleteClick(e, item)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
+                        title="删除"
+                    >
+                        <Icon icon="fa-solid fa-trash" className="text-[10px]" />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
