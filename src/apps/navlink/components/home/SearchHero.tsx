@@ -298,9 +298,11 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                         <button
                             key={engine.id}
                             onClick={() => setActiveEngineId(engine.id)}
-                            className={`pb-1 border-b-2 transition-all ${activeEngineId === engine.id ? 'text-white border-[var(--theme-primary)] font-bold' : 'border-transparent hover:text-white'}`}
+                            className={`pb-1 border-b-2 transition-all ${activeEngineId === engine.id ? 'border-[var(--theme-primary)] font-bold' : 'border-transparent hover:text-white'}`}
                             style={{
-                                color: activeEngineId !== engine.id ? config.theme?.heroSearchEngineColor : undefined,
+                                color: activeEngineId === engine.id
+                                    ? (config.theme?.heroSearchEngineActiveColor || '#ffffff')
+                                    : (config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'),
                                 fontSize: config.theme?.heroSearchEngineSize ? `${config.theme.heroSearchEngineSize}px` : undefined
                             }}
                         >

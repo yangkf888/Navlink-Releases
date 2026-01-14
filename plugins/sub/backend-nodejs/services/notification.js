@@ -167,13 +167,21 @@ async function sendWebhookNotification(settings, title, content, extraData = {})
         if (settings.webhook.template) {
             try {
                 let templateStr = settings.webhook.template;
-                templateStr = templateStr.replace(/\{\{title\}\}/g, title);
-                templateStr = templateStr.replace(/\{\{content\}\}/g, content);
-                templateStr = templateStr.replace(/\{\{timestamp\}\}/g, data.timestamp);
+
+                // 为了安全地将变量嵌入到 JSON 模板中，需要对内容进行 JSON 转义
+                // 我们调用 JSON.stringify 然后切掉首尾的引号
+                const safeJsonSub = (val) => {
+                    const s = typeof val === 'string' ? val : JSON.stringify(val);
+                    return JSON.stringify(s).slice(1, -1);
+                };
+
+                templateStr = templateStr.replace(/\{\{title\}\}/g, safeJsonSub(title));
+                templateStr = templateStr.replace(/\{\{content\}\}/g, safeJsonSub(content));
+                templateStr = templateStr.replace(/\{\{timestamp\}\}/g, safeJsonSub(data.timestamp));
 
                 for (const [key, value] of Object.entries(extraData)) {
                     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-                    templateStr = templateStr.replace(regex, typeof value === 'string' ? value : JSON.stringify(value));
+                    templateStr = templateStr.replace(regex, safeJsonSub(value));
                 }
 
                 data = JSON.parse(templateStr);

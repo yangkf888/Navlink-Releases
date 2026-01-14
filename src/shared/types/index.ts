@@ -120,7 +120,10 @@ export interface ThemeConfig {
   heroHotSearchColor?: string;
   heroHotSearchSize?: number;
   heroSearchEngineColor?: string;
+  heroSearchEngineActiveColor?: string;
   heroSearchEngineSize?: number;
+  promoTitle?: string;    // 热门网址标题文案
+  promoIcon?: string;     // 热门网址图标代码
 }
 
 export interface AIProvider {

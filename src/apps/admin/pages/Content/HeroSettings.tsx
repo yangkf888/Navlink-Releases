@@ -38,35 +38,82 @@ export const HeroSettings: React.FC = () => {
                     </div>
                 </div>
 
-                <div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">搜索样式</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="space-y-4">
-                            <Label>主标题样式</Label>
-                            <div className="flex gap-2 items-center">
-                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} />
-                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroTitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleSize: parseInt(e.target.value) } }))} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* 主标题 */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
+                            <Label className="!mb-0 font-bold text-gray-700">主标题样式</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Input type="color" className="!w-16 !h-10 p-0.5 cursor-pointer rounded-lg border-gray-200 shrink-0 shadow-sm" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} />
+                            <Input className="flex-1 font-mono text-xs uppercase px-2 bg-gray-50/30 border-gray-100" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} placeholder="#HEX" />
+                            <div className="relative !w-28 shrink-0">
+                                <Input type="number" className="w-full pr-8 px-2" placeholder="36" value={config.theme?.heroTitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleSize: parseInt(e.target.value) } }))} />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">px</span>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <Label>副标题样式</Label>
-                            <div className="flex gap-2 items-center">
-                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} />
-                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSubtitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleSize: parseInt(e.target.value) } }))} />
+                    </div>
+
+                    {/* 副标题 */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-4 bg-blue-400 rounded-full"></div>
+                            <Label className="!mb-0 font-bold text-gray-700">副标题样式</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Input type="color" className="!w-16 !h-10 p-0.5 cursor-pointer rounded-lg border-gray-200 shrink-0 shadow-sm" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} />
+                            <Input className="flex-1 font-mono text-xs uppercase px-2 bg-gray-50/30 border-gray-100" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} placeholder="#HEX" />
+                            <div className="relative !w-28 shrink-0">
+                                <Input type="number" className="w-full pr-8 px-2" placeholder="16" value={config.theme?.heroSubtitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleSize: parseInt(e.target.value) } }))} />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">px</span>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <Label>热词按钮样式</Label>
-                            <div className="flex gap-2 items-center">
-                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} />
-                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroHotSearchSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchSize: parseInt(e.target.value) } }))} />
+                    </div>
+
+                    {/* 热词按钮 */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-4 bg-orange-500 rounded-full"></div>
+                            <Label className="!mb-0 font-bold text-gray-700">热词按钮样式</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Input type="color" className="!w-16 !h-10 p-0.5 cursor-pointer rounded-lg border-gray-200 shrink-0 shadow-sm" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} />
+                            <Input className="flex-1 font-mono text-xs px-2 bg-gray-50/30 border-gray-100" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} placeholder="Color" />
+                            <div className="relative !w-28 shrink-0">
+                                <Input type="number" className="w-full pr-8 px-2" placeholder="14" value={config.theme?.heroHotSearchSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchSize: parseInt(e.target.value) } }))} />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">px</span>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <Label>搜索引擎列表样式</Label>
-                            <div className="flex gap-2 items-center">
-                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} />
-                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSearchEngineSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineSize: parseInt(e.target.value) } }))} />
+                    </div>
+
+                    {/* 搜索引擎 */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-2 border-b border-gray-50 pb-2">
+                            <div className="w-1.5 h-4 bg-green-600 rounded-full"></div>
+                            <Label className="!mb-0 font-bold text-gray-700">搜索引擎样式个性化定制</Label>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-gray-400 font-medium ml-1 text-[11px]">常规状态色彩</span>
+                                <div className="flex items-center gap-2">
+                                    <Input type="color" className="!w-16 !h-10 p-0.5 cursor-pointer rounded-lg border-gray-200 shrink-0 shadow-sm" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} />
+                                    <Input className="flex-1 font-mono text-xs px-2 bg-gray-50/30 border-gray-100" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} placeholder="Color" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-gray-400 font-medium ml-1 text-[11px]">选中状态色彩</span>
+                                <div className="flex items-center gap-2">
+                                    <Input type="color" className="!w-16 !h-10 p-0.5 cursor-pointer rounded-lg border-gray-200 shrink-0 shadow-sm" value={config.theme?.heroSearchEngineActiveColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineActiveColor: e.target.value } }))} />
+                                    <Input className="flex-1 font-mono text-xs uppercase px-2 bg-gray-50/30 border-gray-100" value={config.theme?.heroSearchEngineActiveColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineActiveColor: e.target.value } }))} placeholder="#HEX" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-gray-400 font-medium ml-1 text-[11px]">字体显示字号</span>
+                                <div className="relative w-full">
+                                    <Input type="number" className="w-full pr-12 h-10 px-3" placeholder="15" value={config.theme?.heroSearchEngineSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineSize: parseInt(e.target.value) } }))} />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-black uppercase pointer-events-none">px</span>
+                                </div>
                             </div>
                         </div>
                     </div>

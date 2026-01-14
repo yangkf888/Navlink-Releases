@@ -372,8 +372,8 @@ const PromoArea = () => {
             <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 animate-fade-in">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b border-gray-100 pb-3">
                     <div className="flex items-center gap-2 text-sm text-gray-500 select-none flex-shrink-0">
-                        <Icon icon="fa-solid fa-fire" className="text-red-500" />
-                        <span className="font-bold text-gray-700" style={{ fontSize: `${config.theme?.promoCategoryTitleSize || 16}px` }}>热门网址</span>
+                        <Icon icon={config.theme?.promoIcon || "fa-solid fa-fire"} className="text-red-500" />
+                        <span className="font-bold text-gray-700" style={{ fontSize: `${config.theme?.promoCategoryTitleSize || 16}px` }}>{config.theme?.promoTitle || "热门网址"}</span>
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto sm:flex-1 pb-2 sm:pb-0" style={{ scrollbarWidth: 'thin' }}>
