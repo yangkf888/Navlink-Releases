@@ -43,29 +43,29 @@ export const HeroSettings: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="space-y-4">
                             <Label>主标题样式</Label>
-                            <div className="flex gap-2">
-                                <Input type="color" className="w-12 p-1" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} />
+                            <div className="flex gap-2 items-center">
+                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} />
                                 <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroTitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleSize: parseInt(e.target.value) } }))} />
                             </div>
                         </div>
                         <div className="space-y-4">
                             <Label>副标题样式</Label>
-                            <div className="flex gap-2">
-                                <Input type="color" className="w-12 p-1" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} />
+                            <div className="flex gap-2 items-center">
+                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} />
                                 <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSubtitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleSize: parseInt(e.target.value) } }))} />
                             </div>
                         </div>
                         <div className="space-y-4">
                             <Label>热词按钮样式</Label>
-                            <div className="flex gap-2">
-                                <Input type="color" className="w-12 p-1" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} />
+                            <div className="flex gap-2 items-center">
+                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} />
                                 <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroHotSearchSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchSize: parseInt(e.target.value) } }))} />
                             </div>
                         </div>
                         <div className="space-y-4">
                             <Label>搜索引擎列表样式</Label>
-                            <div className="flex gap-2">
-                                <Input type="color" className="w-12 p-1" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} />
+                            <div className="flex gap-2 items-center">
+                                <Input type="color" className="!w-14 !h-10 p-1 cursor-pointer" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} />
                                 <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSearchEngineSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineSize: parseInt(e.target.value) } }))} />
                             </div>
                         </div>
