@@ -28,7 +28,15 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
 
   return (
     <div className="relative group h-full animate-fade-in">
-      <a href={ensureProtocol(item.url)} target="_blank" rel="noopener noreferrer" className={`flex bg-white rounded-lg p-4 h-full border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 hover:border-transparent items-start relative ${cardOpacity}`}>
+      <a
+        href={!isAuthenticated ? ensureProtocol(item.url) : undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          if (isAuthenticated) e.preventDefault();
+        }}
+        className={`flex bg-white rounded-lg p-4 h-full border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 hover:border-transparent items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
+      >
         <div className="mr-3 flex-shrink-0">
           {item.icon ? (
             item.icon.includes('fa-') || item.icon.includes(':') ? (

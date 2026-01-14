@@ -43,7 +43,10 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
         transform,
         transition,
         isDragging
-    } = useSortable({ id });
+    } = useSortable({
+        id,
+        disabled: !isManageMode
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -98,30 +101,30 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                         </div>
                     )}
                 </a>
-            </div>
 
-            {isAuthenticated && isManageMode && (
-                <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
-                    <button
-                        onClick={(e) => onEditClick(e, item)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
-                        title="编辑"
-                    >
-                        <Icon icon="fa-solid fa-pen" className="text-[10px]" />
-                    </button>
-                    <button
-                        onClick={(e) => onDeleteClick(e, item)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
-                        title="删除"
-                    >
-                        <Icon icon="fa-solid fa-trash" className="text-[10px]" />
-                    </button>
-                </div>
-            )}
+                {isAuthenticated && isManageMode && (
+                    <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
+                        <button
+                            onClick={(e) => onEditClick(e, item)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
+                            title="编辑"
+                        >
+                            <Icon icon="fa-solid fa-pen" className="text-[10px]" />
+                        </button>
+                        <button
+                            onClick={(e) => onDeleteClick(e, item)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
+                            title="删除"
+                        >
+                            <Icon icon="fa-solid fa-trash" className="text-[10px]" />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -382,7 +385,7 @@ const PromoArea = () => {
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b border-gray-100 pb-3">
                     <div className="flex items-center gap-2 text-sm text-gray-500 select-none flex-shrink-0">
                         <Icon icon={config.theme?.promoIcon || "fa-solid fa-fire"} className="text-red-500" />
-                        <span className="font-bold text-gray-700" style={{ fontSize: `${config.theme?.promoCategoryTitleSize || 16}px` }}>{config.theme?.promoTitle || "热门网址"}</span>
+                        <span className="font-bold text-gray-700" style={{ fontSize: `${config.theme?.promoCategoryTitleSize || 16}px` }}>{config.theme?.promoTitle ?? "热门网址"}</span>
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto sm:flex-1 pb-2 sm:pb-0" style={{ scrollbarWidth: 'thin' }}>

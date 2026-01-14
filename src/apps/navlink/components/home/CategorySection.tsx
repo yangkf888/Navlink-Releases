@@ -30,11 +30,12 @@ interface SortableItemProps {
     id: string;
     item: LinkItem;
     isAuthenticated: boolean;
+    isManageMode: boolean;
     onEdit: (item: LinkItem) => void;
     onDelete: (item: LinkItem) => void;
 }
 
-const SortableItem = ({ id, item, isAuthenticated, onEdit, onDelete }: SortableItemProps) => {
+const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelete }: SortableItemProps) => {
     const {
         attributes,
         listeners,
@@ -42,7 +43,10 @@ const SortableItem = ({ id, item, isAuthenticated, onEdit, onDelete }: SortableI
         transform,
         transition,
         isDragging
-    } = useSortable({ id });
+    } = useSortable({
+        id,
+        disabled: !isManageMode
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -408,6 +412,7 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                                 id={item.id}
                                 item={item}
                                 isAuthenticated={isAuthenticated && isManageMode}
+                                isManageMode={isManageMode}
                                 onEdit={handleEditClick}
                                 onDelete={handleDeleteLink}
                             />

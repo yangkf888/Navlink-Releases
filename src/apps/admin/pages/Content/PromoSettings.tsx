@@ -469,7 +469,7 @@ export const PromoSettings: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <Label className="text-sm font-semibold text-gray-600">展示文案</Label>
                         <Input
-                            value={config.theme?.promoTitle || '热门网址'}
+                            value={config.theme?.promoTitle ?? '热门网址'}
                             placeholder="热门网址"
                             onChange={e => update(c => ({ ...c, theme: { ...c.theme, promoTitle: e.target.value } }))}
                             className="h-10 transition-shadow focus:shadow-md"
