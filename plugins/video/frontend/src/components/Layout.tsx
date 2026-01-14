@@ -64,8 +64,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
     }, [isCollapsed]);
 
     // 处理全局搜索
-    const handleGlobalSearch = (keyword: string, sourceId: number | null) => {
-        sidebarProps.onNavigate('search', { keyword, sourceId });
+    const handleGlobalSearch = (keyword: string, sourceId: number | null, netdiskPath?: string) => {
+        sidebarProps.onNavigate('search', { keyword, sourceId, netdiskPath, _t: Date.now() });
     };
 
     return (

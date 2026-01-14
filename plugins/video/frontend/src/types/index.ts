@@ -156,6 +156,7 @@ export interface Video {
     vod_actor?: string;
     source_id?: number;
     source_name?: string;
+    is_netdisk?: boolean;
 }
 
 /**

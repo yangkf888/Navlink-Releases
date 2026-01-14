@@ -6,13 +6,14 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { VideoSource } from '../types';
+import { VideoSource, NetdiskSource } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { AppModule } from '../App';
+import { apiRequest } from '../utils/api';
 
 interface GlobalSearchBarProps {
     sources: VideoSource[];
-    onSearch: (keyword: string, sourceId: number | null) => void;
+    onSearch: (keyword: string, sourceId: number | null, netdiskPath?: string) => void;
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
     activeView: string;
     activeModule: AppModule;
@@ -112,14 +113,61 @@ const THEME_KEY = 'video_theme';
 
 export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, activeModule, onModuleChange, onToggleSidebar, theme, onToggleTheme, isAdminPasswordEnabled }: GlobalSearchBarProps) {
     const [keyword, setKeyword] = useState('');
-    const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
+    const [selectedSource, setSelectedSource] = useState<{ type: 'all' | 'video' | 'netdisk'; id: number | null; name: string; path?: string }>({ type: 'all', id: null, name: '全部源' });
+    const [netdiskSources, setNetdiskSources] = useState<NetdiskSource[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false); // 移动端搜索弹出层
+    const [isVideoSourcesExpanded, setIsVideoSourcesExpanded] = useState(true);
+    const [isNetdiskExpanded, setIsNetdiskExpanded] = useState(true);
 
     // 认证状态
-    const { isAuthenticated, login, logout } = useAuth();
+    const { isAuthenticated, login, logout, password } = useAuth();
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+    // 获取网盘源
+    useEffect(() => {
+        let isMounted = true;
+        const fetchNetdiskSources = async () => {
+            try {
+                const res = await apiRequest<{ success: boolean; data: any }>(
+                    'netdisk/sources'
+                );
+
+                if (!isMounted) return;
+
+                console.log('[GlobalSearchBar] RAW DATA:', res);
+                // 🚀 强力注入：挂载到 window 方便调试
+                (window as any)._netdiskData = res;
+
+                if (res.success && res.data) {
+                    let finalData = res.data;
+                    // 如果后端由于某种原因返回了 JSON 字符串（有时候 sqlite 会这样）
+                    if (typeof finalData === 'string') {
+                        try {
+                            finalData = JSON.parse(finalData);
+                        } catch (e) { /* ignore */ }
+                    }
+
+                    if (Array.isArray(finalData)) {
+                        console.log('[GlobalSearchBar] SUCCESS: Setting sources', finalData.length);
+                        setNetdiskSources(finalData);
+                    } else {
+                        console.error('[GlobalSearchBar] ERROR: Data is not an array', finalData);
+                    }
+                }
+            } catch (err) {
+                console.error('[GlobalSearchBar] Failed to fetch netdisk sources:', err);
+            }
+        };
+
+        // 延迟一下再取，确保登录状态已经写回数据库或本地
+        const timer = setTimeout(fetchNetdiskSources, 300);
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
+    }, [isAdminPasswordEnabled, isAuthenticated, password]);
 
     // 应用主题到 document
     useEffect(() => {
@@ -137,17 +185,36 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
         }
     }, [theme]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (keyword.trim()) {
-            onSearch(keyword.trim(), selectedSourceId);
+    const submitSearch = (kw: string) => {
+        const trimmedKw = kw.trim();
+        console.log('[SearchDebug] submitSearch called with:', {
+            kw: trimmedKw,
+            sourceType: selectedSource.type,
+            sourceId: selectedSource.id,
+            path: selectedSource.path
+        });
+
+        // 如果是聚合或普通源，且没有关键字，则不提交
+        if (!trimmedKw && selectedSource.type !== 'netdisk') {
+            console.warn('[SearchDebug] Empty keyword for non-netdisk source, skipping.');
+            return;
         }
+
+        if (selectedSource.type === 'netdisk') {
+            onSearch(trimmedKw, null, selectedSource.path || '/');
+        } else {
+            onSearch(trimmedKw, selectedSource.id, undefined);
+        }
+        setIsDropdownOpen(false);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && keyword.trim()) {
-            onSearch(keyword.trim(), selectedSourceId);
+    const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+        console.log('[SearchDebug] handleSubmit triggered!', { eventType: e?.type });
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
         }
+        submitSearch(keyword);
     };
 
     const handleUserIconClick = async () => {
@@ -170,8 +237,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
         // 退出后强制刷新页面以同步所有状态
         window.location.reload();
     };
-
-    const selectedSource = sources.find(s => s.id === selectedSourceId);
 
     // 按钮样式
     const buttonClass = (isActive: boolean) => `
@@ -308,38 +373,49 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             >
                                 <i className="fas fa-arrow-left"></i>
                             </button>
-                            <div className="flex-1 relative">
-                                <input
-                                    type="text"
-                                    value={keyword}
-                                    onChange={(e) => setKeyword(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && keyword.trim()) {
-                                            onSearch(keyword.trim(), selectedSourceId);
-                                            setIsMobileSearchOpen(false);
-                                        }
-                                    }}
-                                    placeholder="搜索电影、电视剧、动漫..."
-                                    autoFocus
-                                    className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
-                                        ${theme === 'dark'
-                                            ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
-                                            : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
-                                        }`}
-                                />
-                                <i className={`fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm
-                                    ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
-                            </div>
                             <button
-                                onClick={() => {
-                                    if (keyword.trim()) {
-                                        onSearch(keyword.trim(), selectedSourceId);
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    submitSearch(keyword);
+                                    setIsMobileSearchOpen(false);
+                                }}
+                                className={`absolute left-0 top-0 bottom-0 px-3 flex items-center justify-center transition-colors group z-10`}
+                                title="点击搜索"
+                            >
+                                <i className={`fas fa-search text-sm
+                                        ${theme === 'dark' ? 'text-secondary group-hover:text-blue-400' : 'text-secondary group-hover:text-blue-600'}`}></i>
+                            </button>
+                            <input
+                                type="text"
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        submitSearch(keyword);
                                         setIsMobileSearchOpen(false);
                                     }
                                 }}
-                                disabled={!keyword.trim()}
-                                className="px-4 py-2.5 bg-red-500 text-primary rounded-lg hover:bg-red-600 
-                                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                placeholder="搜索电影、电视剧、动漫..."
+                                autoFocus
+                                className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
+                                        ${theme === 'dark'
+                                        ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
+                                        : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
+                                    }`}
+                            />
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    submitSearch(keyword);
+                                    setIsMobileSearchOpen(false);
+                                }}
+                                className={`px-4 py-2.5 rounded-lg transition-colors text-sm font-bold
+                                    ${selectedSource.type === 'netdisk' || keyword.trim()
+                                        ? 'bg-red-500 text-primary hover:bg-red-600'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    }`}
                             >
                                 搜索
                             </button>
@@ -378,7 +454,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     }`}
                             >
                                 <i className="fas fa-database text-xs opacity-70"></i>
-                                <span className="truncate">{selectedSource?.name || '全部源'}</span>
+                                <span className="truncate">{selectedSource.name}</span>
                                 <i className={`fas fa-chevron-down text-xs transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
                             </button>
 
@@ -388,58 +464,170 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                         className="fixed inset-0 z-10"
                                         onClick={() => setIsDropdownOpen(false)}
                                     ></div>
-                                    <div className={`absolute top-full left-0 mt-1 w-48 border rounded-lg shadow-xl z-20 py-1 max-h-64 overflow-y-auto
+                                    <div className={`absolute top-full left-0 mt-1 w-56 border rounded-lg shadow-xl z-20 py-1 max-h-96 overflow-y-auto
                                     ${theme === 'dark'
-                                            ? 'bg-secondary border-border-color'
-                                            : 'bg-white border-gray-200'
+                                            ? 'bg-secondary border-border-color shadow-black/80'
+                                            : 'bg-white border-gray-200 shadow-slate-200'
                                         }`}
                                     >
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                setSelectedSourceId(null);
+                                                setSelectedSource({ type: 'all', id: null, name: '全部源' });
                                                 setIsDropdownOpen(false);
                                             }}
-                                            className={`w-full text-left px-3 py-2 text-sm transition-colors
-                                            ${selectedSourceId === null
-                                                    ? theme === 'dark' ? 'text-blue-400 bg-gray-700/50' : 'text-blue-600 bg-blue-100'
-                                                    : theme === 'dark' ? 'text-primary hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                            className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2
+                                            ${selectedSource.type === 'all'
+                                                    ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
+                                                    : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
                                                 }`}
                                         >
-                                            <i className="fas fa-globe mr-2 opacity-70"></i>
-                                            全部视频源
+                                            <i className="fas fa-globe text-xs opacity-70"></i>
+                                            <span className="font-bold">全部源 (聚合搜索)</span>
                                         </button>
-                                        {sources.map(source => (
+
+                                        {/* 资源站分类 */}
+                                        <div className="flex items-center justify-between mt-1 px-3 py-2 border-b border-border-color/30">
                                             <button
-                                                key={source.id}
                                                 type="button"
                                                 onClick={() => {
-                                                    setSelectedSourceId(source.id);
+                                                    setSelectedSource({ type: 'video', id: null, name: '全站视频' });
                                                     setIsDropdownOpen(false);
                                                 }}
-                                                className={`w-full text-left px-3 py-2 text-sm transition-colors
-                                                ${selectedSourceId === source.id
-                                                        ? theme === 'dark' ? 'text-blue-400 bg-gray-700/50' : 'text-blue-600 bg-blue-100'
-                                                        : theme === 'dark' ? 'text-primary hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'video' && !selectedSource.id
+                                                        ? 'text-blue-500'
+                                                        : theme === 'dark' ? 'text-secondary hover:text-blue-400' : 'text-gray-900 hover:text-blue-600'
                                                     }`}
                                             >
-                                                <i className="fas fa-database mr-2 opacity-70"></i>
-                                                {source.name}
+                                                <i className="fas fa-film text-xs"></i>
+                                                资源站 (全站视频)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsVideoSourcesExpanded(!isVideoSourcesExpanded);
+                                                }}
+                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
+                                            >
+                                                <i className={`fas fa-chevron-${isVideoSourcesExpanded ? 'down' : 'right'} text-[10px]`}></i>
+                                            </button>
+                                        </div>
+
+                                        {isVideoSourcesExpanded && sources.map(source => (
+                                            <button
+                                                key={`video-${source.id}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSource({ type: 'video', id: source.id, name: source.name });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'video' && selectedSource.id === source.id
+                                                        ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
+                                                        : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-layer-group text-[10px] opacity-40 shrink-0"></i>
+                                                <span className="truncate">{source.name}</span>
                                             </button>
                                         ))}
+
+                                        {/* 媒体库分类 */}
+                                        <div className="flex items-center justify-between mt-3 px-3 py-2 border-t border-b border-border-color/30 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSource({ type: 'netdisk', id: null, name: '全部媒体库', path: '/' });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'netdisk' && !selectedSource.id
+                                                        ? 'text-green-500'
+                                                        : theme === 'dark' ? 'text-secondary hover:text-green-400' : 'text-gray-900 hover:text-green-600'
+                                                    }`}
+                                            >
+                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                媒体库 [全局搜索]
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsNetdiskExpanded(!isNetdiskExpanded);
+                                                }}
+                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
+                                            >
+                                                <i className={`fas fa-chevron-${isNetdiskExpanded ? 'down' : 'right'} text-[10px]`}></i>
+                                            </button>
+                                        </div>
+
+                                        {isNetdiskExpanded && netdiskSources.map(source => {
+                                            // 🚀 前端信任后端发来的 Array
+                                            const scanPaths = Array.isArray(source.scan_paths) ? source.scan_paths : [];
+
+                                            // 打印调试信息
+                                            if (scanPaths.length > 0) {
+                                                console.log(`[GlobalSearchBar] Rendering ${scanPaths.length} paths for ${source.name}`);
+                                            }
+
+                                            // 🛡️ 兜底：如果确实没路径，显示一个默认项
+                                            const itemsToRender = scanPaths.length > 0 ? scanPaths : [{ name: '源根目录', path: '/' }];
+
+                                            return itemsToRender.map((sp: any) => {
+                                                const uniqueId = `${source.id}-${sp.path || 'root'}`;
+                                                return (
+                                                    <button
+                                                        key={`netdisk-${uniqueId}`}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedSource({
+                                                                type: 'netdisk',
+                                                                id: source.id,
+                                                                name: sp.name || sp.path?.split('/').pop() || source.name,
+                                                                path: sp.path || '/'
+                                                            });
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
+                                                        ${selectedSource.type === 'netdisk' && selectedSource.id === source.id && selectedSource.path === sp.path
+                                                                ? theme === 'dark' ? 'text-green-400 bg-green-500/10' : 'text-green-600 bg-green-50'
+                                                                : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                            }`}
+                                                    >
+                                                        <i className="fas fa-folder-open text-[10px] opacity-50 shrink-0"></i>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="truncate font-medium">{sp.name || sp.path?.split('/').pop() || '未知目录'}</span>
+                                                            <span className="text-[10px] opacity-40 truncate">来源: {source.name}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            });
+                                        })}
                                     </div>
                                 </>
                             )}
                         </div>
 
                         {/* 搜索输入框 */}
-                        <form onSubmit={handleSubmit} className="flex-1 relative flex gap-2">
+                        <form
+                            onSubmit={handleSubmit}
+                            className="flex-1 relative flex gap-2"
+                        >
                             <div className="flex-1 relative">
+                                <div
+                                    className={`absolute left-0 top-0 bottom-0 px-3 flex items-center justify-center pointer-events-none z-10`}
+                                >
+                                    <i className={`fas fa-search text-sm
+                                        ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
+                                </div>
                                 <input
                                     type="text"
                                     value={keyword}
                                     onChange={(e) => setKeyword(e.target.value)}
-                                    onKeyDown={handleKeyDown}
+                                    autoComplete="off"
                                     placeholder="搜索电影、电视剧、动漫..."
                                     className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
                                     ${theme === 'dark'
@@ -447,13 +635,11 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                             : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
                                         }`}
                                 />
-                                <i className={`fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm
-                                ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
                                 {keyword && (
                                     <button
                                         type="button"
                                         onClick={() => setKeyword('')}
-                                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors
+                                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors z-20
                                         ${theme === 'dark' ? 'text-secondary hover:text-primary' : 'text-secondary hover:text-gray-600'}`}
                                     >
                                         <i className="fas fa-times text-xs"></i>
@@ -464,10 +650,12 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             {/* 搜索按钮 */}
                             <button
                                 type="submit"
-                                disabled={!keyword.trim()}
-                                className="px-5 py-2.5 bg-blue-600 text-primary rounded-lg hover:bg-blue-700 
-                                     transition-all duration-300 shadow-lg shadow-blue-500/20 
-                                     disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                className={`px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg text-sm font-medium
+                                      ${selectedSource.type === 'netdisk'
+                                        ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20 text-white font-bold'
+                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 text-primary'
+                                    } 
+                                      disabled:opacity-40 disabled:scale-95 disabled:cursor-not-allowed`}
                             >
                                 <i className="fas fa-search"></i>
                             </button>

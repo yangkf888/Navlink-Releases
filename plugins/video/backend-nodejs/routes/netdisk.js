@@ -73,6 +73,8 @@ router.get('/sources', (req, res) => {
     try {
         const db = getDatabase();
         const authorized = isAuthorized(req, db);
+        const adminPassword = req.headers['x-admin-password'];
+        console.log(`[Netdisk/Sources] Authorized: ${authorized}, Header: ${adminPassword ? 'PRESENT' : 'MISSING'}`);
 
         let sources = db.all(`
             SELECT id, name, type, url, username, root_path, scan_paths, enabled, proxy_enabled, hidden, sort_order, remark, created_at, updated_at
@@ -80,26 +82,41 @@ router.get('/sources', (req, res) => {
             ORDER BY sort_order ASC, id ASC
         `);
 
-        // 如果未授权，过滤隐藏的网盘源
-        if (!authorized) {
-            sources = sources.filter(s => !s.hidden);
-        }
-
         // 解析并过滤 scan_paths
         const parsed = sources.map(s => {
-            let scanPaths = s.scan_paths ? JSON.parse(s.scan_paths) : [];
-            if (!authorized) {
-                // 如果未授权，过滤掉标记为隐藏的路径
+            let scanPaths = [];
+            try {
+                scanPaths = s.scan_paths ? JSON.parse(s.scan_paths) : [];
+            } catch (e) {
+                console.error(`[netdisk/sources] Failed to parse scan_paths for source ${s.id}:`, e);
+            }
+
+            // 权限策略优化：
+            // 如果已授权，全部返回
+            if (authorized) {
+                return { ...s, scan_paths: scanPaths };
+            }
+
+            // 未授权情况：过滤掉隐藏内容
+            // 如果 Source 被标记为隐藏且未授权，则不返回任何路径
+            if (s.hidden) {
+                scanPaths = [];
+            } else {
                 scanPaths = scanPaths.filter(p => !p.hidden);
             }
+
             return {
                 ...s,
                 scan_paths: scanPaths
             };
         });
 
+        // 最终过滤：如果是管理员，返回全部；如果是非管理员，仅返回非隐藏源且有可见路径的源
+        const finalData = authorized ? parsed : parsed.filter(s => !s.hidden || s.scan_paths.length > 0);
+
         // 不返回密码
-        res.json({ success: true, data: parsed });
+        console.log(`[Netdisk/Sources] Returning ${finalData.length} sources to client`);
+        res.json({ success: true, data: finalData });
     } catch (error) {
         console.error('[Netdisk] Failed to get sources:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -504,17 +521,63 @@ router.get('/probe/status', (req, res) => {
  */
 router.get('/media', (req, res) => {
     try {
-        const { sourceId, type = 'all', limit = 100, offset = 0, path = '', genres, year, area, rating, actor, studio } = req.query;
-
-        if (!sourceId) {
-            return res.status(400).json({ success: false, error: '缺少 sourceId' });
-        }
-
         const db = getDatabase();
         const authorized = isAuthorized(req, db);
+        const { sourceId, type = 'all', limit = 20, offset = 0, path, genres, year, area, rating, actor, studio } = req.query;
 
-        // 获取源信息以检查隐藏状态
-        const source = db.get('SELECT hidden, scan_paths FROM netdisk_sources WHERE id = ?', [sourceId]);
+        // 如果没有提供 sourceId，则执行全局媒体库搜索
+        if (!sourceId) {
+            let sources = db.all('SELECT id, name, hidden, scan_paths FROM netdisk_sources WHERE enabled = 1');
+            if (!authorized) {
+                sources = sources.filter(s => !s.hidden);
+            }
+
+            let allMedia = [];
+            let totalCount = 0;
+
+            for (const source of sources) {
+                const filterOptions = {
+                    type,
+                    keyword: req.query.keyword || undefined,
+                    limit: 1000, // 全局搜索时先取较多，由网关层汇总
+                    offset: 0,
+                    path: path || undefined,
+                    genres: genres || undefined,
+                    year: year || undefined,
+                    area: area || undefined,
+                    rating: rating || undefined,
+                    actor: actor || undefined,
+                    studio: studio || undefined,
+                    series: req.query.series || undefined,
+                    tags: req.query.tags || undefined,
+                    date: req.query.date || undefined,
+                    sort: req.query.sort || undefined
+                };
+
+                let media = mediaScanService.getMedia(source.id, filterOptions);
+
+                // 权限过滤：处理隐藏路径
+                if (!authorized && source.scan_paths) {
+                    try {
+                        const scanPaths = JSON.parse(source.scan_paths);
+                        const hiddenPaths = Array.isArray(scanPaths) ? scanPaths.filter(p => p.hidden).map(p => p.path) : [];
+                        if (hiddenPaths.length > 0) {
+                            media = media.filter(m => !hiddenPaths.some(hp => m.path.startsWith(hp)));
+                        }
+                    } catch (e) { }
+                }
+
+                allMedia.push(...media);
+            }
+
+            // 按最新排序或相关度（此处暂按原顺序汇总）
+            totalCount = allMedia.length;
+            const paginatedMedia = allMedia.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+            return res.json({ success: true, data: paginatedMedia, total: totalCount });
+        }
+
+        const source = db.get('SELECT * FROM netdisk_sources WHERE id = ?', [sourceId]);
         if (!source) {
             return res.status(404).json({ success: false, error: '源不存在' });
         }
@@ -527,6 +590,7 @@ router.get('/media', (req, res) => {
         // 构建筛选选项
         const filterOptions = {
             type,
+            keyword: req.query.keyword || undefined,
             limit: parseInt(limit),
             offset: parseInt(offset),
             path: path || undefined,
@@ -1192,6 +1256,18 @@ router.post('/clear-index', async (req, res) => {
         }
         res.json({ success: true });
     } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 🧹 新增：清理孤儿记录（已从源目录删除但仍在数据库的记录）
+router.post('/cleanup-orphans', async (req, res) => {
+    try {
+        const { sourceId, path, preview = true } = req.body;
+        const result = await mediaScanService.cleanupOrphans(parseInt(sourceId), path, preview);
+        res.json(result);
+    } catch (error) {
+        console.error('[Netdisk] Cleanup orphans failed:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

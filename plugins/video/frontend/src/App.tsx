@@ -39,6 +39,8 @@ interface NavParams {
     mediaId?: number; // For Netdisk
     videoIndex?: number; // For Netdisk
     netdiskSourceId?: number; // For Netdisk source selection
+    netdiskPath?: string; // For Netdisk search
+    _t?: number; // 🚀 刷新时间戳，强制重新搜索
 }
 
 // localStorage key
@@ -553,6 +555,7 @@ function VideoApp() {
                     <Search
                         initialKeyword={navParams.keyword}
                         sourceId={navParams.sourceId ?? null}
+                        netdiskPath={navParams.netdiskPath}
                         sources={sources}
                         onNavigate={navigate}
                     />

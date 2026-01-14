@@ -349,8 +349,67 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                 </div>
             )}
 
-            {/* 表格 */}
-            <div className="overflow-x-auto">
+            {/* 📱 移动端卡片视图 */}
+            <div className="md:hidden space-y-3">
+                {filteredSources.map(source => (
+                    <div
+                        key={source.id}
+                        className={`bg-secondary/30 rounded-lg border border-border-color p-3 ${!source.enabled ? 'opacity-50' : ''}`}
+                    >
+                        {/* 顶部：选择框 + 名称 + 状态 */}
+                        <div className="flex items-center gap-2 mb-2">
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(source.id)}
+                                onChange={() => handleSelect(source.id)}
+                                className="rounded"
+                            />
+                            <span className="text-primary font-medium flex-1 truncate">{source.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`} style={{ color: '#fff' }}>
+                                {source.enabled ? '启用' : '禁用'}
+                            </span>
+                        </div>
+
+                        {/* 主播和平台 */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${source.platform === 'bilibili' ? 'bg-pink-500' : 'bg-red-500'}`} style={{ color: '#fff' }}>
+                                {PLATFORMS.find(p => p.value === source.platform)?.label || source.platform}
+                            </span>
+                            {source.streamer_name && (
+                                <span className="text-secondary"><i className="fas fa-user mr-1 opacity-50"></i>{source.streamer_name}</span>
+                            )}
+                            {source.category && (
+                                <span className="text-secondary"><i className="fas fa-tag mr-1 opacity-50"></i>{source.category}</span>
+                            )}
+                        </div>
+
+                        {/* 频道ID */}
+                        <div className="text-secondary text-xs mb-2">
+                            <i className="fas fa-hashtag mr-1 opacity-50"></i>频道: {source.channel_id}
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex items-center gap-1 pt-2 border-t border-border-color">
+                            <button onClick={() => handleRefresh(source.id)} className="flex-1 py-1.5 text-xs bg-cyan-500 text-white rounded hover:bg-cyan-600 transition-colors">
+                                <i className="fas fa-sync-alt mr-1"></i>刷新
+                            </button>
+                            <button onClick={() => handleToggleEnabled(source)} className={`flex-1 py-1.5 text-xs text-white rounded transition-colors ${source.enabled ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'}`}>
+                                <i className={`fas fa-${source.enabled ? 'toggle-on' : 'toggle-off'} mr-1`}></i>{source.enabled ? '禁用' : '启用'}
+                            </button>
+                            <button onClick={() => handleEdit(source)} className="flex-1 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                <i className="fas fa-edit mr-1"></i>编辑
+                            </button>
+                            <button onClick={() => handleDelete(source.id, source.name)} className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                <i className="fas fa-trash mr-1"></i>删除
+                            </button>
+                        </div>
+
+                    </div>
+                ))}
+            </div>
+
+            {/* 🖥️ 桌面端表格视图 */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-left text-secondary border-b border-border-color">
@@ -464,6 +523,7 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                     <p>暂无直播源</p>
                 </div>
             )}
+
 
             {/* 表单弹窗 */}
             {showForm && (

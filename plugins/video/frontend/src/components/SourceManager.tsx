@@ -501,8 +501,88 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                 </div>
             )}
 
-            {/* 表格 */}
-            <div className="overflow-x-auto">
+            {/* 📱 移动端卡片视图 */}
+            <div className="md:hidden space-y-3">
+                {filteredSources.map(source => (
+                    <div
+                        key={source.id}
+                        className={`bg-secondary/30 rounded-lg border border-border-color p-3 ${!source.enabled ? 'opacity-50' : ''}`}
+                    >
+                        {/* 顶部：选择框 + 名称 + 状态标签 */}
+                        <div className="flex items-center gap-2 mb-2">
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(source.id)}
+                                onChange={() => handleSelect(source.id)}
+                                className="rounded"
+                            />
+                            <span className="text-primary font-medium flex-1 truncate">{source.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`} style={{ color: '#fff' }}>
+                                {source.enabled ? '启用' : '禁用'}
+                            </span>
+                        </div>
+
+                        {/* 地址 */}
+                        <div className="text-secondary text-xs truncate mb-2" title={source.url}>
+                            <i className="fas fa-link mr-1 opacity-50"></i>{source.url}
+                        </div>
+
+                        {/* 标签和状态 */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                            {source.proxy_enabled && (
+                                <span className="px-1.5 py-0.5 bg-purple-600 text-white rounded text-[10px]">代理</span>
+                            )}
+                            {source.hidden && (
+                                <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px]">隐藏</span>
+                            )}
+                            {source.tags && source.tags.split(',').filter(Boolean).map((tag, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-secondary text-primary rounded text-[10px] border border-border-color">
+                                    {tag.trim()}
+                                </span>
+                            ))}
+                            {/* 延迟 */}
+                            {testingIds.includes(source.id) ? (
+                                <span className="text-yellow-400"><i className="fas fa-spinner fa-spin"></i></span>
+                            ) : source.response_time ? (
+                                <span className={`${source.response_time < 500 ? 'text-green-400' : source.response_time < 1000 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                    {source.response_time}ms
+                                </span>
+                            ) : null}
+                            {/* 健康 */}
+                            {source.failure_count && source.failure_count > 0 ? (
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${source.failure_count >= 5 ? 'bg-red-500/20 text-red-400' : source.failure_count >= 3 ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                    失败 {source.failure_count}
+                                </span>
+                            ) : (
+                                <span className="px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px]">健康</span>
+                            )}
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex items-center gap-1 pt-2 border-t border-border-color">
+                            <button onClick={() => handleTest(source)} disabled={testingIds.includes(source.id)} className="flex-1 py-1.5 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors disabled:opacity-50">
+                                <i className="fas fa-tachometer-alt mr-1"></i>测速
+                            </button>
+                            <button onClick={() => handleSync(source)} disabled={syncingIds.includes(source.id)} className="flex-1 py-1.5 text-xs bg-cyan-500 text-white rounded hover:bg-cyan-600 transition-colors disabled:opacity-50">
+                                <i className={`fas fa-sync mr-1 ${syncingIds.includes(source.id) ? 'fa-spin' : ''}`}></i>同步
+                            </button>
+                            <button onClick={() => handleToggleEnabled(source)} className={`flex-1 py-1.5 text-xs text-white rounded transition-colors ${source.enabled ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'}`}>
+                                <i className={`fas fa-${source.enabled ? 'toggle-on' : 'toggle-off'} mr-1`}></i>{source.enabled ? '禁用' : '启用'}
+                            </button>
+                            <button onClick={() => handleEdit(source)} className="flex-1 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                <i className="fas fa-edit mr-1"></i>编辑
+                            </button>
+                            <button onClick={() => handleDelete(source.id, source.name)} className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                <i className="fas fa-trash mr-1"></i>删除
+                            </button>
+                        </div>
+
+                    </div>
+                ))}
+            </div>
+
+            {/* 🖥️ 桌面端表格视图 */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-left text-secondary border-b border-border-color">
@@ -718,6 +798,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                         <p>暂无视频源</p>
                     </div>
                 )
+
             }
 
             {/* 表单弹窗 */}

@@ -82,14 +82,35 @@ router.get('/search', async (req, res) => {
 
         // 如果开启流式搜索
         if (stream === 'true' || stream === '1') {
-            console.log(`[videos/search] Starting stream search for: "${keyword}"`);
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.setHeader('X-Accel-Buffering', 'no'); // 禁用 Nginx 等代理缓存
-
             // 如果使用了 compression 中间件，立即刷新响应头
             if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+            // 🚀 注入本地媒体库搜索 (作为第一个 chunk)
+            try {
+                const { MediaScanService } = require('../services/MediaScanService');
+                const adminPassword = req.headers['x-admin-password'];
+                const mediaResults = await MediaScanService.getMedia({
+                    keyword,
+                    limit: 20,
+                    adminPassword // 传递密码用于权限过滤
+                });
+
+                if (mediaResults && mediaResults.length > 0) {
+                    const mappedMedia = mediaResults.map(item => ({
+                        vod_id: item.id.toString(),
+                        vod_name: item.title,
+                        vod_pic: item.poster_url || '',
+                        vod_remarks: item.year ? `${item.year}` : '',
+                        type_name: item.media_type === 'movie' ? '电影' : '剧集',
+                        source_id: item.source_id,
+                        is_netdisk: true
+                    }));
+                    res.write(`data: ${JSON.stringify({ type: 'results', source: '本地媒体库', data: mappedMedia })}\n\n`);
+                    if (typeof res.flush === 'function') res.flush();
+                }
+            } catch (err) {
+                console.error('[videos] DB Search failed:', err);
+            }
 
             const { CmsApiParser } = require('../services/CmsApiParser');
             const concurrencyLimit = 10;
@@ -108,7 +129,8 @@ router.get('/search', async (req, res) => {
                         const list = (result.list || []).map(item => ({
                             ...item,
                             source_id: source.id,
-                            source_name: source.name
+                            source_name: source.name,
+                            vod_pic: item.vod_pic || item.pic || '' // 兼容性字段
                         }));
 
                         // 搜到一家，立即发送一家

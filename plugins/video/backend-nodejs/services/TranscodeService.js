@@ -36,6 +36,14 @@ class TranscodeService {
         }
         await this.detectFFmpeg();
 
+        // 🚨 启动时强制清除脏状态：重置播放计数和避让标志
+        this.activePlaybacks = 0;
+        const scanQueue = this.getScanQueueService();
+        if (scanQueue && typeof scanQueue.setPausedByPlayback === 'function') {
+            scanQueue.setPausedByPlayback(false);
+            console.log('[Transcode] Startup: Force reset playback pause state');
+        }
+
         // 启动定期清理
         setInterval(() => this.cleanup(), 60000);
     }
@@ -519,7 +527,7 @@ class TranscodeService {
 
     async cleanup() {
         const now = Date.now();
-        const maxIdle = 300000; // 5 分钟空闲超时，避免播放时会话被清理
+        const maxIdle = 120000; // 🚀 从 5 分钟缩短至 2 分钟，加快会话回收速度
         for (const [id, session] of this.activeSessions) {
             if (now - session.lastAccess > maxIdle) {
                 console.log(`[Transcode] Session ${id} idle too long, cleaning up...`);

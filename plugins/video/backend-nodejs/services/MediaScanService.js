@@ -107,6 +107,7 @@ class MediaScanService {
 
         const status = this.scanningStatus[sourceId];
         status.scanning = true;
+        status.mode = force ? 'full' : 'incremental'; // 🚀 新增：记录当前扫描模式
         status.progress = 0;
         status.total = 0;
         status.message = '正在准备扫描...';
@@ -209,6 +210,87 @@ class MediaScanService {
             console.log(`[MediaScan] Cleared all for source: ${sourceId}`);
         }
         return { success: true };
+    }
+
+    /**
+     * 🧹 清理孤儿记录（已从源目录删除但仍在数据库的记录）
+     * @param {number} sourceId - 网盘源 ID
+     * @param {string} specificPath - 可选，指定子目录
+     * @param {boolean} preview - true=仅预览不删除，false=执行删除
+     */
+    async cleanupOrphans(sourceId, specificPath = null, preview = true) {
+        const db = getDatabase();
+        const source = db.get('SELECT * FROM netdisk_sources WHERE id = ?', [sourceId]);
+        if (!source) {
+            throw new Error('网盘源不存在');
+        }
+
+        // 创建网盘客户端
+        const client = await this.getNetdiskClient(source);
+
+        // 查询该路径下所有数据库记录
+        let records;
+        if (specificPath) {
+            records = db.all('SELECT id, path, title FROM netdisk_media WHERE source_id = ? AND (path = ? OR path LIKE ?)', [
+                sourceId,
+                specificPath,
+                specificPath.endsWith('/') ? `${specificPath}%` : `${specificPath}/%`
+            ]);
+        } else {
+            records = db.all('SELECT id, path, title FROM netdisk_media WHERE source_id = ?', [sourceId]);
+        }
+
+        console.log(`[MediaScan/Cleanup] Checking ${records.length} records for source ${sourceId}...`);
+
+        // 筛选孤儿记录（并发检查，限制并发数）
+        const orphans = [];
+        const concurrency = 5;
+        for (let i = 0; i < records.length; i += concurrency) {
+            const chunk = records.slice(i, i + concurrency);
+            const results = await Promise.all(chunk.map(async (record) => {
+                try {
+                    // 尝试获取目录内容
+                    const items = await client.list(record.path);
+
+                    // 🚀 改进检测：检查目录是否为空或不包含视频文件
+                    if (!items || items.length === 0) {
+                        console.log(`[MediaScan/Cleanup] Orphan detected (empty): ${record.path}`);
+                        return record;
+                    }
+
+                    // 检查是否有视频文件
+                    const hasVideo = items.some(f => !f.is_dir && this.isVideoFile(f.name));
+                    if (!hasVideo) {
+                        console.log(`[MediaScan/Cleanup] Orphan detected (no video): ${record.path}`);
+                        return record;
+                    }
+
+                    return null; // 存在且有视频
+                } catch (err) {
+                    // 目录不存在或无权访问
+                    console.log(`[MediaScan/Cleanup] Orphan detected (error): ${record.path} - ${err.message}`);
+                    return record;
+                }
+            }));
+            orphans.push(...results.filter(Boolean));
+        }
+
+        console.log(`[MediaScan/Cleanup] Found ${orphans.length} orphan records`);
+
+        // 如果是预览模式，直接返回
+        if (preview) {
+            return { success: true, orphans, deletedCount: 0 };
+        }
+
+        // 执行删除
+        if (orphans.length > 0) {
+            const ids = orphans.map(o => o.id);
+            const placeholders = ids.map(() => '?').join(',');
+            db.run(`DELETE FROM netdisk_media WHERE id IN (${placeholders})`, ids);
+            console.log(`[MediaScan/Cleanup] Deleted ${ids.length} orphan records`);
+        }
+
+        return { success: true, orphans, deletedCount: orphans.length };
     }
 
     /**
@@ -660,6 +742,13 @@ class MediaScanService {
             params.push(options.type);
         }
 
+        // 🚀 全文关键字搜索 (标题或原名)
+        if (options.keyword) {
+            sql += ' AND (title LIKE ? OR original_title LIKE ?)';
+            params.push('%' + options.keyword + '%');
+            params.push('%' + options.keyword + '%');
+        }
+
         // 按路径前缀筛选 (忽略根路径，防止干扰全局过滤)
         if (options.path && options.path !== '/' && options.path !== '') {
             sql += ' AND path LIKE ?';
@@ -749,6 +838,13 @@ class MediaScanService {
         if (options.type && options.type !== 'all') {
             sql += ' AND media_type = ?';
             params.push(options.type);
+        }
+
+        // 🚀 全文关键字搜索 (标题或原名)
+        if (options.keyword) {
+            sql += ' AND (title LIKE ? OR original_title LIKE ?)';
+            params.push('%' + options.keyword + '%');
+            params.push('%' + options.keyword + '%');
         }
 
         if (options.path) {

@@ -33,6 +33,7 @@ class ScanQueueService {
         this.failedCount = 0;
         this.lastActivity = null;
         this.isPausedByPlayback = false;
+        this.pausedByPlaybackSince = null; // 🚀 记录避让开始时间，用于超时自愈
 
         // 内存中的临时即时重试队列 (高优先级)
         this.instantRetryUrls = [];
@@ -92,8 +93,10 @@ class ScanQueueService {
         if (this.isPausedByPlayback === paused) return;
         this.isPausedByPlayback = paused;
         if (paused) {
+            this.pausedByPlaybackSince = Date.now(); // 🚀 记录避让开始时间
             console.log('[ScanQueue] 🚀 Active playback detected, background tasks entering silent mode...');
         } else {
+            this.pausedByPlaybackSince = null;
             console.log('[ScanQueue] ✅ No active playback, background tasks resuming...');
         }
     }
@@ -113,10 +116,18 @@ class ScanQueueService {
                 continue;
             }
 
-            // 2. 播放避让逻辑 (最高优先级)
+            // 2. 播放避让逻辑 (最高优先级) + 🚀 超时自愈机制
             if (this.isPausedByPlayback) {
-                await this._sleep(30000); // 播放中，保持避让
-                continue;
+                // 🚨 超时自愈：如果避让超过 10 分钟，强制恢复
+                const MAX_PAUSE_DURATION = 10 * 60 * 1000; // 10 分钟
+                if (this.pausedByPlaybackSince && (Date.now() - this.pausedByPlaybackSince) > MAX_PAUSE_DURATION) {
+                    console.warn('[ScanQueue] ⚠️ Playback pause exceeded 10 minutes, force resuming background tasks!');
+                    this.isPausedByPlayback = false;
+                    this.pausedByPlaybackSince = null;
+                } else {
+                    await this._sleep(30000); // 播放中，保持避让
+                    continue;
+                }
             }
 
             // 3. 密集任务处理 (严格优先级：海报缓存 > 元数据信息 > 视频探测)
