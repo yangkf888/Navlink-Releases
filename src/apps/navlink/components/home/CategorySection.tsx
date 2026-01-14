@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+    TouchSensor
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    rectSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Category, LinkItem } from '@/shared/types';
 import { Icon } from '@/shared/components/common/Icon';
 import LinkCard from './LinkCard';
@@ -7,6 +24,49 @@ import { useConfig } from '@/shared/context/ConfigContext';
 import { LinkEditModal } from './LinkEditModal';
 import { ConfirmModal } from '@/shared/components/common/ConfirmModal';
 import ErrorBoundary from '@/shared/components/common/ErrorBoundary';
+
+// --- Sortable Item Component ---
+interface SortableItemProps {
+    id: string;
+    item: LinkItem;
+    isAuthenticated: boolean;
+    onEdit: (item: LinkItem) => void;
+    onDelete: (item: LinkItem) => void;
+}
+
+const SortableItem = ({ id, item, isAuthenticated, onEdit, onDelete }: SortableItemProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <div className={`transition-all duration-200 h-full ${isDragging ? 'shadow-2xl ring-2 ring-[var(--theme-primary)] rounded-xl' : ''
+                }`}>
+                <div className={`${isDragging ? 'ring-2 ring-[var(--theme-primary)] rounded-xl overflow-hidden' : ''}`}>
+                    <LinkCard
+                        item={item}
+                        isAuthenticated={isAuthenticated}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
     const { config, setConfig, isAuthenticated } = useConfig();
@@ -172,7 +232,7 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
 
     const handleCrossSectionMove = (item: LinkItem, targetSection: 'category' | 'promo', targetId: string, targetSubId?: string) => {
         const newConfig = { ...config };
-        
+
         if (targetSection === 'promo') {
             // Move from category to promo
             const sourceCatIndex = newConfig.categories.findIndex(c => c.id === cat.id);
@@ -189,8 +249,8 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
             }
 
             // Add to target promo tab
-            const targetPromoIndex = newConfig.promo.findIndex(p => p.name === targetId);
-            if (targetPromoIndex !== -1) {
+            const targetPromoIndex = newConfig.promo?.findIndex(p => p.name === targetId) ?? -1;
+            if (targetPromoIndex !== -1 && newConfig.promo) {
                 newConfig.promo[targetPromoIndex].items.push({
                     id: item.id,
                     title: item.title,
@@ -235,36 +295,54 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
         setItemToDelete(undefined);
     };
 
-    const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return;
+    // dnd-kit sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 200,
+                tolerance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
-        const sourceIndex = result.source.index;
-        const destinationIndex = result.destination.index;
-
-        if (sourceIndex === destinationIndex) return;
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
 
         const newConfig = { ...config };
         const catIndex = newConfig.categories.findIndex(c => c.id === cat.id);
         if (catIndex === -1) return;
 
-        let newItems = [];
+        let items = [];
         if (currentSubIndex !== -1) {
             // Subcategory mode
             const subCats = [...newConfig.categories[catIndex].subCategories!];
-            newItems = [...subCats[currentSubIndex].items];
-            const [removed] = newItems.splice(sourceIndex, 1);
-            newItems.splice(destinationIndex, 0, removed);
-            subCats[currentSubIndex].items = newItems;
-            newConfig.categories[catIndex].subCategories = subCats;
+            items = [...subCats[currentSubIndex].items];
+            const oldIndex = items.findIndex(i => i.id === active.id);
+            const newIndex = items.findIndex(i => i.id === over.id);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                subCats[currentSubIndex].items = arrayMove(items, oldIndex, newIndex);
+                newConfig.categories[catIndex].subCategories = subCats;
+                setConfig(newConfig);
+            }
         } else {
             // Normal mode
-            newItems = [...(newConfig.categories[catIndex].items || [])];
-            const [removed] = newItems.splice(sourceIndex, 1);
-            newItems.splice(destinationIndex, 0, removed);
-            newConfig.categories[catIndex].items = newItems;
+            items = [...(newConfig.categories[catIndex].items || [])];
+            const oldIndex = items.findIndex(i => i.id === active.id);
+            const newIndex = items.findIndex(i => i.id === over.id);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                newConfig.categories[catIndex].items = arrayMove(items, oldIndex, newIndex);
+                setConfig(newConfig);
+            }
         }
-
-        setConfig(newConfig);
     };
 
     return (
@@ -314,47 +392,32 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                 )}
             </div>
 
-            <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId={`cat-${cat.id}-${activeSubCat}`} direction="horizontal" isDropDisabled={!isManageMode}>
-                    {(provided) => (
-                        <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className="flex flex-wrap -m-2"
-                        >
-                            {visibleItems.map((item, index) => (
-                                <Draggable
-                                    key={item.id}
-                                    draggableId={item.id}
-                                    index={index}
-                                    isDragDisabled={!isManageMode}
-                                >
-                                    {(provided) => (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            style={{ ...provided.draggableProps.style }}
-                                            className="p-2 w-full sm:w-1/2 lg:w-1/3 xl:w-1/4 2xl:w-1/5"
-                                        >
-                                            <LinkCard
-                                                item={item}
-                                                isAuthenticated={isAuthenticated && isManageMode}
-                                                onEdit={handleEditClick}
-                                                onDelete={handleDeleteLink}
-                                            />
-                                        </div>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
-                            {allItems.length === 0 && (
-                                <div className="w-full text-center py-4 text-gray-300 text-sm">暂无内容</div>
-                            )}
-                        </div>
-                    )}
-                </Droppable>
-            </DragDropContext>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+            >
+                <SortableContext
+                    items={visibleItems.map(i => i.id)}
+                    strategy={rectSortingStrategy}
+                >
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 ${isManageMode ? 'min-h-[100px]' : ''}`}>
+                        {visibleItems.map((item) => (
+                            <SortableItem
+                                key={item.id}
+                                id={item.id}
+                                item={item}
+                                isAuthenticated={isAuthenticated && isManageMode}
+                                onEdit={handleEditClick}
+                                onDelete={handleDeleteLink}
+                            />
+                        ))}
+                        {allItems.length === 0 && (
+                            <div className="col-span-full text-center py-4 text-gray-300 text-sm">暂无内容</div>
+                        )}
+                    </div>
+                </SortableContext>
+            </DndContext>
 
             {/* Expand/Collapse Button */}
             {showExpandButton && (

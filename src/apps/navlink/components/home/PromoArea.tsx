@@ -1,11 +1,121 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+    TouchSensor
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    rectSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { SiteConfig, PromoItem, LinkItem } from '@/shared/types';
 import { Icon } from '@/shared/components/common/Icon';
 import { useConfig } from '@/shared/context/ConfigContext';
 import { LinkEditModal } from './LinkEditModal';
 import { ensureProtocol } from '@/shared/utils/url';
 import { ConfirmModal } from '@/shared/components/common/ConfirmModal';
+
+// --- Sortable Item Component ---
+interface SortableItemProps {
+    id: string;
+    item: PromoItem;
+    isManageMode: boolean;
+    isAuthenticated: boolean;
+    onEditClick: (e: React.MouseEvent, item: PromoItem) => void;
+    onDeleteClick: (e: React.MouseEvent, item: PromoItem) => void;
+}
+
+const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, onDeleteClick }: SortableItemProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="p-1.5 h-full"
+            {...attributes}
+            {...listeners}
+        >
+            <div className={`relative group h-full rounded-lg transition-all duration-200 ${isDragging ? 'shadow-2xl ring-2 ring-[var(--theme-primary)]' : ''
+                }`}>
+                <div className={`flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
+                    ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'bg-[#f9f9f9] border-transparent hover:bg-gray-100'}
+                `}>
+                    {!item.isAd && item.icon && (
+                        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
+                            {item.icon.includes('fa-') || item.icon.includes(':') ? (
+                                <Icon icon={item.icon} className="text-[28px]" style={{ color: item.color || '#ddd' }} />
+                            ) : (
+                                <img src={item.icon} className="w-7 h-7 object-contain" alt="" />
+                            )}
+                        </div>
+                    )}
+                    {item.isAd && <span className="text-[10px] border border-gray-300 rounded px-1 text-gray-400 flex-shrink-0">Ad</span>}
+                    <span className="text-xs font-medium text-gray-700 truncate group-hover:text-[var(--theme-primary)] transition-colors flex-1">{item.title}</span>
+
+                    {/* Health Info & Status Dot */}
+                    {item.health && (
+                        <div className="absolute bottom-1 right-1 z-10 flex items-center justify-end">
+                            <div className={`opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] font-bold mr-1 whitespace-nowrap ${item.health.isHealthy ? 'text-green-500' : 'text-red-500'}`}>
+                                {item.health.isHealthy ? `${item.health.responseTime || 0}ms` : '失效'}
+                            </div>
+                            {!item.health.isHealthy && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm animate-pulse" />
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {isAuthenticated && isManageMode && (
+                    <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
+                        <button
+                            onClick={(e) => onEditClick(e, item)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
+                            title="编辑"
+                        >
+                            <Icon icon="fa-solid fa-pen" className="text-[10px]" />
+                        </button>
+                        <button
+                            onClick={(e) => onDeleteClick(e, item)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
+                            title="删除"
+                        >
+                            <Icon icon="fa-solid fa-trash" className="text-[10px]" />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const PromoArea = () => {
     const { config, setConfig, isAuthenticated } = useConfig();
@@ -221,24 +331,40 @@ const PromoArea = () => {
         setConfig(newConfig);
     };
 
-    const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return;
+    // dnd-kit sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 200,
+                tolerance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
-        const sourceIndex = result.source.index;
-        const destinationIndex = result.destination.index;
-
-        if (sourceIndex === destinationIndex) return;
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
 
         const newConfig = { ...config };
         const tabIndex = newConfig.promo?.findIndex(p => p.name === activeTabName);
         if (tabIndex === undefined || tabIndex === -1 || !newConfig.promo) return;
 
         const items = [...newConfig.promo[tabIndex].items];
-        const [removed] = items.splice(sourceIndex, 1);
-        items.splice(destinationIndex, 0, removed);
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
 
-        newConfig.promo[tabIndex].items = items;
-        setConfig(newConfig);
+        if (oldIndex !== -1 && newIndex !== -1) {
+            newConfig.promo[tabIndex].items = arrayMove(items, oldIndex, newIndex);
+            setConfig(newConfig);
+        }
     };
 
     return (
@@ -307,101 +433,35 @@ const PromoArea = () => {
                 </div>
 
                 {/* Items Grid */}
-                <DragDropContext onDragEnd={onDragEnd}>
-                    <Droppable droppableId={`promo-${activeTabName}`} direction="horizontal" isDropDisabled={!isManageMode}>
-                        {(provided) => (
-                            <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className="flex flex-wrap -m-1.5"
-                            >
-                                {visibleItems.map((item, index) => (
-                                    <Draggable
-                                        key={item.id}
-                                        draggableId={item.id}
-                                        index={index}
-                                        isDragDisabled={!isManageMode}
-                                    >
-                                        {(provided) => (
-                                            <div
-                                                ref={provided.innerRef}
-                                                {...provided.draggableProps}
-                                                {...provided.dragHandleProps}
-                                                style={{ ...provided.draggableProps.style }}
-                                                className="p-1.5 w-1/2 md:w-1/4 lg:w-1/6 xl:w-1/8"
-                                            >
-                                                <div className="relative group h-full">
-                                                    <a href={ensureProtocol(item.url)} target="_blank" rel="noopener noreferrer" className={`
-                                                        flex items-center gap-2 p-2.5 rounded-lg bg-[#f9f9f9] hover:bg-gray-100 transition-colors cursor-pointer group animate-fade-in h-full relative
-                                                        ${item.isAd ? 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100' : ''}
-                                                    `}>
-                                                        {!item.isAd && item.icon && (
-                                                            <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-                                                                {item.icon.includes('fa-') || item.icon.includes(':') ? (
-                                                                    <Icon icon={item.icon} className="text-[28px]" style={{ color: item.color || '#ddd' }} />
-                                                                ) : (
-                                                                    <img src={item.icon} className="w-7 h-7 object-contain" alt="" />
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {item.isAd && <span className="text-[10px] border border-gray-300 rounded px-1 text-gray-400 flex-shrink-0">Ad</span>}
-                                                        <span className="text-xs font-medium text-gray-700 truncate group-hover:text-[var(--theme-primary)] transition-colors flex-1">{item.title}</span>
-
-                                                        {/* Health Info & Status Dot */}
-                                                        {item.health && (
-                                                            <div className="absolute bottom-1 right-1 z-10 flex items-center justify-end">
-                                                                {/* Info Tooltip - Visible on Hover */}
-                                                                <div className={`opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] font-bold mr-1 whitespace-nowrap ${item.health.isHealthy ? 'text-green-500' : 'text-red-500'}`}>
-                                                                    {item.health.isHealthy
-                                                                        ? `${item.health.responseTime || 0}ms`
-                                                                        : '失效'}
-                                                                </div>
-
-                                                                {/* Red Dot - Only for unhealthy links */}
-                                                                {!item.health.isHealthy && (
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm animate-pulse" />
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </a>
-
-                                                    {isAuthenticated && isManageMode && (
-                                                        <div className="absolute -top-2 -right-2 flex gap-1 animate-fade-in z-10">
-                                                            <button
-                                                                onClick={(e) => handleEditClick(e, item)}
-                                                                onMouseDown={(e) => e.stopPropagation()}
-                                                                onTouchStart={(e) => e.stopPropagation()}
-                                                                className="w-6 h-6 bg-white text-blue-500 rounded-full shadow-md hover:bg-blue-50 flex items-center justify-center border border-gray-100"
-                                                                title="编辑"
-                                                            >
-                                                                <Icon icon="fa-solid fa-pen" className="text-[10px]" />
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => handleDeleteClick(e, item)}
-                                                                onMouseDown={(e) => e.stopPropagation()}
-                                                                onTouchStart={(e) => e.stopPropagation()}
-                                                                className="w-6 h-6 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 flex items-center justify-center border border-gray-100"
-                                                                title="删除"
-                                                            >
-                                                                <Icon icon="fa-solid fa-trash" className="text-[10px]" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </Draggable>
-                                ))}
-                                {provided.placeholder}
-                                {allItems.length === 0 && (
-                                    <div className="w-full text-center text-gray-300 text-xs py-4">
-                                        该标签页下暂无内容
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Droppable>
-                </DragDropContext>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={visibleItems.map(i => i.id)}
+                        strategy={rectSortingStrategy}
+                    >
+                        <div className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 ${isManageMode ? 'min-h-[120px]' : ''}`}>
+                            {visibleItems.map((item) => (
+                                <SortableItem
+                                    key={item.id}
+                                    id={item.id}
+                                    item={item}
+                                    isManageMode={isManageMode}
+                                    isAuthenticated={isAuthenticated}
+                                    onEditClick={handleEditClick}
+                                    onDeleteClick={handleDeleteClick}
+                                />
+                            ))}
+                            {allItems.length === 0 && (
+                                <div className="col-span-full text-center text-gray-300 text-xs py-4">
+                                    该标签页下暂无内容
+                                </div>
+                            )}
+                        </div>
+                    </SortableContext>
+                </DndContext>
 
                 {/* Expand/Collapse Button */}
                 {showExpandButton && (
