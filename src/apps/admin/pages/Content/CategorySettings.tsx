@@ -21,12 +21,26 @@ import { useDialogs } from '@/shared/hooks/useDialogs';
 import { ConfirmDialog } from '@/shared/components/common/ConfirmDialog';
 
 import { removeItem } from '@/shared/utils/url';
+import { BookmarkImportModal } from '@/apps/admin/components/tools/BookmarkImportModal';
+import { toast } from 'react-hot-toast';
 
 
 export const CategorySettings: React.FC = () => {
     const { config, setConfig } = useConfig();
     const update = setConfig;
     const { confirmDialog, showConfirm, hideConfirm } = useDialogs();
+    const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
+
+    const handleImportBookmarks = (importedCategories: Category[]) => {
+        update(c => ({
+            ...c,
+            categories: [...c.categories, ...importedCategories]
+        }));
+        toast.success(`成功导入 ${importedCategories.length} 个分类`, {
+            duration: 3000,
+            position: 'top-center',
+        });
+    };
 
     const handleDragEnd = (result: DropResult) => {
         if (!result.destination) return;
@@ -228,7 +242,18 @@ export const CategorySettings: React.FC = () => {
         <DragDropContext onDragEnd={handleDragEnd}>
             <div className="space-y-6 pb-20">
                 <div className="flex justify-between items-center mb-4 sticky top-0 bg-white/95 backdrop-blur py-2 z-10 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800">分类内容管理</h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-gray-800">分类内容管理</h3>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 transition-all h-8"
+                            onClick={() => setIsImportModalOpen(true)}
+                        >
+                            <Icon icon="fa-brands fa-chrome" className="mr-1.5" />
+                            导入 Chrome 书签
+                        </Button>
+                    </div>
                     <Button onClick={() => update(c => ({ ...c, categories: [...c.categories, { id: Date.now().toString(), name: '新分类', icon: 'fa-solid fa-folder', items: [] }] }))}>
                         <Icon icon="fa-solid fa-plus" className="mr-1" /> 添加分类
                     </Button>
@@ -496,6 +521,13 @@ export const CategorySettings: React.FC = () => {
                         onCancel={hideConfirm}
                     />
                 )}
+
+                {/* 书签导入 Modal */}
+                <BookmarkImportModal
+                    isOpen={isImportModalOpen}
+                    onClose={() => setIsImportModalOpen(false)}
+                    onImport={handleImportBookmarks}
+                />
             </div>
         </DragDropContext>
     );

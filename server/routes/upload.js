@@ -78,8 +78,46 @@ router.post('/download-icon', authenticateToken, async (req, res) => {
     try {
         await ensureUploadDir();
 
+        let targetIconUrl = iconUrl;
+
+        // 🚀 核心优化：如果 iconUrl 看起来像是一个网站首页（而非图片文件）
+        // 则尝试通过抓取 HTML 提取真正的 Favicon
+        const isLikelyPage = !/\.(png|jpg|jpeg|gif|svg|ico|webp)$/i.test(new URL(iconUrl).pathname);
+
+        if (isLikelyPage) {
+            try {
+                const pageRes = await axios.get(iconUrl, { timeout: 5000, responseType: 'text' });
+                const html = pageRes.data;
+                // 用正则简单提取 <link rel="icon" href="..."> 或 apple-touch-icon
+                const match = html.match(/<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i) ||
+                    html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i);
+
+                if (match && match[1]) {
+                    let favPath = match[1];
+                    if (favPath.startsWith('//')) {
+                        favPath = 'https:' + favPath;
+                    } else if (favPath.startsWith('/')) {
+                        const urlObj = new URL(iconUrl);
+                        favPath = urlObj.origin + favPath;
+                    } else if (!favPath.startsWith('http')) {
+                        const urlObj = new URL(iconUrl);
+                        favPath = urlObj.origin + '/' + favPath;
+                    }
+                    targetIconUrl = favPath;
+                } else {
+                    // Fallback: 尝试直接访问根目录的 favicon.ico
+                    const urlObj = new URL(iconUrl);
+                    targetIconUrl = `${urlObj.origin}/favicon.ico`;
+                }
+            } catch (e) {
+                console.warn('Failed to parse page for icon, defaulting to root favicon.ico');
+                const urlObj = new URL(iconUrl);
+                targetIconUrl = `${urlObj.origin}/favicon.ico`;
+            }
+        }
+
         const agent = new https.Agent({ rejectUnauthorized: false });
-        const response = await axios.get(iconUrl, {
+        const response = await axios.get(targetIconUrl, {
             responseType: 'arraybuffer',
             timeout: 10000,
             httpsAgent: agent,
@@ -90,7 +128,19 @@ router.post('/download-icon', authenticateToken, async (req, res) => {
             }
         });
 
-        const ext = path.extname(new URL(iconUrl).pathname) || '.png';
+        const contentType = response.headers['content-type'] || '';
+        // 如果是 HTML 说明下载的还是页面，不是图标
+        if (contentType.includes('text/html')) {
+            throw new Error('Downloaded content is HTML, not an image');
+        }
+
+        let ext = '.png';
+        if (contentType.includes('webp')) ext = '.webp';
+        else if (contentType.includes('svg')) ext = '.svg';
+        else if (contentType.includes('gif')) ext = '.gif';
+        else if (contentType.includes('jpeg') || contentType.includes('jpg')) ext = '.jpg';
+        else if (contentType.includes('x-icon') || contentType.includes('vnd.microsoft.icon')) ext = '.ico';
+
         const filename = `icon-${Date.now()}${ext}`;
         const filepath = path.join(UPLOAD_DIR, filename);
 
@@ -99,7 +149,7 @@ router.post('/download-icon', authenticateToken, async (req, res) => {
         const localUrl = `/uploads/${filename}`;
         res.json({ url: localUrl });
     } catch (error) {
-        console.error('Download icon error:', error);
+        console.error('Download icon error:', error.message);
         res.status(500).json({ error: 'Failed to download icon: ' + error.message });
     }
 });

@@ -43,12 +43,23 @@ export const LinkItemEditor: React.FC<LinkItemEditorProps> = ({
     const [selectedSection, setSelectedSection] = useState<'category' | 'promo'>(currentSection);
     const [selectedPromoTab, setSelectedPromoTab] = useState('');
     const [iconMode, setIconMode] = useState<'local' | 'online'>(() => {
-        // 自动检测图标类型
-        if (item.icon?.startsWith('/uploads/')) return 'local';
+        if (item.icon?.includes('/uploads/')) return 'local';
+        if (item.icon?.startsWith('data:image/')) return 'local';
         if (item.icon?.includes('fa-') || item.icon?.includes(':')) return 'online';
-        return 'online'; // 默认在线模式
+        return 'online';
     });
     const [uploading, setUploading] = useState(false);
+
+    // 当 item.icon 在外部改变时（如导入抓取成功），同步更新 iconMode
+    useEffect(() => {
+        if (item.icon?.includes('/uploads/')) {
+            setIconMode('local');
+        } else if (item.icon?.startsWith('data:image/')) {
+            setIconMode('local');
+        } else if (item.icon?.includes('fa-') || item.icon?.includes(':')) {
+            setIconMode('online');
+        }
+    }, [item.icon]);
 
     const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
     const hasSubCategories = selectedCategory?.subCategories && selectedCategory.subCategories.length > 0;
