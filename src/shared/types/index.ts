@@ -113,6 +113,14 @@ export interface ThemeConfig {
   subCategoryTitleSize?: number; // Subcategory tab font size in px (default: 12)
   promoCategoryTitleSize?: number;    // Promo category title font size in px (default: 16)
   promoSubCategoryTitleSize?: number; // Promo subcategory tab font size in px (default: 12)
+  heroTitleColor?: string;
+  heroTitleSize?: number;
+  heroSubtitleColor?: string;
+  heroSubtitleSize?: number;
+  heroHotSearchColor?: string;
+  heroHotSearchSize?: number;
+  heroSearchEngineColor?: string;
+  heroSearchEngineSize?: number;
 }
 
 export interface AIProvider {

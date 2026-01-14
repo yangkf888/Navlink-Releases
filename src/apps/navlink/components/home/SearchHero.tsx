@@ -274,8 +274,24 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
     return (
         <div className="w-full flex flex-col items-center justify-center px-4 animate-fade-in relative z-30">
             <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
-                <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg text-center">{config.hero.title}</h1>
-                <p className="text-blue-200 mb-8 text-center">{config.hero.subtitle}</p>
+                <h1
+                    className="text-4xl font-bold text-white mb-2 drop-shadow-lg text-center"
+                    style={{
+                        color: config.theme?.heroTitleColor,
+                        fontSize: config.theme?.heroTitleSize ? `${config.theme.heroTitleSize}px` : undefined
+                    }}
+                >
+                    {config.hero.title}
+                </h1>
+                <p
+                    className="text-blue-200 mb-8 text-center"
+                    style={{
+                        color: config.theme?.heroSubtitleColor,
+                        fontSize: config.theme?.heroSubtitleSize ? `${config.theme.heroSubtitleSize}px` : undefined
+                    }}
+                >
+                    {config.hero.subtitle}
+                </p>
 
                 <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/80 text-[15px] font-medium">
                     {config.searchEngines?.map(engine => (
@@ -283,6 +299,10 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                             key={engine.id}
                             onClick={() => setActiveEngineId(engine.id)}
                             className={`pb-1 border-b-2 transition-all ${activeEngineId === engine.id ? 'text-white border-[var(--theme-primary)] font-bold' : 'border-transparent hover:text-white'}`}
+                            style={{
+                                color: activeEngineId !== engine.id ? config.theme?.heroSearchEngineColor : undefined,
+                                fontSize: config.theme?.heroSearchEngineSize ? `${config.theme.heroSearchEngineSize}px` : undefined
+                            }}
                         >
                             {engine.name}
                         </button>
@@ -444,6 +464,10 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                                 }
                             }}
                             className="hover:text-white transition-colors bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm hover:bg-white/20 cursor-pointer"
+                            style={{
+                                color: config.theme?.heroHotSearchColor,
+                                fontSize: config.theme?.heroHotSearchSize ? `${config.theme.heroHotSearchSize}px` : undefined
+                            }}
                         >
                             {link.title}
                         </button>

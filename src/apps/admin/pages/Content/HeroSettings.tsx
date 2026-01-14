@@ -29,91 +29,125 @@ export const HeroSettings: React.FC = () => {
 
     return (
         <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="space-y-8">
-            <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">首屏文案</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><Label>主标题</Label><Input value={config.hero.title} onChange={e => update(c => ({ ...c, hero: { ...c.hero, title: e.target.value } }))} /></div>
-                    <div><Label>副标题</Label><Input value={config.hero.subtitle} onChange={e => update(c => ({ ...c, hero: { ...c.hero, subtitle: e.target.value } }))} /></div>
-                </div>
-            </div>
-
-            <div className="mt-6 border-t border-gray-100 pt-6">
-                <div className="flex justify-between mb-4"><h3 className="text-lg font-bold">热词配置</h3><Button size="sm" onClick={() => update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: [...(c.hero.hotSearchLinks || []), { title: '新热词', url: '#' }] } }))}>添加</Button></div>
-                <Droppable droppableId="hero-hot-search" type="HERO_HOT_SEARCH_ITEM">
-                    {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
-                            {config.hero.hotSearchLinks?.map((link, idx) => (
-                                <Draggable key={link.url + idx} draggableId={link.url + idx} index={idx}>
-                                    {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.draggableProps} className="flex gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
-                                            <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1">
-                                                <Icon icon="fa-solid fa-grip-vertical" />
-                                            </div>
-                                            <Input className="!w-32" value={link.title} onChange={e => { const n = [...(config.hero.hotSearchLinks || [])]; n[idx].title = e.target.value; update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} placeholder="热词" />
-                                            <Input className="flex-1 min-w-0" value={link.url} onChange={e => { const n = [...(config.hero.hotSearchLinks || [])]; n[idx].url = e.target.value; update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} placeholder="跳转链接" />
-                                            <button onClick={() => { const n = [...(config.hero.hotSearchLinks || [])]; n.splice(idx, 1); update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} className="text-gray-400 hover:text-red-500 px-2"><Icon icon="fa-solid fa-trash" /></button>
-                                        </div>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
-                        </div>
-                    )}
-                </Droppable>
-            </div>
-            <div>
-                <div className="flex justify-between mt-6 mb-4 border-b pb-2"><h3 className="text-lg font-bold">搜索引擎</h3><Button size="sm" onClick={() => update(c => ({ ...c, searchEngines: [...c.searchEngines, { id: Date.now().toString(), name: '新引擎', urlPattern: '', placeholder: '' }] }))}>添加</Button></div>
-                <Droppable droppableId="search-engines" type="SEARCH_ENGINE_ITEM">
-                    {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
-                            {config.searchEngines.map((se, idx) => (
-                                <Draggable key={se.id} draggableId={se.id} index={idx}>
-                                    {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.draggableProps} className="flex gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
-                                            <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1">
-                                                <Icon icon="fa-solid fa-grip-vertical" />
-                                            </div>
-                                            <Input className="!w-32" value={se.name} onChange={e => { const n = [...config.searchEngines]; n[idx].name = e.target.value; update(c => ({ ...c, searchEngines: n })) }} placeholder="名称" />
-                                            <Input className="flex-1 min-w-0" value={se.urlPattern} onChange={e => { const n = [...config.searchEngines]; n[idx].urlPattern = e.target.value; update(c => ({ ...c, searchEngines: n })) }} placeholder="搜索URL模板" />
-                                            <button onClick={() => update(c => ({ ...c, searchEngines: removeItem(c.searchEngines, idx) }))} className="text-gray-400 hover:text-red-500 px-2"><Icon icon="fa-solid fa-trash" /></button>
-                                        </div>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
-                        </div>
-                    )}
-                </Droppable>
-            </div>
-
-            {/* Search Keyboard Shortcut */}
-            <div className="mt-6 border-t border-gray-100 pt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h3 className="text-lg font-bold text-blue-800 mb-3">搜索快捷键</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label>快捷键组合</Label>
-                        <Input
-                            value={config.searchShortcut || 'Cmd+K'}
-                            onChange={e => update(c => ({ ...c, searchShortcut: e.target.value }))}
-                            placeholder="例如: Cmd+K 或 Ctrl+Shift+F"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            点击导航栏搜索图标或按快捷键即可打开全局搜索
-                        </p>
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">首屏文案</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><Label>主标题</Label><Input value={config.hero.title} onChange={e => update(c => ({ ...c, hero: { ...c.hero, title: e.target.value } }))} /></div>
+                        <div><Label>副标题</Label><Input value={config.hero.subtitle} onChange={e => update(c => ({ ...c, hero: { ...c.hero, subtitle: e.target.value } }))} /></div>
                     </div>
-                    <div className="bg-white p-3 rounded border border-gray-200">
-                        <Label className="!mb-2">常用组合键</Label>
-                        <div className="space-y-1 text-xs text-gray-600">
-                            <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Cmd+K</kbd> 默认(Mac自动转Ctrl)</p>
-                            <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+K</kbd> Windows通用</p>
-                            <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+Shift+F</kbd> 多键组合</p>
-                            <p className="text-gray-400 italic mt-2">支持: Cmd, Ctrl, Shift, Alt + 任意字母/数字</p>
+                </div>
+
+                <div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">搜索样式</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="space-y-4">
+                            <Label>主标题样式</Label>
+                            <div className="flex gap-2">
+                                <Input type="color" className="w-12 p-1" value={config.theme?.heroTitleColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleColor: e.target.value } }))} />
+                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroTitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroTitleSize: parseInt(e.target.value) } }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>副标题样式</Label>
+                            <div className="flex gap-2">
+                                <Input type="color" className="w-12 p-1" value={config.theme?.heroSubtitleColor || '#bfdbfe'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleColor: e.target.value } }))} />
+                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSubtitleSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSubtitleSize: parseInt(e.target.value) } }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>热词按钮样式</Label>
+                            <div className="flex gap-2">
+                                <Input type="color" className="w-12 p-1" value={config.theme?.heroHotSearchColor || 'rgba(255,255,255,0.7)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchColor: e.target.value } }))} />
+                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroHotSearchSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroHotSearchSize: parseInt(e.target.value) } }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>搜索引擎列表样式</Label>
+                            <div className="flex gap-2">
+                                <Input type="color" className="w-12 p-1" value={config.theme?.heroSearchEngineColor || 'rgba(255,255,255,0.8)'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineColor: e.target.value } }))} />
+                                <Input type="number" className="flex-1" placeholder="字号(px)" value={config.theme?.heroSearchEngineSize} onChange={e => update(c => ({ ...c, theme: { ...c.theme, heroSearchEngineSize: parseInt(e.target.value) } }))} />
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div className="mt-6 border-t border-gray-100 pt-6">
+                    <div className="flex justify-between mb-4"><h3 className="text-lg font-bold">热词配置</h3><Button size="sm" onClick={() => update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: [...(c.hero.hotSearchLinks || []), { title: '新热词', url: '#' }] } }))}>添加</Button></div>
+                    <Droppable droppableId="hero-hot-search" type="HERO_HOT_SEARCH_ITEM">
+                        {(provided) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                                {config.hero.hotSearchLinks?.map((link, idx) => (
+                                    <Draggable key={link.url + idx} draggableId={link.url + idx} index={idx}>
+                                        {(provided) => (
+                                            <div ref={provided.innerRef} {...provided.draggableProps} className="flex gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
+                                                <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1">
+                                                    <Icon icon="fa-solid fa-grip-vertical" />
+                                                </div>
+                                                <Input className="!w-32" value={link.title} onChange={e => { const n = [...(config.hero.hotSearchLinks || [])]; n[idx].title = e.target.value; update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} placeholder="热词" />
+                                                <Input className="flex-1 min-w-0" value={link.url} onChange={e => { const n = [...(config.hero.hotSearchLinks || [])]; n[idx].url = e.target.value; update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} placeholder="跳转链接" />
+                                                <button onClick={() => { const n = [...(config.hero.hotSearchLinks || [])]; n.splice(idx, 1); update(c => ({ ...c, hero: { ...c.hero, hotSearchLinks: n } })) }} className="text-gray-400 hover:text-red-500 px-2"><Icon icon="fa-solid fa-trash" /></button>
+                                            </div>
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
+                </div>
+                <div>
+                    <div className="flex justify-between mt-6 mb-4 border-b pb-2"><h3 className="text-lg font-bold">搜索引擎</h3><Button size="sm" onClick={() => update(c => ({ ...c, searchEngines: [...c.searchEngines, { id: Date.now().toString(), name: '新引擎', urlPattern: '', placeholder: '' }] }))}>添加</Button></div>
+                    <Droppable droppableId="search-engines" type="SEARCH_ENGINE_ITEM">
+                        {(provided) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                                {config.searchEngines.map((se, idx) => (
+                                    <Draggable key={se.id} draggableId={se.id} index={idx}>
+                                        {(provided) => (
+                                            <div ref={provided.innerRef} {...provided.draggableProps} className="flex gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
+                                                <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 px-1">
+                                                    <Icon icon="fa-solid fa-grip-vertical" />
+                                                </div>
+                                                <Input className="!w-32" value={se.name} onChange={e => { const n = [...config.searchEngines]; n[idx].name = e.target.value; update(c => ({ ...c, searchEngines: n })) }} placeholder="名称" />
+                                                <Input className="flex-1 min-w-0" value={se.urlPattern} onChange={e => { const n = [...config.searchEngines]; n[idx].urlPattern = e.target.value; update(c => ({ ...c, searchEngines: n })) }} placeholder="搜索URL模板" />
+                                                <button onClick={() => update(c => ({ ...c, searchEngines: removeItem(c.searchEngines, idx) }))} className="text-gray-400 hover:text-red-500 px-2"><Icon icon="fa-solid fa-trash" /></button>
+                                            </div>
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
+                </div>
+
+                {/* Search Keyboard Shortcut */}
+                <div className="mt-6 border-t border-gray-100 pt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <h3 className="text-lg font-bold text-blue-800 mb-3">搜索快捷键</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label>快捷键组合</Label>
+                            <Input
+                                value={config.searchShortcut || 'Cmd+K'}
+                                onChange={e => update(c => ({ ...c, searchShortcut: e.target.value }))}
+                                placeholder="例如: Cmd+K 或 Ctrl+Shift+F"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                点击导航栏搜索图标或按快捷键即可打开全局搜索
+                            </p>
+                        </div>
+                        <div className="bg-white p-3 rounded border border-gray-200">
+                            <Label className="!mb-2">常用组合键</Label>
+                            <div className="space-y-1 text-xs text-gray-600">
+                                <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Cmd+K</kbd> 默认(Mac自动转Ctrl)</p>
+                                <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+K</kbd> Windows通用</p>
+                                <p>• <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">Ctrl+Shift+F</kbd> 多键组合</p>
+                                <p className="text-gray-400 italic mt-2">支持: Cmd, Ctrl, Shift, Alt + 任意字母/数字</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
         </DragDropContext>
     );
 };
