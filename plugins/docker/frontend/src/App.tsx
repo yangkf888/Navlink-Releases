@@ -19,6 +19,7 @@ import ServerTabs from './components/ServerTabs';
 import { ContainerFormModal } from './components/ContainerFormModal';
 import { LogViewerModal } from './components/LogViewerModal';
 import { ShellModal } from './components/ShellModal';
+import { PullProgressModal } from './components/PullProgressModal';
 import { ContainerList } from './components/views/ContainerList';
 import { ImageList } from './components/views/ImageList';
 import { NetworkList } from './components/views/NetworkList';
@@ -74,6 +75,10 @@ function DockerApp() {
   const [selectedContainerName, setSelectedContainerName] = useState<string>('');
 
   const [showShellModal, setShowShellModal] = useState(false);
+  const [pullProgressInfo, setPullProgressInfo] = useState<{ isOpen: boolean, imageName: string }>({ isOpen: false, imageName: '' });
+
+  // 镜像更新状态追踪
+  const [updateStatuses, setUpdateStatuses] = useState<Record<string, { loading: boolean, hasUpdate: boolean, error?: string }>>({});
 
   // Docker Hooks
   const {
@@ -147,6 +152,28 @@ function DockerApp() {
 
   // 自动选择默认服务器
   useEffect(() => {
+    // 加载持久化的镜像更新状态
+    const fetchUpdateStatuses = async () => {
+      try {
+        const res = await fetch('/api/plugins/docker/api/update-statuses');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const statusMap: Record<string, any> = {};
+          data.forEach((status: any) => {
+            statusMap[status.imageName] = {
+              loading: false,
+              hasUpdate: status.hasUpdate,
+              error: status.error
+            };
+          });
+          setUpdateStatuses(statusMap);
+        }
+      } catch (e) {
+        console.error('Failed to load update statuses:', e);
+      }
+    };
+    fetchUpdateStatuses();
+
     // Only run this logic if we haven't redirected yet or if we are in a state that needs initialization
     if (!hasInitialRedirect.current && servers.length > 0) {
       if (!selectedServer) {
@@ -324,6 +351,69 @@ function DockerApp() {
     return new Date(timestamp * 1000).toLocaleString('zh-CN');
   };
 
+  /**
+   * 检查单个镜像更新
+   */
+  const handleCheckUpdate = async (imageName: string) => {
+    if (!selectedServer) return;
+
+    setUpdateStatuses(prev => ({
+      ...prev,
+      [imageName]: { ...prev[imageName], loading: true }
+    }));
+
+    try {
+      const response = await fetch(`/api/plugins/docker/api/check-update?serverId=${selectedServer.id}&imageName=${encodeURIComponent(imageName)}`);
+      const result = await response.json();
+
+      setUpdateStatuses(prev => ({
+        ...prev,
+        [imageName]: { loading: false, hasUpdate: result.hasUpdate, error: result.error }
+      }));
+
+      if (result.error) {
+        showAlert('检查失败', `镜像 ${imageName} 检查更新时出错: ${result.error}`, 'error');
+      }
+    } catch (error: any) {
+      setUpdateStatuses(prev => ({
+        ...prev,
+        [imageName]: { loading: false, hasUpdate: false, error: error.message }
+      }));
+      showAlert('检查失败', error.message, 'error');
+    }
+  };
+
+  /**
+   * 检查所有镜像更新
+   */
+  const handleCheckAllUpdates = async () => {
+    if (!selectedServer || images.length === 0) return;
+
+    // 过滤掉没有有效标签的镜像
+    const validImages = images.filter(img => img.tags && img.tags.length > 0 && img.tags[0] !== '<none>:<none>');
+
+    if (validImages.length === 0) {
+      showAlert('提示', '没有可检查更新的有标签镜像', 'info');
+      return;
+    }
+
+    // 批量设置 loading
+    const newStatuses = { ...updateStatuses };
+    validImages.forEach(img => {
+      newStatuses[img.tags[0]] = { loading: true, hasUpdate: false };
+    });
+    setUpdateStatuses(newStatuses);
+
+    // 串行请求，避免并发导致 Docker API 或 SSH 隧道堵塞
+    try {
+      for (const img of validImages) {
+        await handleCheckUpdate(img.tags[0]);
+      }
+    } catch (error) {
+      console.error('Batch update check failed:', error);
+    }
+  };
+
   // Hero Background Style Logic
   const hasBgImage = config.backgroundImage && config.backgroundImage.trim().length > 5;
   const heroBgStyle = hasBgImage ? {
@@ -492,33 +582,35 @@ function DockerApp() {
                   onPullImage={() => {
                     showPrompt(
                       '下载镜像',
-                      '请输入要下载的镜像名称 (例如: nginx:latest)',
-                      async (value) => {
-                        if (!value.trim()) return;
-                        try {
-                          await pullImage(value.trim());
-                          showAlert('下载成功', `镜像 ${value} 已成功下载`, 'success');
-                        } catch (e: any) {
-                          showAlert('下载失败', e.message, 'error');
-                        } finally {
-                          hidePrompt();
-                        }
+                      '请输入要下载的镜像名称。对于 qbittorrent、siyuan 等，通常建议带上软件源前缀 (例如: linuxserver/qbittorrent:latest 或 b3log/siyuan:latest)',
+                      (value) => {
+                        const imageName = value.trim();
+                        if (!imageName) return;
+
+                        // 立即关闭输入框，防止界面冻结
+                        hidePrompt();
+
+                        // 显示拉取进度模态框
+                        setPullProgressInfo({ isOpen: true, imageName });
                       },
                       '',
-                      'image:tag'
+                      'repo/name:tag'
                     );
                   }}
                   onPruneImages={pruneImages}
                   onUpdateImage={(repoTag) => {
-                    showConfirm('确认更新', `确定要拉取最新版本的 ${repoTag} 吗？`, async () => {
-                      try {
-                        await pullImage(repoTag);
-                        showAlert('更新成功', '镜像已更新到最新版本', 'success');
-                      } catch (e: any) {
-                        showAlert('更新失败', e.message, 'error');
-                      } finally {
-                        hideConfirm();
-                      }
+                    showConfirm('确认更新', `确定要拉取最新版本的 ${repoTag} 吗？`, () => {
+                      // 立即关闭确认框
+                      hideConfirm();
+
+                      // 显示拉取进度模态框
+                      setPullProgressInfo({ isOpen: true, imageName: repoTag });
+
+                      // 更新状态追踪 (可选，模态框成功后也会刷新列表)
+                      setUpdateStatuses(prev => ({
+                        ...prev,
+                        [repoTag]: { loading: false, hasUpdate: false }
+                      }));
                     }, 'primary');
                   }}
                   onRunImage={(tag, id) => {
@@ -527,11 +619,25 @@ function DockerApp() {
                     setShowContainerModal(true);
                   }}
                   onDeleteImage={(id) => {
-                    showConfirm('确认删除', '确定要删除此镜像吗？', async () => {
-                      await removeImage(id, true);
+                    showConfirm('确认删除', '确定要删除此镜像吗？', () => {
+                      // 立即关闭确认框
                       hideConfirm();
+
+                      // 异步执行删除
+                      setTimeout(async () => {
+                        try {
+                          await removeImage(id, true);
+                          showAlert('删除成功', '镜像已成功移除', 'success');
+                          loadImages(); // 物理刷新
+                        } catch (e: any) {
+                          showAlert('删除失败', e.message, 'error');
+                        }
+                      }, 100);
                     });
                   }}
+                  onCheckUpdate={handleCheckUpdate}
+                  onCheckAllUpdates={handleCheckAllUpdates}
+                  updateStatuses={updateStatuses}
                 />
               )}
 
@@ -690,6 +796,33 @@ function DockerApp() {
           )}
 
         </div>
+        <PullProgressModal
+          isOpen={pullProgressInfo.isOpen}
+          imageName={pullProgressInfo.imageName}
+          serverId={selectedServer?.id || ''}
+          onClose={() => {
+            // 清理对应镜像的更新状态
+            if (pullProgressInfo.imageName) {
+              setUpdateStatuses(prev => ({
+                ...prev,
+                [pullProgressInfo.imageName]: { loading: false, hasUpdate: false }
+              }));
+            }
+            setPullProgressInfo({ ...pullProgressInfo, isOpen: false });
+            loadImages(); // 关闭后尝试刷新一次
+          }}
+          onSuccess={() => {
+            // 清理对应镜像的更新状态
+            if (pullProgressInfo.imageName) {
+              setUpdateStatuses(prev => ({
+                ...prev,
+                [pullProgressInfo.imageName]: { loading: false, hasUpdate: false }
+              }));
+            }
+            loadImages();
+          }}
+        />
+
       </Layout>
 
       {/* 添加服务器对话框 */}

@@ -324,7 +324,10 @@ router.get('/servers/:serverId/containers/:containerId/stats', async (req, res) 
  */
 router.get('/servers/:serverId/images', async (req, res) => {
     try {
-        const images = await DockerService.listImages(req.params.serverId);
+        const { serverId } = req.params;
+        const images = await DockerService.listImages(serverId);
+        // 调试日志：确认镜像的核心标识
+        console.log(`[Docker Debug] Server ${serverId} images:`, images.map(i => ({ id: i.id, tags: i.tags })));
         res.json(images);
     } catch (error) {
         console.error('List images error:', error);
@@ -363,6 +366,71 @@ router.post('/servers/:serverId/images/pull', async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Pull image error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 实时拉取镜像流 (SSE)
+ */
+router.get('/servers/:serverId/images/pull/stream', async (req, res) => {
+    const { serverId } = req.params;
+    const { imageName } = req.query;
+
+    if (!imageName) {
+        return res.status(400).json({ error: 'Image name is required' });
+    }
+
+    // 设置 SSE Header - 禁用各种缓冲
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // 禁用 Nginx 缓冲
+    res.flushHeaders(); // 立即发送 headers，禁用 Express 缓冲
+
+    // 发送初始心跳，确认连接建立
+    res.write(`data: ${JSON.stringify({ status: 'connecting', message: '正在连接到 Docker 服务...' })}\n\n`);
+
+    try {
+        await DockerService.pullImage(serverId, imageName, (chunk) => {
+            const lines = chunk.toString().split('\n').filter(l => l.trim());
+            for (const line of lines) {
+                res.write(`data: ${line}\n\n`);
+            }
+        });
+        res.write(`data: ${JSON.stringify({ status: 'success', progress: '100%', message: 'Pull completed' })}\n\n`);
+        res.end();
+    } catch (error) {
+        console.error('Pull stream error:', error);
+        res.write(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+        res.end();
+    }
+});
+
+
+/**
+ * 检查单个镜像更新
+ */
+router.get('/check-update', async (req, res) => {
+    try {
+        const { serverId, imageName } = req.query;
+        if (!serverId || !imageName) return res.status(400).json({ error: 'serverId and imageName required' });
+        const result = await DockerService.checkImageUpdate(serverId, imageName);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 获取所有已保存的镜像更新状态
+ */
+router.get('/update-statuses', async (req, res) => {
+    try {
+        const { DockerImageUpdateDAO } = await import('../database/dao/DockerImageUpdateDAO.js');
+        const statuses = await DockerImageUpdateDAO.getAll();
+        res.json(statuses);
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

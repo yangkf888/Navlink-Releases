@@ -117,6 +117,16 @@ function initSchema(db) {
         BEGIN
             UPDATE docker_servers SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
         END;
+
+        -- 镜像更新状态表 (持久化检查结果)
+        CREATE TABLE IF NOT EXISTS docker_image_updates (
+            image_name TEXT PRIMARY KEY,
+            has_update INTEGER DEFAULT 0,
+            local_digest TEXT,
+            remote_digest TEXT,
+            last_check_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            error TEXT
+        );
     `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);

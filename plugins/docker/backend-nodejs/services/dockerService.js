@@ -32,6 +32,33 @@ const dataCache = new Map(); // 格式: key -> { data, timestamp }
 const CACHE_TTL = 10000; // 10秒缓存有效期
 const pendingRefreshes = new Map(); // Key: serverId:type
 
+/**
+ * 稳定性增强：熔断与超时控制
+ */
+const circuitBreakers = new Map(); // serverId -> { lastError, timestamp }
+const connectionQueue = new Map(); // serverId -> Promise<client>
+const CIRCUIT_BREAKER_TTL = 30000;  // 熔断冷却时间：30秒
+const CONNECT_TIMEOUT_MS = 15000;   // 全局连接超时：15秒
+
+/**
+ * 超时包装器
+ */
+function withTimeout(promise, ms, label = 'Operation') {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${label} timed out after ${ms}ms`));
+        }, ms);
+    });
+
+    return Promise.race([
+        promise,
+        timeoutPromise
+    ]).finally(() => {
+        clearTimeout(timeoutId);
+    });
+}
+
 function getCacheKey(serverId, type) {
     return `${serverId}:${type}`;
 }
@@ -89,58 +116,70 @@ export class DockerService {
      */
     static async getClient(serverId) {
         logDebug(`getClient called for ${serverId}`);
-        // 从缓存获取
+
+        // 1. 检查熔断状态
+        const breaker = circuitBreakers.get(serverId);
+        if (breaker && (Date.now() - breaker.timestamp < CIRCUIT_BREAKER_TTL)) {
+            logDebug(`Circuit breaker active for ${serverId}. Returning last error.`);
+            throw new Error(`[CircuitBreaker] 远程服务器最近连接失败，请稍后再试: ${breaker.lastError}`);
+        }
+
+        // 2. 检查内存缓存 (已建立的连接)
         if (dockerClients.has(serverId)) {
             logDebug(`Returning cached client for ${serverId}`);
             return dockerClients.get(serverId);
         }
 
-        // 从数据库获取配置
-        const server = await DockerServerDAO.getById(serverId);
-        if (!server) {
-            throw new Error('Server not found');
+        // 3. 检查是否已有正在进行的连接请求 (请求合并)
+        if (connectionQueue.has(serverId)) {
+            logDebug(`Joining existing connection request for ${serverId}`);
+            return connectionQueue.get(serverId);
         }
 
-        let client;
-        try {
-            if (server.connection_type === 'local') {
-                client = new Docker({ socketPath: '/var/run/docker.sock' });
-            } else if (server.connection_type === 'tcp') {
-                client = new Docker({
-                    host: server.host,
-                    port: server.port || 2375,
-                    protocol: 'http'
+        // 4. 发起新连接 (带超时保护)
+        const connectionPromise = (async () => {
+            try {
+                const server = await DockerServerDAO.getById(serverId);
+                if (!server) throw new Error('Server not found');
+
+                let client;
+                if (server.connection_type === 'local') {
+                    client = new Docker({ socketPath: '/var/run/docker.sock' });
+                } else if (server.connection_type === 'tcp') {
+                    client = new Docker({ host: server.host, port: server.port || 2375, protocol: 'http' });
+                } else if (server.connection_type === 'tls') {
+                    const options = { host: server.host, port: server.port || 2376, protocol: 'https' };
+                    if (server.ca_cert) options.ca = Buffer.from(server.ca_cert, 'base64');
+                    if (server.client_cert) options.cert = Buffer.from(server.client_cert, 'base64');
+                    if (server.client_key) options.key = Buffer.from(server.client_key, 'base64');
+                    client = new Docker(options);
+                } else if (server.connection_type === 'ssh') {
+                    // SSH 隧道需要更严格的超时
+                    client = await withTimeout(
+                        this.createSSHTunnelClient(serverId, server),
+                        CONNECT_TIMEOUT_MS,
+                        'SSH Tunnel Connection'
+                    );
+                }
+
+                dockerClients.set(serverId, client);
+                // 成功后移除熔断标记
+                circuitBreakers.delete(serverId);
+                return client;
+            } catch (error) {
+                // 记录熔断信息
+                circuitBreakers.set(serverId, {
+                    lastError: error.message,
+                    timestamp: Date.now()
                 });
-            } else if (server.connection_type === 'tls') {
-                // TLS 连接（预留）
-                const options = {
-                    host: server.host,
-                    port: server.port || 2376,
-                    protocol: 'https'
-                };
-
-                if (server.ca_cert) {
-                    options.ca = Buffer.from(server.ca_cert, 'base64');
-                }
-                if (server.client_cert) {
-                    options.cert = Buffer.from(server.client_cert, 'base64');
-                }
-                if (server.client_key) {
-                    options.key = Buffer.from(server.client_key, 'base64');
-                }
-
-                client = new Docker(options);
-            } else if (server.connection_type === 'ssh') {
-                // SSH 隧道连接
-                client = await this.createSSHTunnelClient(serverId, server);
+                throw error;
+            } finally {
+                connectionQueue.delete(serverId);
             }
+        })();
 
-            // 缓存客户端
-            dockerClients.set(serverId, client);
-            return client;
-        } catch (error) {
-            throw new Error(`Failed to create Docker client: ${error.message}`);
-        }
+        connectionQueue.set(serverId, connectionPromise);
+        return connectionPromise;
     }
 
     /**
@@ -149,192 +188,180 @@ export class DockerService {
     static createSSHTunnelClient(serverId, server) {
         return new Promise((resolve, reject) => {
             const ssh = new Client();
-            let socatPid = null; // 存储 socat 进程 PID
-            let cleanupDone = false; // 防止重复清理
+            let socatPid = null;
+            let cleanupDone = false;
 
-            // 清理函数
             const cleanup = async () => {
                 if (cleanupDone) return;
                 cleanupDone = true;
-
                 logDebug(`[SSH] 开始清理资源: ${server.host} (${serverId})`);
-
-                // 清理 socat 进程
                 if (socatPid && ssh) {
                     try {
-                        await new Promise((resolve) => {
+                        await new Promise((res) => {
                             ssh.exec(`kill ${socatPid} 2>/dev/null || true`, (err, stream) => {
-                                if (err) {
-                                    logDebug(`[SSH] 清理 socat 进程失败: ${err.message}`);
-                                } else {
-                                    stream.on('close', () => {
-                                        logDebug(`[SSH] socat 进程已清理: PID ${socatPid}`);
-                                        resolve();
-                                    });
-                                }
+                                if (stream) stream.on('close', res);
+                                else res();
                             });
-                            // 超时保护
-                            setTimeout(resolve, 2000);
+                            setTimeout(res, 1000);
                         });
-                    } catch (e) {
-                        logDebug(`[SSH] 清理过程出错: ${e.message}`);
-                    }
+                    } catch (e) { }
                 }
-
-                // 清除缓存
                 DockerService.clearClientCache(serverId);
             };
 
             ssh.on('ready', () => {
-                logDebug(`[SSH] 连接成功: ${server.host} (${serverId})`);
-                console.log(`[SSH] 连接成功: ${server.host}`);
+                logDebug(`[SSH] 连接就绪，正在检查组件...`);
 
-                // 1. 先检查远程是否已安装 socat
-                ssh.exec('command -v socat', (err, stream) => {
-                    let socatAvailable = false;
-
-                    stream.on('data', () => {
-                        socatAvailable = true;
+                const checkAndInstallSocat = () => {
+                    ssh.exec('command -v socat', (err, stream) => {
+                        if (err) return reject(new Error('SSH Exec failed: ' + err.message));
+                        let socatAvailable = false;
+                        stream.on('data', () => { socatAvailable = true; });
+                        stream.on('close', () => {
+                            if (socatAvailable) {
+                                // 已安装，启动转发
+                                startSocatForwarding();
+                            } else {
+                                // 未安装，尝试自动处理
+                                handleMissingSocat();
+                            }
+                        });
                     });
+                };
 
-                    stream.on('close', (code) => {
-                        if (!socatAvailable) {
-                            logDebug(`[SSH] 远程服务器未安装 socat，尝试直接连接 2375 端口`);
-                            console.log(`[SSH] ⚠️ 远程未安装 socat，将尝试直接连接 Docker TCP 端口`);
-
-                            // 降级：直接尝试连接 2375（假设已配置）
-                            initDockerClient(ssh, serverId, server, null, resolve);
-                        } else {
-                            // 2. 启动 socat 转发 Docker Socket
-                            const socatCmd = `socat TCP-LISTEN:2375,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock 2>/dev/null & echo $!`;
-
-                            logDebug(`[SSH] 启动 socat 转发: ${socatCmd}`);
-                            console.log(`[SSH] 正在启动 Docker Socket 转发...`);
-
-                            ssh.exec(socatCmd, (err, stream) => {
-                                if (err) {
-                                    logDebug(`[SSH] 启动 socat 失败: ${err.message}`);
-                                    reject(new Error(`启动 socat 失败: ${err.message}`));
-                                    return;
-                                }
-
-                                let pidOutput = '';
-                                stream.on('data', (data) => {
-                                    pidOutput += data.toString();
-                                });
-
-                                stream.stderr.on('data', (data) => {
-                                    logDebug(`[SSH] socat stderr: ${data}`);
-                                });
-
-                                stream.on('close', (code) => {
-                                    socatPid = parseInt(pidOutput.trim());
-                                    if (!isNaN(socatPid)) {
-                                        logDebug(`[SSH] socat 已启动，PID: ${socatPid}`);
-                                        console.log(`[SSH] ✅ Docker Socket 转发已启动 (PID: ${socatPid})`);
-
-                                        // 等待 socat 就绪（500ms）
-                                        setTimeout(() => {
-                                            initDockerClient(ssh, serverId, server, socatPid, resolve);
-                                        }, 500);
-                                    } else {
-                                        logDebug(`[SSH] 无法获取 socat PID: ${pidOutput}`);
-                                        reject(new Error('无法启动 socat 进程'));
+                const handleMissingSocat = () => {
+                    logDebug(`[SSH] 远程缺失 socat，正在检查权限状态...`);
+                    // 检查是否为 root 用户
+                    ssh.exec('id -u', (err, stream) => {
+                        let uid = '';
+                        stream.on('data', (d) => { uid += d.toString(); });
+                        stream.on('close', () => {
+                            const isRoot = uid.trim() === '0';
+                            console.log(`[SSH] ${server.host} UID: ${uid.trim()}, Root: ${isRoot}`);
+                            if (isRoot) {
+                                logDebug(`[SSH] 检测到 Root 权限，尝试自动安装 socat...`);
+                                // 自动识别系统并安装
+                                const installCmd = `
+                                    if [ -f /etc/debian_version ]; then
+                                        echo "[SSH] Detected Debian/Ubuntu" && export DEBIAN_FRONTEND=noninteractive && apt-get update -y && apt-get install -y socat
+                                    elif [ -f /etc/redhat-release ]; then
+                                        echo "[SSH] Detected RHEL/CentOS" && yum install -y socat
+                                    else
+                                        echo "[SSH] Detected Generic" && (apt-get install -y socat || yum install -y socat || apk add socat)
+                                    fi
+                                `;
+                                ssh.exec(installCmd, (err, stream) => {
+                                    if (err) {
+                                        console.error(`[SSH] 执行安装命令报错: ${err.message}`);
+                                        return reject(new Error('自动安装 socat 失败，请切换 root 或手动安装'));
                                     }
+                                    stream.on('data', (d) => console.log(`[SSH Install Output] ${d.toString().trim()}`));
+                                    stream.stderr.on('data', (d) => console.error(`[SSH Install Error] ${d.toString().trim()}`));
+                                    stream.on('close', (code) => {
+                                        console.log(`[SSH] 安装命令结束, Code: ${code}`);
+                                        if (code === 0) {
+                                            logDebug(`[SSH] socat 自动安装成功，正在重新启动流程...`);
+                                            checkAndInstallSocat(); // 重新检查
+                                        } else {
+                                            reject(new Error('自动安装 socat 失败 (Exit Code ' + code + ')，请手动确认服务器网络或权限'));
+                                        }
+                                    });
                                 });
-                            });
-                        }
+                            } else {
+                                // 非 root，返回引导信息
+                                const errorMsg = `[缺失依赖] 远程服务器未安装 'socat'，且当前登录账号无自动安装权限。
+请手动登录服务器并执行以下命令安装：
+- Ubuntu/Debian: apt-get update && apt-get install -y socat
+- CentOS/1Panel: yum install -y socat`;
+                                reject(new Error(errorMsg));
+                            }
+                        });
                     });
+                };
+
+                const startSocatForwarding = () => {
+                    const socatCmd = `socat TCP-LISTEN:2375,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock 2>/dev/null & echo $!`;
+                    ssh.exec(socatCmd, (err, stream) => {
+                        if (err) return reject(new Error('Socat start failed'));
+                        let pidOutput = '';
+                        stream.on('data', (d) => { pidOutput += d.toString(); });
+                        stream.on('close', () => {
+                            socatPid = parseInt(pidOutput.trim());
+                            if (!isNaN(socatPid)) {
+                                setTimeout(() => initDockerClient(ssh, serverId, server, socatPid, resolve), 300);
+                            } else {
+                                reject(new Error('Failed to get Socat PID'));
+                            }
+                        });
+                    });
+                };
+
+                checkAndInstallSocat();
+            });
+
+            // 初始化 Docker 客户端的辅助函数
+            function initDockerClient(ssh, serverId, server, pid, resolve) {
+                socatPid = pid;
+                const dockerOptions = {
+                    protocol: 'http',
+                    socketPath: undefined,
+                    Promise: Promise
+                };
+
+                const agent = new http.Agent();
+                agent.createConnection = function (options, callback) {
+                    ssh.forwardOut(
+                        '127.0.0.1',
+                        0,
+                        '127.0.0.1',
+                        2375,
+                        (err, stream) => {
+                            if (err) {
+                                logDebug(`[SSH] 转发失败: ${err.message}`);
+                                callback(err);
+                            } else {
+                                callback(null, stream);
+                            }
+                        }
+                    );
+                };
+
+                dockerOptions.agent = agent;
+                dockerOptions.host = 'localhost';
+                dockerOptions.port = 2375;
+
+                const client = new Docker(dockerOptions);
+                sshConnections.set(serverId, { ssh, socatPid });
+
+                ssh.on('close', () => {
+                    logDebug(`[SSH] 连接关闭: ${server.host} (${serverId})`);
+                    cleanup();
                 });
 
-                // 初始化 Docker 客户端的辅助函数
-                function initDockerClient(ssh, serverId, server, pid, resolve) {
-                    socatPid = pid;
+                ssh.on('end', () => {
+                    logDebug(`[SSH] 连接结束: ${server.host} (${serverId})`);
+                    cleanup();
+                });
 
-                    const dockerOptions = {
-                        protocol: 'http',
-                        socketPath: undefined,
-                        Promise: Promise
-                    };
-
-                    // 创建自定义的HTTP代理，通过SSH隧道转发请求
-                    const agent = new http.Agent();
-
-                    agent.createConnection = function (options, callback) {
-                        ssh.forwardOut(
-                            '127.0.0.1',
-                            0,
-                            '127.0.0.1',
-                            2375,
-                            (err, stream) => {
-                                if (err) {
-                                    logDebug(`[SSH] 转发失败: ${err.message}`);
-                                    callback(err);
-                                } else {
-                                    callback(null, stream);
-                                }
-                            }
-                        );
-                    };
-
-                    dockerOptions.agent = agent;
-                    dockerOptions.host = 'localhost';
-                    dockerOptions.port = 2375;
-
-                    const client = new Docker(dockerOptions);
-
-                    // 缓存SSH连接和 socat PID
-                    sshConnections.set(serverId, { ssh, socatPid });
-
-                    // 监听连接关闭事件，自动清除缓存和 socat
-                    ssh.on('close', () => {
-                        logDebug(`[SSH] 连接关闭: ${server.host} (${serverId})`);
-                        console.log(`[SSH] 连接关闭: ${server.host}`);
-                        cleanup();
-                    });
-
-                    ssh.on('end', () => {
-                        logDebug(`[SSH] 连接结束: ${server.host} (${serverId})`);
-                        console.log(`[SSH] 连接结束: ${server.host}`);
-                        cleanup();
-                    });
-
-                    ssh.on('error', (err) => {
-                        logDebug(`[SSH] 连接错误: ${server.host} (${serverId}) - ${err.message}`);
-                        console.error(`[SSH] 连接错误:`, err.message);
-                    });
-
-                    resolve(client);
-                }
-            });
+                resolve(client);
+            }
 
             ssh.on('error', (err) => {
-                console.error(`[SSH] 连接错误:`, err.message);
-                reject(new Error(`SSH连接失败: ${err.message}`));
+                logDebug(`[SSH] 底层错误: ${err.message}`);
+                cleanup();
+                reject(err);
             });
 
-            // 连接到远程服务器
+            // 设置 SSH 层的握手超时
             const sshConfig = {
                 host: server.host,
                 port: server.ssh_port || 22,
-                username: server.ssh_user || 'root'
+                username: server.ssh_user || 'root',
+                readyTimeout: 10000 // 10秒握手超时
             };
 
-            // 根据认证方式选择配置
-            if (server.ssh_private_key) {
-                // 优先使用提供的私钥认证
-                sshConfig.privateKey = server.ssh_private_key;
-                console.log(`[SSH] 尝试连接（私钥认证）: ${sshConfig.username}@${sshConfig.host}:${sshConfig.port}`);
-            } else if (server.ssh_password) {
-                // 使用密码认证
-                sshConfig.password = server.ssh_password;
-                console.log(`[SSH] 尝试连接（密码认证）: ${sshConfig.username}@${sshConfig.host}:${sshConfig.port}`);
-            } else {
-                // 使用SSH Agent进行认证（支持免密登录）
-                sshConfig.agent = process.env.SSH_AUTH_SOCK;
-                sshConfig.agentForward = true;
-                console.log(`[SSH] 尝试连接（Agent认证）: ${sshConfig.username}@${sshConfig.host}:${sshConfig.port}`);
-            }
+            if (server.ssh_private_key) sshConfig.privateKey = server.ssh_private_key;
+            else if (server.ssh_password) sshConfig.password = server.ssh_password;
 
             ssh.connect(sshConfig);
         });
@@ -801,13 +828,30 @@ export class DockerService {
                 logDebug(`Fetching fresh images for ${serverId}`);
                 const client = await this.getClient(serverId);
                 const images = await client.listImages();
-                const mappedImages = images.map(img => ({
-                    id: img.Id,
-                    tags: img.RepoTags || [],
-                    digests: img.RepoDigests || [],
-                    created: img.Created,
-                    size: img.Size,
-                    virtualSize: img.VirtualSize
+                console.log(`[Docker Raw] Total images from daemon: ${images.length}`, JSON.stringify(images.slice(0, 10)));
+                // 过滤虚悬镜像 (dangling images)，只保留有意义的镜像
+                // 获取所有容器正在使用的镜像 ID 列表
+                const containers = await client.listContainers({ all: true });
+                const usedImageIds = new Set(containers.map(c => c.ImageID));
+
+                // 过滤虚悬镜像 (dangling images)
+                const filteredImages = images.filter(image => {
+                    const isDangling = !image.RepoTags || image.RepoTags.length === 0 || image.RepoTags.some(tag => tag === '<none>:<none>' || tag.includes('<none>'));
+                    const isUsed = usedImageIds.has(image.Id);
+
+                    // 如果是没用的虚悬镜像，过滤掉
+                    if (isDangling && !isUsed) return false;
+
+                    return true;
+                });
+
+                const mappedImages = filteredImages.map(image => ({
+                    id: image.Id,
+                    tags: image.RepoTags || [],
+                    digests: image.RepoDigests || [],
+                    created: image.Created,
+                    size: image.Size,
+                    virtualSize: image.VirtualSize
                 }));
 
                 // 缓存结果
@@ -856,6 +900,16 @@ export class DockerService {
 
             await image.remove({ force });
 
+            // 清理本地服务缓存
+            invalidateCache(serverId, 'images');
+
+            // 尝试清理数据库中的更新状态 (如果有 RepoTags 可参考，这里由于 image 已删，逻辑上可能拿不到新的，但我们可以尝试根据 ID 对应)
+            try {
+                const { DockerImageUpdateDAO } = await import('../database/dao/DockerImageUpdateDAO.js');
+                // 注意：这里由于是在删除后，建议在删除镜像前捕获一下 Tags 或者这里由于 ID 已经没了，就不再持久化旧的状态
+                // 如果用户以后再拉取同名的，会自动生成新的检查记录
+            } catch (e) { }
+
             await AuditLogDAO.create({
                 server_id: serverId,
                 action: 'remove_image',
@@ -866,6 +920,11 @@ export class DockerService {
 
             return { success: true };
         } catch (error) {
+            // 如果镜像已被删除，则直接清理缓存并返回成功
+            if (error.statusCode === 404 || error.message.includes('404')) {
+                invalidateCache(serverId, 'images');
+                return { success: true, message: 'Image already removed' };
+            }
             throw new Error(`Failed to remove image: ${error.message}`);
         }
     }
@@ -873,7 +932,7 @@ export class DockerService {
     /**
      * 拉取镜像
      */
-    static async pullImage(serverId, imageName) {
+    static async pullImage(serverId, imageName, onProgress = null) {
         try {
             const client = await this.getClient(serverId);
 
@@ -884,9 +943,40 @@ export class DockerService {
                         return;
                     }
 
-                    const chunks = [];
-                    stream.on('data', chunk => chunks.push(chunk));
+                    let success = false;
+                    const timeoutId = setTimeout(() => {
+                        try { stream.destroy(); } catch (e) { }
+                        reject(new Error(`Pull ${imageName} timed out after 10 minutes`));
+                    }, 600000); // 10 分钟
+
+                    stream.on('data', chunk => {
+                        if (onProgress) {
+                            onProgress(chunk);
+                        }
+                        const line = chunk.toString();
+                        if (line.includes('Downloaded newer image') || line.includes('Image is up to date')) {
+                            success = true;
+                        }
+                    });
+
                     stream.on('end', async () => {
+                        clearTimeout(timeoutId);
+
+                        // 清理本地服务缓存，强制下一次加载从 Docker 实时获取
+                        invalidateCache(serverId, 'images');
+
+                        // 清理数据库中的“有更新”状态，因为已经拉取了最新版
+                        try {
+                            const { DockerImageUpdateDAO } = await import('../database/dao/DockerImageUpdateDAO.js');
+                            // 尝试清理所有可能的名称变体
+                            await DockerImageUpdateDAO.remove(imageName);
+                            if (imageName.includes(':latest')) {
+                                await DockerImageUpdateDAO.remove(imageName.replace(':latest', ''));
+                            }
+                        } catch (e) {
+                            console.error('Failed to cleanup update status after pull:', e);
+                        }
+
                         await AuditLogDAO.create({
                             server_id: serverId,
                             action: 'pull_image',
@@ -894,13 +984,107 @@ export class DockerService {
                             resource_name: imageName,
                             status: 'success'
                         });
-                        resolve({ success: true, output: chunks.join('') });
+                        resolve({ success: true, message: 'Pull completed successfully' });
                     });
-                    stream.on('error', reject);
+                    stream.on('error', (err) => {
+                        clearTimeout(timeoutId);
+                        reject(err);
+                    });
                 });
             });
         } catch (error) {
             throw new Error(`Failed to pull image: ${error.message}`);
+        }
+    }
+
+    /**
+     * 检查镜像更新
+     */
+    static async checkImageUpdate(serverId, imageName) {
+        try {
+            logDebug(`Checking update for image: ${imageName} on server: ${serverId}`);
+            const client = await this.getClient(serverId);
+
+            // 1. 获取本地镜像详情 (优化：支持多种 Digest 匹配方式)
+            let localDigest = null;
+            let localRepoDigests = [];
+            try {
+                const localImage = client.getImage(imageName);
+                const inspectData = await localImage.inspect();
+                localRepoDigests = inspectData.RepoDigests || [];
+                localDigest = localRepoDigests[0]?.split('@')[1] || inspectData.Id;
+            } catch (e) {
+                logDebug(`Local image ${imageName} not found, will mark as update available`);
+            }
+
+            // 2. 探测远程信息
+            const result = await new Promise((resolve) => {
+                client.pull(imageName, (err, stream) => {
+                    if (err) return resolve({ imageName, hasUpdate: false, error: err.message });
+
+                    let remoteDigest = null;
+                    let hasUpdate = false;
+                    let finalized = false;
+
+                    const finalize = (update, digest) => {
+                        if (finalized) return;
+                        finalized = true;
+                        try { stream.destroy(); } catch (e) { }
+                        resolve({
+                            imageName,
+                            hasUpdate: update,
+                            localDigest,
+                            remoteDigest: digest || remoteDigest
+                        });
+                    };
+
+                    stream.on('data', chunk => {
+                        const line = chunk.toString();
+
+                        // 逻辑 A: 一旦拿到 Digest，这就是最权威的判断依据
+                        if (line.includes('Digest:')) {
+                            const foundDigest = line.split('Digest:')[1]?.trim().split(' ')[0];
+                            remoteDigest = foundDigest;
+                            // 对比本地和远程 Digest (增强：对比所有可能的本地 RepoDigests)
+                            const isNew = remoteDigest && (
+                                !localDigest ||
+                                !localRepoDigests.some(rd => rd.includes(remoteDigest))
+                            );
+                            finalize(isNew, remoteDigest);
+                        }
+
+                        // 逻辑 B: 明确提示已是最新
+                        if (line.includes('Image is up to date') || line.includes('Already exists')) {
+                            finalize(false, null);
+                        }
+
+                        // 逻辑 C: 明确提示已下载或正在拉取新层 (这在探测模式下不应该深入发生，但在某些环境会立刻跳出)
+                        if (line.includes('Downloaded newer image') || line.includes('Pulling from')) {
+                            // 即使暗示有更新，我们也尽量尝试等 Digest，或者 2秒后强制断开
+                            setTimeout(() => finalize(true, null), 2000);
+                        }
+                    });
+
+                    // 探测模式下，我们绝不等待 30 秒，通常 10 秒拿不到 Digest 就是网络有问题或需要登录
+                    const timeoutId = setTimeout(() => finalize(false, null), 10000);
+
+                    stream.on('end', () => finalized || finalize(false, null));
+                    stream.on('error', (err) => finalized || resolve({ imageName, hasUpdate: false, error: err.message }));
+                });
+            });
+
+            // 3. 持久化检查结果
+            try {
+                const { DockerImageUpdateDAO } = await import('../database/dao/DockerImageUpdateDAO.js');
+                await DockerImageUpdateDAO.save(result);
+            } catch (dbErr) {
+                console.error('[DockerService] Failed to save update status:', dbErr);
+            }
+
+            return result;
+        } catch (error) {
+            console.error(`Update check failed for ${imageName}:`, error.message);
+            return { imageName, hasUpdate: false, error: error.message };
         }
     }
 
