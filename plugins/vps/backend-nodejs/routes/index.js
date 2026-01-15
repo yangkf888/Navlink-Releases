@@ -101,7 +101,16 @@ router.post('/servers/check', async (req, res) => {
             serversToCheck = allServers.map(s => s.id);
         }
 
-        const results = await Promise.all(serversToCheck.map(id => vpsService.checkServerConnectivity(id)));
+        // 使用简单的批处理逻辑限制并发，防止大量 SSH 超时阻塞事件循环
+        const results = [];
+        const batchSize = 3;
+        for (let i = 0; i < serversToCheck.length; i += batchSize) {
+            const batch = serversToCheck.slice(i, i + batchSize);
+            const batchResults = await Promise.all(
+                batch.map(id => vpsService.checkServerConnectivity(id).catch(err => ({ id, status: 'error', error: err.message })))
+            );
+            results.push(...batchResults);
+        }
         res.json(results);
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -39,7 +39,6 @@ function decrypt(text) {
 
         return decrypted.toString();
     } catch (error) {
-        console.error('Decryption error:', error);
         return text; // Return original if decryption fails (fallback)
     }
 }

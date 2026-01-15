@@ -64,8 +64,13 @@ exports.getServerById = async (id, includeSecrets = false) => {
     if (!server) return null;
 
     if (includeSecrets) {
-        if (server.password) server.password = decrypt(server.password);
-        if (server.private_key) server.private_key = decrypt(server.private_key);
+        try {
+            if (server.password) server.password = decrypt(server.password);
+            if (server.private_key) server.private_key = decrypt(server.private_key);
+        } catch (e) {
+            console.error(`[VPS Service] Decryption failed for server ${id}:`, e.message);
+            // 保持加密状态或设为 null，不抛出异常阻塞进程
+        }
         return server;
     }
 
@@ -188,16 +193,9 @@ exports.checkServerConnectivity = async (id) => {
                     sshConfig.privateKey = server.private_key;
                 }
 
-                console.log(`[VPS Check] Connecting SSH to ${server.host}:${server.port}...`);
                 await ssh.connect(sshConfig);
-                console.log(`[VPS Check] SSH connected, getting system info...`);
-
                 systemInfo = await getSystemInfo(ssh);
                 ssh.dispose();
-
-                if (systemInfo) {
-                    console.log(`[VPS Check] System info retrieved for ${server.host}`);
-                }
             } catch (sshError) {
                 console.error(`[VPS Check] SSH failed for ${server.host}:`, sshError.message);
                 // SSH失败不影响在线状态，只是没有系统信息

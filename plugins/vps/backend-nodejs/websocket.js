@@ -53,71 +53,26 @@ wss.on('connection', async (ws, req) => {
             host: server.host,
             port: server.port || 22,
             username: server.username,
-            // Add compatibility options for SSH connections
+            // 提高稳定性与兼容性
             readyTimeout: 20000,
             keepaliveInterval: 10000,
-            algorithms: {
-                kex: [
-                    'diffie-hellman-group14-sha256',
-                    'diffie-hellman-group14-sha1',
-                    'diffie-hellman-group-exchange-sha256',
-                    'diffie-hellman-group-exchange-sha1',
-                    'diffie-hellman-group1-sha1'
-                ],
-                cipher: [
-                    'aes128-ctr',
-                    'aes192-ctr',
-                    'aes256-ctr',
-                    'aes128-gcm',
-                    'aes128-gcm@openssh.com',
-                    'aes256-gcm',
-                    'aes256-gcm@openssh.com',
-                    'aes256-cbc',
-                    'aes192-cbc',
-                    'aes128-cbc'
-                ],
-                serverHostKey: [
-                    'ssh-rsa',
-                    'rsa-sha2-512',
-                    'rsa-sha2-256',
-                    'ecdsa-sha2-nistp256',
-                    'ecdsa-sha2-nistp384',
-                    'ecdsa-sha2-nistp521',
-                    'ssh-ed25519'
-                ],
-                hmac: [
-                    'hmac-sha2-256',
-                    'hmac-sha2-512',
-                    'hmac-sha1'
-                ]
-            },
-            debug: (msg) => console.log('[SSH Debug]', msg)
+            debug: (msg) => console.log(`[SSH Debug ${serverId}]`, msg)
         };
 
+
         if (server.auth_type === 'password') {
-            // Password should already be decrypted by getServerById(serverId, true)
-            // But we keep decrypt logic for backward compatibility
             try {
                 config.password = cryptoUtils.decrypt(server.password);
-                console.log(`[VPS WS] Password decrypted successfully, length: ${config.password ? config.password.length : 0}`);
             } catch (e) {
-                // If decrypt fails, it might already be decrypted
-                console.log('[VPS WS] Password decrypt failed (might already be decrypted):', e.message);
                 config.password = server.password;
             }
-            console.log(`[VPS WS] Password ready: ${config.password ? '✓ (length: ' + config.password.length + ')' : '✗ NULL'}`);
         } else if (server.auth_type === 'key') {
             try {
                 config.privateKey = cryptoUtils.decrypt(server.private_key);
             } catch (e) {
                 config.privateKey = server.private_key;
             }
-            if (server.passphrase) {
-                config.passphrase = server.passphrase; // Might need decrypt too
-            }
         }
-
-        console.log(`[VPS WS] Connecting SSH to ${server.host}:${server.port}...`);
 
         if (type === 'terminal') {
             let sshClient = null;
@@ -185,8 +140,10 @@ wss.on('connection', async (ws, req) => {
                 });
 
                 sshClient.on('keyboard-interactive', (name, instructions, instructionsLang, prompts, finish) => {
-                    console.log('[VPS WS] keyboard-interactive triggered');
+                    console.log(`[VPS WS] keyboard-interactive triggered. Name: ${name}, Prompts: ${prompts.length}`);
                     if (prompts.length > 0 && config.password) {
+                        // 某些 PAM 配置下 prompt 可能包含 'password' 关键字以外的提示
+                        console.log(`[VPS WS] Responding to prompt: ${prompts[0].prompt}`);
                         finish([config.password]);
                     } else {
                         finish([]);
@@ -205,10 +162,7 @@ wss.on('connection', async (ws, req) => {
                 setupClientListeners();
 
                 const connectionConfig = {
-                    host: config.host,
-                    port: config.port,
-                    username: config.username,
-                    readyTimeout: 20000,
+                    ...config, // 包含 algorithms, readyTimeout, keepaliveInterval 等
                     tryKeyboard: true,
                 };
 
@@ -233,142 +187,188 @@ wss.on('connection', async (ws, req) => {
             });
 
         } else if (type === 'control') {
-            // Use NodeSSH for both monitoring and SFTP
-            console.log('[VPS WS] Control: Connecting NodeSSH...');
-            const ssh = new NodeSSH();
-            await ssh.connect(config);
-            console.log('[VPS WS] Control: NodeSSH connected successfully');
+            console.log(`[VPS WS] Control: Initiating heavy-duty stable connection for ${serverId}`);
+            const sshClient = new Client();
 
-            // Try to get SFTP from NodeSSH connection
-            let sftpWrapper = null;
-            try {
-                console.log('[VPS WS] Control: Requesting SFTP subsystem...');
-                sftpWrapper = await ssh.requestSFTP();
-                console.log('[VPS WS] Control: SFTP subsystem available');
-            } catch (err) {
-                console.error('[VPS WS] Control: SFTP subsystem unavailable:', err.message);
+            // 资源锁定上下文：管理所有异步资源的生命周期
+            const controlCtx = {
+                sftp: null,
+                monitor: null,
+                isClosing: false,
+                serverId: serverId
+            };
+
+            // 统一资源清理函数
+            const cleanup = () => {
+                if (controlCtx.isClosing) return;
+                controlCtx.isClosing = true;
+                console.log(`[VPS WS] Control: Deep cleaning resources for ${serverId}`);
+                if (controlCtx.monitor) clearInterval(controlCtx.monitor);
+                if (controlCtx.sftp) try { controlCtx.sftp.end(); } catch (e) { }
+                try { sshClient.end(); } catch (e) { }
+            };
+
+            sshClient.on('ready', () => {
+                console.log(`[VPS WS] Control: SSH Ready for ${serverId}. Parallelizing subsystems...`);
+
+                // 1. 预热 SFTP (并行 A)
+                sshClient.sftp((err, sftp) => {
+                    if (err) {
+                        console.error('[VPS WS] SFTP heating failed:', err.message);
+                    } else {
+                        controlCtx.sftp = sftp;
+                        console.log('[VPS WS] SFTP engine warmed up');
+                    }
+                });
+
+                // 2. 默认就绪信号 (并行 B)
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'control:ready' }));
+                }
+
+                // 3. 监控延时自启动 (并行 C) - 给 SFTP 留出握手空间
+                setTimeout(async () => {
+                    if (controlCtx.isClosing || ws.readyState !== WebSocket.OPEN) return;
+
+                    const { getSystemInfo } = require('./utils/sshMonitor');
+                    let prevNetStats = null;
+                    let prevNetTime = Date.now();
+
+                    controlCtx.monitor = setInterval(async () => {
+                        if (controlCtx.isClosing || ws.readyState !== WebSocket.OPEN) return;
+
+                        try {
+                            const execPromise = (cmd) => new Promise((resolve) => {
+                                if (controlCtx.isClosing) return resolve({ stdout: '', stderr: 'Closing' });
+                                sshClient.exec(cmd, (err, stream) => {
+                                    if (err) return resolve({ stdout: '', stderr: err.message });
+                                    let stdout = '';
+                                    stream.on('data', (d) => { stdout += d.toString(); });
+                                    stream.stderr.on('data', () => { }); // 消耗 stderr 防止阻塞
+                                    stream.on('close', () => resolve({ stdout: stdout.trim() }));
+                                    // 容错：防止 stream 挂死
+                                    setTimeout(() => { try { stream.destroy(); } catch (e) { } }, 5000);
+                                });
+                            });
+
+                            // 获取秒级 CPU 和网速
+                            const [cpuRes, netRes] = await Promise.all([
+                                execPromise("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"),
+                                execPromise("cat /proc/net/dev | grep -E '(eth0|ens|enp|eno|eth1)' | head -1")
+                            ]);
+
+                            const systemInfo = await getSystemInfo({ execCommand: execPromise });
+                            if (!systemInfo || controlCtx.isClosing) return;
+
+                            const mem = JSON.parse(systemInfo.mem_info || '{}');
+                            const disk = JSON.parse(systemInfo.disk_info || '{}');
+
+                            let netUp = 0, netDown = 0;
+                            if (netRes.stdout) {
+                                const parts = netRes.stdout.trim().split(/\s+/);
+                                if (parts.length >= 10) {
+                                    const rx = parseInt(parts[1]) || 0;
+                                    const tx = parseInt(parts[9]) || 0;
+                                    if (prevNetStats) {
+                                        const dt = (Date.now() - prevNetTime) / 1000;
+                                        if (dt > 0) {
+                                            netDown = (rx - prevNetStats.rx) / dt;
+                                            netUp = (tx - prevNetStats.tx) / dt;
+                                        }
+                                    }
+                                    prevNetStats = { rx, tx };
+                                    prevNetTime = Date.now();
+                                }
+                            }
+
+                            // 🚨 严格对齐 Git 历史稳定版 (0c716fb) 的协议结构
+                            const formattedData = {
+                                cpu: parseFloat(cpuRes.stdout) || 0, // 稳定版是直接数字，不是对象！
+                                mem: {
+                                    used: mem.used || 0,
+                                    total: mem.total || 0
+                                },
+                                disk: disk.usedPercentage || 0,     // 稳定版是直接数字！
+                                net: {
+                                    up: netUp || 0,
+                                    down: netDown || 0
+                                }
+                            };
+
+                            if (ws.readyState === WebSocket.OPEN) {
+                                try {
+                                    ws.send(JSON.stringify({ type: 'monitor:data', data: formattedData }));
+                                } catch (e) { }
+                            }
+                        } catch (e) {
+                            console.error('[VPS WS] Monitor logic error:', e.message);
+                        }
+                    }, 2000);
+                }, 1500); // 延时 1.5 秒启动监控
+            });
+
+            sshClient.on('error', (err) => {
+                console.error(`[VPS WS] SSH Master Error [${serverId}]:`, err.message);
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'control:error', message: err.message }));
+                }
+                cleanup();
+            });
+
+            sshClient.on('close', cleanup);
+            ws.on('close', cleanup);
+
+            // 连接参数
+            const connectionConfig = { ...config, tryKeyboard: true };
+            if (server.auth_type === 'password' && config.password) {
+                connectionConfig.password = config.password;
+            } else if (server.auth_type === 'key' && config.privateKey) {
+                connectionConfig.privateKey = config.privateKey;
             }
 
-            // Notify frontend that control connection is ready
-            ws.send(JSON.stringify({ type: 'control:ready' }));
+            sshClient.connect(connectionConfig);
 
             ws.on('message', async (message) => {
                 try {
                     const msg = JSON.parse(message);
 
-                    // --- Monitoring ---
-                    if (msg.type === 'monitor:start') {
-                        if (monitorInterval) clearInterval(monitorInterval);
-
-                        // Store previous network stats for speed calculation
-                        let prevNetStats = null;
-                        let prevNetTime = Date.now();
-
-                        monitorInterval = setInterval(async () => {
-                            try {
-                                const cpuResult = await ssh.execCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"); // Simple CPU usage
-                                const memResult = await ssh.execCommand("free -m | grep Mem | awk '{print $3,$2}'"); // Used Total
-                                const diskResult = await ssh.execCommand("df -h / | tail -1 | awk '{print $5}'"); // Disk usage percentage
-
-                                // Get network stats - try eth0 first, then other interfaces
-                                let netResult = await ssh.execCommand("cat /proc/net/dev | grep -E '(eth0|ens|enp)' | head -1");
-
-                                // Simplified stats parsing
-                                const cpuUsage = parseFloat(cpuResult.stdout) || 0;
-                                const memParts = memResult.stdout.trim().split(' ');
-                                const memUsed = parseInt(memParts[0]) || 0;
-                                const memTotal = parseInt(memParts[1]) || 0;
-
-                                // Parse disk usage (remove % sign)
-                                const diskUsage = parseInt(diskResult.stdout.replace('%', '')) || 0;
-
-                                // Parse network stats
-                                let netUp = 0;
-                                let netDown = 0;
-
-                                if (netResult.stdout) {
-                                    // Format: interface: rxBytes rxPackets ... txBytes txPackets ...
-                                    const parts = netResult.stdout.trim().split(/\s+/);
-                                    if (parts.length >= 10) {
-                                        const rxBytes = parseInt(parts[1]) || 0;  // Received bytes
-                                        const txBytes = parseInt(parts[9]) || 0;  // Transmitted bytes
-
-                                        // Calculate speed if we have previous data
-                                        if (prevNetStats) {
-                                            const now = Date.now();
-                                            const timeDiff = (now - prevNetTime) / 1000; // seconds
-
-                                            if (timeDiff > 0) {
-                                                netDown = Math.max(0, (rxBytes - prevNetStats.rx) / timeDiff); // bytes/sec
-                                                netUp = Math.max(0, (txBytes - prevNetStats.tx) / timeDiff); // bytes/sec
-                                            }
-                                        }
-
-                                        // Update previous stats
-                                        prevNetStats = { rx: rxBytes, tx: txBytes };
-                                        prevNetTime = Date.now();
-                                    }
-                                }
-
-                                // console.log('[VPS WS] Monitor data - CPU:', cpuUsage.toFixed(1) + '%', 'MEM:', memUsed + '/' + memTotal + 'MB', 'DISK:', diskUsage + '%', 'NET:', 'Down=' + netDown.toFixed(0) + 'B/s', 'Up=' + netUp.toFixed(0) + 'B/s');
-                                ws.send(JSON.stringify({
-                                    type: 'monitor:data',
-                                    data: {
-                                        cpu: cpuUsage,  // Changed: direct number instead of {usage: number}
-                                        mem: { used: memUsed, total: memTotal },
-                                        disk: diskUsage,  // Added: disk usage
-                                        net: { up: netUp, down: netDown } // bytes/sec
-                                    }
-                                }));
-                            } catch (e) {
-                                console.error('Monitor error:', e);
+                    // SFTP 指令动态路由与重试
+                    if (msg.type && msg.type.startsWith('sftp:')) {
+                        // 如果 SFTP 还没热启动完成，等待一下
+                        if (!controlCtx.sftp) {
+                            let waitRetries = 10; // 5秒
+                            while (!controlCtx.sftp && waitRetries > 0 && !controlCtx.isClosing) {
+                                await new Promise(r => setTimeout(r, 500));
+                                waitRetries--;
                             }
-                        }, 2000);
-                        console.log('[VPS WS] Monitoring started (interval: 2000ms)');
+                        }
+
+                        if (!controlCtx.sftp) {
+                            ws.send(JSON.stringify({ type: 'sftp:error', error: 'SFTP subsystem timeout' }));
+                            return;
+                        }
+
+                        await handleSftpCommand(controlCtx.sftp, ws, msg, sshClient);
                     } else if (msg.type === 'monitor:stop') {
-                        // console.log('[VPS WS] Stopping monitoring...');
-                        if (monitorInterval) {
-                            clearInterval(monitorInterval);
-                            monitorInterval = null;
+                        if (controlCtx.monitor) {
+                            clearInterval(controlCtx.monitor);
+                            controlCtx.monitor = null;
                         }
                     }
-
-                    // --- SFTP ---
-                    if (msg.type && msg.type.startsWith('sftp:')) {
-                        console.log('[VPS WS] SFTP command:', msg.type, 'payload:', msg.payload ? Object.keys(msg.payload) : 'none');
-                        await handleSftpCommand(sftpWrapper, ws, msg, ssh); // Pass ssh instance
-                    }
-
                 } catch (e) {
-                    console.error('[VPS WS] Control WS Message Error:', e);
+                    console.error('[VPS WS] Message routing error:', e);
                 }
-            });
-
-            ws.on('close', () => {
-                if (monitorInterval) clearInterval(monitorInterval);
-                if (sftpWrapper) {
-                    try {
-                        sftpWrapper.end();
-                    } catch (e) {
-                        console.error('[VPS WS] Error closing SFTP:', e);
-                    }
-                }
-                ssh.dispose();
             });
         }
-
     } catch (err) {
         console.error('[VPS WS] Connection error:', err);
         ws.close(1011, 'Connection failed: ' + err.message);
     }
 });
 
-async function handleSftpCommand(sftpWrapper, ws, msg, ssh) {
-    console.log('[handleSftpCommand] Type:', msg.type, 'Path:', msg.path || msg.payload?.path);
-
+async function handleSftpCommand(sftpWrapper, ws, msg, sshClient) {
     if (!sftpWrapper) {
-        console.error('[handleSftpCommand] SFTP wrapper not available!');
-        ws.send(JSON.stringify({ type: msg.type + ':response', error: 'SFTP not available' }));
+        ws.send(JSON.stringify({ type: msg.type + ':response', error: 'SFTP subsystem disconnected' }));
         return;
     }
 
@@ -456,18 +456,21 @@ async function handleSftpCommand(sftpWrapper, ws, msg, ssh) {
                     const isDirectory = (stats.mode & 0o040000) !== 0;
 
                     if (isDirectory) {
-                        // Use rm -rf for directories to ensure recursive delete
+                        // Use rm -rf for directories
                         const safePath = deletePath.replace(/"/g, '\\"');
-                        ssh.execCommand(`rm -rf "${safePath}"`).then((result) => {
-                            if (result.code !== 0) {
-                                console.error('[VPS WS] Recursive delete failed:', result.stderr);
-                                ws.send(JSON.stringify({ type: 'sftp:error', error: result.stderr || 'Failed to delete directory' }));
-                            } else {
-                                ws.send(JSON.stringify({ type: 'sftp:delete:response', path: deletePath }));
+                        const cmd = `rm -rf "${safePath}"`;
+                        sshClient.exec(cmd, (err, stream) => {
+                            if (err) {
+                                ws.send(JSON.stringify({ type: 'sftp:error', error: err.message }));
+                                return;
                             }
-                        }).catch(e => {
-                            console.error('[VPS WS] Recursive delete exception:', e);
-                            ws.send(JSON.stringify({ type: 'sftp:error', error: e.message }));
+                            stream.on('close', (code) => {
+                                if (code !== 0) {
+                                    ws.send(JSON.stringify({ type: 'sftp:error', error: 'Process exited with code ' + code }));
+                                } else {
+                                    ws.send(JSON.stringify({ type: 'sftp:delete:response', path: deletePath }));
+                                }
+                            });
                         });
                     } else {
                         sftpWrapper.unlink(deletePath, (err) => {
