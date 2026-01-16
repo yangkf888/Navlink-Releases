@@ -89,8 +89,14 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
         }
     }
 
+    // CRITICAL: If forceDarkText is explicitly set from parent (e.g., PluginLayout),
+    // it should override all internal color logic to ensure proper contrast
+    if (forceDarkText) {
+        textColorClass = 'text-gray-800';
+    }
+
     const visibleNavItems = config.topNav?.filter(item => isAuthenticated || !item.hidden) || [];
-    const isDarkText = textColorClass.includes('text-gray-800') || textColorClass.includes('text-black');
+    const isDarkText = forceDarkText || textColorClass.includes('text-gray-800') || textColorClass.includes('text-black');
 
     // 使用自定义导航菜单颜色或自动颜色
     const navMenuColor = config.theme?.navMenuColor;
@@ -145,7 +151,9 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                         {config.logoUrl && (
                             <img src={config.logoUrl} alt="Logo" className="h-8 w-auto" />
                         )}
-                        <span className={`text-xl font-bold ml-1 hidden sm:block ${logoColorClass}`}>Navlink</span>
+                        <span className={`text-xl font-bold ml-1 hidden sm:block ${logoColorClass}`}>
+                            {config.siteName || 'Navlink'}
+                        </span>
                     </div>
 
                     <div className="hidden lg:flex items-center space-x-0 text-sm font-medium">

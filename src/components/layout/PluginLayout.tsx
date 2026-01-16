@@ -8,16 +8,15 @@ import LoginModal from '../../apps/navlink/components/common/LoginModal';
 
 // Helper to determine if a color is light or dark
 const isLightColor = (color?: string) => {
-    if (!color) return true; // Default to light background if unknown
+    if (!color || color === 'transparent') return true;
 
     // Quick check for common light/dark keywords
-    if (color === 'white' || color === 'transparent') return true;
+    if (color === 'white') return true;
     if (color === 'black') return false;
 
     // Handle Hex
     if (color.startsWith('#')) {
         const hex = color.replace('#', '');
-        // Expand shorthand (e.g. "03F") to full form ("0033FF")
         const fullHex = hex.length === 3
             ? hex.split('').map(x => x + x).join('')
             : hex;
@@ -30,7 +29,17 @@ const isLightColor = (color?: string) => {
         return (r * 299 + g * 587 + b * 114) / 1000 >= 128;
     }
 
-    // Default to true (light) for safety
+    // Handle rgba/rgb
+    if (color.startsWith('rgb')) {
+        const matches = color.match(/\d+/g);
+        if (matches && matches.length >= 3) {
+            const r = parseInt(matches[0]);
+            const g = parseInt(matches[1]);
+            const b = parseInt(matches[2]);
+            return (r * 299 + g * 587 + b * 114) / 1000 >= 128;
+        }
+    }
+
     return true;
 };
 
@@ -85,9 +94,11 @@ const PluginLayout: React.FC = () => {
         };
     }, []);
 
-    // Determine if we should use dark text based on background color
-    const bgColor = config.theme?.backgroundColor || '#f1f2f3';
-    const useDarkText = isLightColor(bgColor);
+    // Determine if we should use dark text based on navbar background color
+    // In PluginLayout, the navbar typically uses theme.navbarBgColor or white
+    const navBgColor = config.theme?.navbarBgColor || '#ffffff';
+    const useDarkText = isLightColor(navBgColor);
+
 
     return (
         <div className="h-screen flex flex-col bg-[var(--theme-bg)] font-sans text-[var(--theme-text)] overflow-hidden">
