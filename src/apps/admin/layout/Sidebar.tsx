@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { usePermissions } from '@/shared/hooks/usePermissions';
+import { useConfig } from '@/shared/context/ConfigContext';
+import { Icon } from '@/shared/components/common/Icon';
 
 interface MenuItem {
     id: string;
@@ -88,6 +90,7 @@ const menuItems: MenuItem[] = [
 
 export default function Sidebar({ collapsed, onToggle }: Props) {
     const location = useLocation();
+    const { config } = useConfig();
     const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']);
     const { hasAnyPermission, loading, getUsername, getRoleDisplayName } = usePermissions();
 
@@ -284,14 +287,18 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
 
             {/* 用户信息 */}
             <div className="border-t border-gray-200 p-4 overflow-x-hidden">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        {getUsername().charAt(0).toUpperCase()}
+                <div className="flex items-center gap-3 px-3">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--theme-primary)] flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/20">
+                        <span className="text-white font-bold text-lg">
+                            {(config.siteName || 'Navlink').substring(0, 1).toUpperCase()}
+                        </span>
                     </div>
                     {!collapsed && (
-                        <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">{getUsername()}</div>
-                            <div className="text-xs text-gray-500">{getRoleDisplayName()}</div>
+                        <div className="flex flex-col animate-fade-in">
+                            <span className="font-bold text-gray-900 leading-tight">
+                                {config.siteName || 'Navlink'}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">管理后台</span>
                         </div>
                     )}
                 </div>

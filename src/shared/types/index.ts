@@ -87,9 +87,11 @@ export interface RightSidebarConfig {
     avatarUrl?: string; // Custom avatar image URL/Base64
     title: string;
     description: string;
-    customBackgroundColor?: string; // Custom background color for the card
+    customBackgroundColor?: string; // Custom background
+    customs?: Record<string, any>;
     socials: { icon: string; url: string }[];
   };
+  profileCardBgColor?: string; // 留空则显示默认渐变背景
   // Replaced stats with hotTopics
   hotTopics: HotTopicSource[];
   githubTrending: GithubTrendingConfig;
@@ -128,6 +130,10 @@ export interface ThemeConfig {
   categoryBgColor?: string; // 分类区域背景颜色
   sidebarHotBgColor?: string;
   sidebarGithubBgColor?: string;
+  promoCardBgColor?: string;
+  promoCardHoverBgColor?: string;
+  categoryCardBgColor?: string;
+  categoryCardHoverBgColor?: string;
 }
 
 export interface AIProvider {
@@ -146,6 +152,7 @@ export interface AIConfig {
 }
 
 export interface SiteConfig {
+  siteName?: string; // Global site name for navbar and tab title
   logoUrl: string; // For top navbar
   headerQuote: string; // The quote text in the top navbar
   backgroundImage?: string; // Custom background image for hero section

@@ -35,9 +35,10 @@ interface SortableItemProps {
     onEdit: (item: LinkItem) => void;
     onDelete: (item: LinkItem) => void;
     containerBgColor?: string;
+    hoverBgColor?: string;
 }
 
-const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelete, containerBgColor }: SortableItemProps) => {
+const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelete, containerBgColor, hoverBgColor }: SortableItemProps) => {
     const {
         attributes,
         listeners,
@@ -68,6 +69,7 @@ const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelet
                         onEdit={onEdit}
                         onDelete={onDelete}
                         containerBgColor={containerBgColor}
+                        hoverBgColor={hoverBgColor}
                     />
                 </div>
             </div>
@@ -353,6 +355,8 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
     };
 
     const catBgColor = config.theme?.categoryBgColor || '#ffffff';
+    const cardBgColor = config.theme?.categoryCardBgColor || '#ffffff';
+    const cardHoverBgColor = config.theme?.categoryCardHoverBgColor || '';
     const contrastColor = getContrastColor(catBgColor);
     const isDarkBg = contrastColor === '#ffffff';
 
@@ -445,7 +449,8 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                                 isManageMode={isManageMode}
                                 onEdit={handleEditClick}
                                 onDelete={handleDeleteLink}
-                                containerBgColor={catBgColor}
+                                containerBgColor={cardBgColor}
+                                hoverBgColor={cardHoverBgColor}
                             />
                         ))}
                         {allItems.length === 0 && (

@@ -10,9 +10,10 @@ interface LinkCardProps {
   onEdit?: (item: LinkItem) => void;
   onDelete?: (item: LinkItem) => void;
   containerBgColor?: string; // 外部容器背景色
+  hoverBgColor?: string; // 悬停背景色
 }
 
-const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDelete, containerBgColor }) => {
+const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDelete, containerBgColor, hoverBgColor }) => {
   const contrastColor = getContrastColor(containerBgColor || '#ffffff');
   const isDarkBg = contrastColor === '#ffffff';
 
@@ -40,11 +41,12 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
         onClick={(e) => {
           if (isAuthenticated) e.preventDefault();
         }}
-        className={`flex rounded-lg p-4 h-full border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
+        className={`link-card flex rounded-lg p-4 h-full border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
         style={{
           backgroundColor: containerBgColor || '#ffffff',
-          borderColor: containerBgColor || '#ffffff'
-        }}
+          borderColor: containerBgColor || '#ffffff',
+          '--hover-bg': hoverBgColor || ''
+        } as React.CSSProperties}
       >
         <div className="mr-3 flex-shrink-0">
           {item.icon ? (

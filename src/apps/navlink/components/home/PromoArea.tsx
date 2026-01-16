@@ -36,9 +36,11 @@ interface SortableItemProps {
     onDeleteClick: (e: React.MouseEvent, item: PromoItem) => void;
     contrastColor: string;
     promoBgColor: string;
+    promoCardBgColor: string;
+    promoCardHoverBgColor: string;
 }
 
-const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, onDeleteClick, contrastColor, promoBgColor }: SortableItemProps) => {
+const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, onDeleteClick, contrastColor, promoBgColor, promoCardBgColor, promoCardHoverBgColor }: SortableItemProps) => {
     const {
         attributes,
         listeners,
@@ -75,14 +77,15 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                     onClick={(e) => {
                         if (isManageMode) e.preventDefault();
                     }}
-                    className={`flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
+                    className={`promo-card flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
                         ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'border-transparent'}
                         ${!isManageMode ? 'cursor-pointer' : 'cursor-move'}
                     `}
                     style={{
-                        backgroundColor: !isDragging ? 'rgba(0,0,0,0.03)' : undefined,
-                        borderColor: !isDragging ? promoBgColor : undefined
-                    }}
+                        backgroundColor: !isDragging ? promoCardBgColor : undefined,
+                        borderColor: !isDragging ? promoBgColor : undefined,
+                        '--hover-bg': promoCardHoverBgColor
+                    } as React.CSSProperties}
                 >
                     {!item.isAd && item.icon && (
                         <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
@@ -392,6 +395,8 @@ const PromoArea = () => {
     };
 
     const promoBgColor = config.theme?.promoBgColor || '#ffffff';
+    const promoCardBgColor = config.theme?.promoCardBgColor || '#f3f4f6';
+    const promoCardHoverBgColor = config.theme?.promoCardHoverBgColor || '#e5e7eb';
     const contrastColor = getContrastColor(promoBgColor);
     const isDarkBg = contrastColor === '#ffffff';
 
@@ -507,6 +512,8 @@ const PromoArea = () => {
                                     onDeleteClick={handleDeleteClick}
                                     contrastColor={contrastColor}
                                     promoBgColor={promoBgColor}
+                                    promoCardBgColor={promoCardBgColor}
+                                    promoCardHoverBgColor={promoCardHoverBgColor}
                                 />
                             ))}
                             {allItems.length === 0 && (

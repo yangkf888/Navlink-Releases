@@ -192,3 +192,17 @@
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* ======================= */
+/* 卡片悬停效果 */
+/* ======================= */
+
+/* 热门推广卡片悬停 */
+.promo-card:hover {
+  background-color: var(--hover-bg) !important;
+}
+
+/* 内容分类卡片悬停 */
+.link-card:hover {
+  background-color: var(--hover-bg) !important;
+}

@@ -3,6 +3,7 @@ import type { SiteConfig } from './types';
 // export const ADMIN_PASSWORD = 'admin'; // Moved to server side
 
 export const DEFAULT_CONFIG: SiteConfig = {
+  siteName: 'Navlink',
   logoUrl: '', // Empty means use default styling or text
   headerQuote: '对你竖大拇指的人，不一定是在夸你，也可能是用炮在瞄你。',
   backgroundImage: '',
@@ -15,7 +16,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     categoryTitleSize: 20, // text-xl equivalent
     subCategoryTitleSize: 12, // text-xs equivalent
     promoCategoryTitleSize: 16, // text-base equivalent (16px)
-    promoSubCategoryTitleSize: 12 // text-xs equivalent
+    promoSubCategoryTitleSize: 12, // text-xs equivalent
+    promoCardBgColor: '#f3f4f6',
+    promoCardHoverBgColor: '#e5e7eb',
+    categoryCardBgColor: '#ffffff',
+    categoryCardHoverBgColor: ''
   },
   topNav: [
     { id: '1', title: 'Blog', url: '#', icon: 'fa-brands fa-wordpress' },
@@ -189,6 +194,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
         { icon: 'fa-brands fa-github', url: '#' },
       ]
     },
+    profileCardBgColor: '',
     hotTopics: [
       { id: 'ht1', name: '百度热点', apiUrl: 'https://api.vvhan.com/api/hotlist?type=baidu', webUrl: 'https://top.baidu.com/board', limit: 5 },
       { id: 'ht2', name: '抖音热榜', apiUrl: 'https://api.vvhan.com/api/hotlist?type=douyin', webUrl: 'https://www.douyin.com/hot', limit: 5 },

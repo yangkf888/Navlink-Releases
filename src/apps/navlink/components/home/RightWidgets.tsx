@@ -78,36 +78,48 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
         return `${ghConfig.webUrl}?since=${map[timeRange]}`;
     };
 
-    // Define custom style for card background if set
-    const customStyle = profile.customBackgroundColor
-        ? { background: profile.customBackgroundColor }
-        : {};
+    // -------------------------------------------------------------------------
+    // Profile Card Style Detection
+    // -------------------------------------------------------------------------
+    const profileBg = config.rightSidebar.profileCardBgColor;
+    const profileContrastColor = getContrastColor(profileBg || '#a18cd1');
+    const isProfileDarkBg = profileContrastColor === '#ffffff';
 
     return (
         <div className="space-y-6">
             {/* Profile Card */}
             <div
-                className={`rounded-xl p-6 text-white relative overflow-hidden group shadow-lg ${!profile.customBackgroundColor ? 'bg-gradient-to-br from-[#a18cd1] to-[#fbc2eb]' : ''}`}
-                style={customStyle}
+                className={`rounded-xl p-6 relative overflow-hidden group shadow-lg ${!profileBg ? 'bg-gradient-to-br from-[#a18cd1] to-[#fbc2eb]' : ''}`}
+                style={profileBg ? { backgroundColor: profileBg } : {}}
             >
-                <div className="absolute inset-0 bg-[#333]/10"></div>
+                <div className={`absolute inset-0 ${isProfileDarkBg ? 'bg-black/10' : 'bg-white/10'}`}></div>
                 <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-20 h-20 rounded-full bg-white/30 p-1 mb-3 backdrop-blur-sm">
+                    <div className={`w-20 h-20 rounded-full p-1 mb-3 backdrop-blur-sm ${isProfileDarkBg ? 'bg-white/30' : 'bg-black/10'}`}>
                         {profile.avatarUrl ? (
                             <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover shadow-inner" />
                         ) : (
                             <div className="w-full h-full rounded-full bg-white flex items-center justify-center shadow-inner">
-                                <span className="text-[#a18cd1] text-2xl font-black" style={{ color: profile.customBackgroundColor || '#a18cd1' }}>
+                                <span className="text-[#a18cd1] text-2xl font-black" style={{ color: profileBg || '#a18cd1' }}>
                                     {profile.logoText}
                                 </span>
                             </div>
                         )}
                     </div>
-                    <h3 className="font-bold text-xl shadow-black/10 drop-shadow-md">{profile.title}</h3>
-                    <p className="text-xs text-white/90 mt-1 mb-5 font-medium">{profile.description}</p>
-                    <div className="flex space-x-5 text-xl text-white">
+                    <h3
+                        className="font-bold text-xl drop-shadow-md"
+                        style={{ color: profileContrastColor }}
+                    >
+                        {profile.title}
+                    </h3>
+                    <p
+                        className="text-xs mt-1 mb-5 font-medium opacity-90"
+                        style={{ color: profileContrastColor }}
+                    >
+                        {profile.description}
+                    </p>
+                    <div className="flex space-x-5 text-xl" style={{ color: profileContrastColor }}>
                         {profile.socials.map((s, i) => (
-                            <a key={i} href={s.url} className="hover:scale-110 transition-transform cursor-pointer opacity-90 hover:opacity-100">
+                            <a key={i} href={s.url} className="hover:scale-110 transition-transform cursor-pointer opacity-80 hover:opacity-100">
                                 <Icon icon={s.icon} />
                             </a>
                         ))}
@@ -210,12 +222,12 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
             <div
                 className="rounded-xl p-5 shadow-sm border animate-fade-in transition-all duration-500"
                 style={{
-                    backgroundColor: config.theme?.sidebarGithubBgColor || '#ffffff',
-                    borderColor: config.theme?.sidebarGithubBgColor || '#ffffff'
+                    backgroundColor: config.theme?.sidebarHotBgColor || '#ffffff',
+                    borderColor: config.theme?.sidebarHotBgColor || '#ffffff'
                 }}
             >
                 {(() => {
-                    const bgColor = config.theme?.sidebarGithubBgColor || '#ffffff';
+                    const bgColor = config.theme?.sidebarHotBgColor || '#ffffff';
                     const contrastColor = getContrastColor(bgColor);
                     const isDarkBg = contrastColor === '#ffffff';
 
