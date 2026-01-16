@@ -36,7 +36,49 @@ import { Server } from 'socket.io';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// =============================================================================
+// 🛡️ 全局异常处理 - 防止未捕获的异常导致进程崩溃
+// =============================================================================
+process.on('uncaughtException', (err, origin) => {
+    console.error('='.repeat(60));
+    console.error('[FATAL] Uncaught Exception:', err.message);
+    console.error('Origin:', origin);
+    console.error('Stack:', err.stack);
+    console.error('='.repeat(60));
+    // 记录到日志文件
+    try {
+        const logPath = path.join(process.cwd(), 'logs', 'crash.log');
+        const logEntry = `[${new Date().toISOString()}] Uncaught Exception: ${err.message}\nStack: ${err.stack}\n\n`;
+        fs.appendFileSync(logPath, logEntry);
+    } catch (e) {
+        console.error('Failed to write crash log:', e);
+    }
+    // 对于某些致命错误，仍然需要退出
+    if (err.message.includes('EADDRINUSE') || err.message.includes('out of memory')) {
+        console.error('[FATAL] Critical error, forcing exit...');
+        process.exit(1);
+    }
+    // 其他情况尝试继续运行
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('='.repeat(60));
+    console.error('[WARNING] Unhandled Promise Rejection');
+    console.error('Reason:', reason);
+    console.error('Promise:', promise);
+    console.error('='.repeat(60));
+    // 记录到日志文件
+    try {
+        const logPath = path.join(process.cwd(), 'logs', 'crash.log');
+        const logEntry = `[${new Date().toISOString()}] Unhandled Rejection: ${reason}\n\n`;
+        fs.appendFileSync(logPath, logEntry);
+    } catch (e) {
+        console.error('Failed to write crash log:', e);
+    }
+});
+
 const app = express();
+
 
 // 🚀 性能优化: 开启 Gzip 压缩
 app.use(compression({
@@ -45,9 +87,15 @@ app.use(compression({
         if (req.headers['x-no-compression']) {
             return false;
         }
+        // SSE 响应不压缩，否则会导致缓冲
+        const contentType = res.getHeader('Content-Type');
+        if (contentType && contentType.toString().includes('text/event-stream')) {
+            return false;
+        }
         return compression.filter(req, res);
     }
 }));
+
 
 // 🚀 性能优化: 静态资源强缓存策略
 const staticOptions = {
@@ -1223,9 +1271,8 @@ app.get('*', async (req, res, next) => {
 
     // Handle WebSocket Upgrades Manually for Dynamic Plugins
     server.on('upgrade', async (req, socket, head) => {
-        console.log('[WebSocket] ===== UPGRADE REQUEST =====');
-        console.log('[WebSocket] URL:', req.url);
-        console.log('[WebSocket] Headers:', JSON.stringify(req.headers, null, 2));
+        serverLogger.debug(`[WebSocket] UPGRADE REQUEST: ${req.url}`);
+        // serverLogger.verbose('[WebSocket] Headers:', JSON.stringify(req.headers, null, 2));
 
         // 匹配多种路径:
         // 1. /api/apps/:pluginId/* - 兼容旧版插件API的WebSocket
@@ -1249,7 +1296,7 @@ app.get('*', async (req, res, next) => {
             const plugin = pluginManager.getActivePlugin(pluginId);
 
             if (!plugin) {
-                console.error(`[WebSocket Upgrade] Plugin ${pluginId} not found or not running`);
+                serverLogger.error(`[WebSocket Upgrade] Plugin ${pluginId} not found or not running`);
                 socket.destroy();
                 return;
             }
@@ -1259,7 +1306,7 @@ app.get('*', async (req, res, next) => {
             const token = url.searchParams.get('token');
 
             if (!token) {
-                console.error(`[WebSocket Upgrade] No token provided for ${pluginId}`);
+                serverLogger.warn(`[WebSocket Upgrade] No token provided for ${pluginId}`);
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;
@@ -1269,20 +1316,17 @@ app.get('*', async (req, res, next) => {
             import('./server/middleware/auth.js').then(({ verifyToken }) => {
                 const user = verifyToken(token);
                 if (!user) {
-                    console.error(`[WebSocket Upgrade] Invalid token for ${pluginId}`);
+                    serverLogger.warn(`[WebSocket Upgrade] Invalid token for ${pluginId}`);
                     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                     socket.destroy();
                     return;
                 }
 
                 // Check if in-process plugin handles upgrades
-                console.log(`[WebSocket Upgrade] Plugin info for ${pluginId}: mode=${plugin.mode}, port=${plugin.port}, hasInstance=${!!plugin.instance}`);
-                if (plugin.instance) {
-                    console.log(`[WebSocket Upgrade] Instance handler type: ${typeof plugin.instance.handleUpgrade}`);
-                }
+                serverLogger.debug(`[WebSocket Upgrade] Plugin info for ${pluginId}: mode=${plugin.mode}, port=${plugin.port}, hasInstance=${!!plugin.instance}`);
 
                 if ((plugin.mode === 'in-process' || !plugin.port) && plugin.instance && typeof plugin.instance.handleUpgrade === 'function') {
-                    console.log(`[WebSocket Upgrade] Delegating to in-process plugin ${pluginId}`);
+                    serverLogger.debug(`[WebSocket Upgrade] Delegating to in-process plugin ${pluginId}`);
                     // Note: Auth has been verified above
                     plugin.instance.handleUpgrade(req, socket, head);
                     return;
@@ -1290,12 +1334,12 @@ app.get('*', async (req, res, next) => {
 
                 // 如果是进程内插件且没有处理程序，目前不支持通过此方式代理 WebSocket
                 if (plugin.mode === 'in-process' || !plugin.port) {
-                    console.log(`[WebSocket Upgrade] In-process plugin ${pluginId} WS not supported via proxy (Missing instance or handleUpgrade)`);
+                    serverLogger.info(`[WebSocket Upgrade] In-process plugin ${pluginId} WS not supported via proxy (Missing instance or handleUpgrade)`);
                     socket.destroy();
                     return;
                 }
 
-                console.log(`[WebSocket Upgrade] ${req.url} -> Plugin ${pluginId} (port ${plugin.port}) [User: ${user.username}]`);
+                serverLogger.info(`[WebSocket Upgrade] ${req.url} -> Plugin ${pluginId} (port ${plugin.port}) [User: ${user.username}]`);
                 const proxy = createProxyMiddleware({
                     target: `http://127.0.0.1:${plugin.port}`,
                     changeOrigin: true,
@@ -1311,12 +1355,12 @@ app.get('*', async (req, res, next) => {
                         proxyReq.setHeader('X-Nav-Username', user.username);
                     },
                     onError: (err, req, res) => {
-                        console.error(`[WebSocket Upgrade] Error proxying to ${pluginId}:`, err);
+                        serverLogger.error(`[WebSocket Upgrade] Error proxying to ${pluginId}: ${err.message}`);
                     }
                 });
                 proxy.upgrade(req, socket, head);
             }).catch(err => {
-                console.error(`[WebSocket Upgrade] Error loading auth module:`, err);
+                serverLogger.error(`[WebSocket Upgrade] Error loading auth module: ${err.message}`);
                 socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
                 socket.destroy();
             });
@@ -1324,7 +1368,7 @@ app.get('*', async (req, res, next) => {
         }
 
         // If no match or plugin not found, destroy socket
-        console.log(`[WebSocket Upgrade] No match for ${req.url}, destroying socket`);
+        serverLogger.debug(`[WebSocket Upgrade] No match for ${req.url}, destroying socket`);
         socket.destroy();
     });
 })();

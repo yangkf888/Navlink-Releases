@@ -24,6 +24,7 @@ import { useConfig } from '@/shared/context/ConfigContext';
 import { LinkEditModal } from './LinkEditModal';
 import { ConfirmModal } from '@/shared/components/common/ConfirmModal';
 import ErrorBoundary from '@/shared/components/common/ErrorBoundary';
+import { getContrastColor } from '@/shared/utils/color';
 
 // --- Sortable Item Component ---
 interface SortableItemProps {
@@ -33,9 +34,10 @@ interface SortableItemProps {
     isManageMode: boolean;
     onEdit: (item: LinkItem) => void;
     onDelete: (item: LinkItem) => void;
+    containerBgColor?: string;
 }
 
-const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelete }: SortableItemProps) => {
+const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelete, containerBgColor }: SortableItemProps) => {
     const {
         attributes,
         listeners,
@@ -65,6 +67,7 @@ const SortableItem = ({ id, item, isAuthenticated, isManageMode, onEdit, onDelet
                         isAuthenticated={isAuthenticated}
                         onEdit={onEdit}
                         onDelete={onDelete}
+                        containerBgColor={containerBgColor}
                     />
                 </div>
             </div>
@@ -349,31 +352,58 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
         }
     };
 
+    const catBgColor = config.theme?.categoryBgColor || '#ffffff';
+    const contrastColor = getContrastColor(catBgColor);
+    const isDarkBg = contrastColor === '#ffffff';
+
     return (
-        <div id={cat.id} className="scroll-mt-24 mb-6 bg-white rounded-xl p-5 shadow-sm border border-gray-100 animate-fade-in">
+        <div
+            id={cat.id}
+            className="scroll-mt-24 mb-6 rounded-xl p-5 shadow-sm border animate-fade-in transition-all duration-500"
+            style={{
+                backgroundColor: catBgColor,
+                borderColor: catBgColor
+            }}
+        >
             <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4">
                 <div className="flex items-center gap-3 flex-shrink-0">
                     {cat.icon && <Icon icon={cat.icon} className="text-xl text-[var(--theme-primary)]" />}
-                    <h2 className="font-bold text-gray-800" style={{ fontSize: `${config.theme?.categoryTitleSize || 20}px` }}>{cat.name}</h2>
+                    <h2
+                        className="font-bold transition-colors duration-500"
+                        style={{
+                            fontSize: `${config.theme?.categoryTitleSize || 20}px`,
+                            color: contrastColor
+                        }}
+                    >
+                        {cat.name}
+                    </h2>
                 </div>
 
                 {cat.subCategories && cat.subCategories.length > 0 && (
                     <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto sm:flex-1 pb-2 sm:pb-0" style={{ scrollbarWidth: 'thin' }}>
-                        {cat.subCategories.map((sub: any, subIndex: number) => (
-                            <button
-                                key={`${cat.id}-${sub.name}-${subIndex}`}
-                                onClick={() => setActiveSubCat(sub.name)}
-                                className={`
-                                    px-4 py-1.5 rounded-lg font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
-                                    ${activeSubCat === sub.name
-                                        ? 'bg-[var(--theme-primary)] text-white shadow-md shadow-red-100'
-                                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}
-                                `}
-                                style={{ fontSize: `${config.theme?.subCategoryTitleSize || 12}px` }}
-                            >
-                                {sub.name}
-                            </button>
-                        ))}
+                        {cat.subCategories.map((sub: any, subIndex: number) => {
+                            const isActive = activeSubCat === sub.name;
+                            return (
+                                <button
+                                    key={`${cat.id}-${sub.name}-${subIndex}`}
+                                    onClick={() => setActiveSubCat(sub.name)}
+                                    className={`
+                                        px-4 py-1.5 rounded-lg font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
+                                        ${isActive
+                                            ? 'bg-[var(--theme-primary)]'
+                                            : isDarkBg ? 'text-white/60 hover:bg-white/10 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}
+                                    `}
+                                    style={{
+                                        fontSize: `${config.theme?.subCategoryTitleSize || 12}px`,
+                                        color: isActive
+                                            ? getContrastColor(config.theme?.primaryColor || '#f1404b')
+                                            : undefined
+                                    }}
+                                >
+                                    {sub.name}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -381,14 +411,14 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setIsManageMode(!isManageMode)}
-                            className={`text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border ${isManageMode ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                            className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 border ${isManageMode ? 'bg-orange-50 text-orange-600 border-orange-200' : isDarkBg ? 'bg-white/10 text-white/70 border-white/20 hover:bg-white/20' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                         >
                             <Icon icon={isManageMode ? "fa-solid fa-check" : "fa-solid fa-gear"} />
                             {isManageMode ? '完成' : '管理'}
                         </button>
                         <button
                             onClick={handleAddClick}
-                            className="text-xs bg-gray-100 hover:bg-[var(--theme-primary)] hover:text-white text-gray-600 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                            className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${isDarkBg ? 'bg-white/10 text-white/70 hover:bg-[var(--theme-primary)] hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-[var(--theme-primary)] hover:text-white'}`}
                         >
                             <Icon icon="fa-solid fa-plus" /> 添加链接
                         </button>
@@ -415,6 +445,7 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                                 isManageMode={isManageMode}
                                 onEdit={handleEditClick}
                                 onDelete={handleDeleteLink}
+                                containerBgColor={catBgColor}
                             />
                         ))}
                         {allItems.length === 0 && (
@@ -426,10 +457,10 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
 
             {/* Expand/Collapse Button */}
             {showExpandButton && (
-                <div className="mt-4 flex justify-center border-t border-gray-50 pt-2">
+                <div className={`mt-4 flex justify-center border-t pt-2 ${isDarkBg ? 'border-white/10' : 'border-gray-50'}`}>
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="text-xs text-gray-400 hover:text-[var(--theme-primary)] flex items-center gap-1 py-1 px-4 transition-colors"
+                        className={`text-xs flex items-center gap-1 py-1 px-4 transition-colors ${isDarkBg ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-[var(--theme-primary)]'}`}
                     >
                         {isExpanded ? (
                             <>收起 <Icon icon="fa-solid fa-angle-up" /></>

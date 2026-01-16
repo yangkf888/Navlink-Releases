@@ -1,6 +1,7 @@
 import { Category } from '@/shared/types';
 import { Icon } from '@/shared/components/common/Icon';
 import { useLayout } from '@/shared/context/LayoutContext';
+import { getContrastColor } from '@/shared/utils/color';
 
 const Sidebar = ({
   config,
@@ -60,14 +61,25 @@ lg:hidden flex flex-col
                 className={`
                   w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
                   ${activeCategory === cat.id
-                    ? 'text-white bg-[var(--theme-primary)] shadow-md shadow-red-200'
-                    : 'text-gray-600 hover:bg-white hover:text-[var(--theme-primary)] hover:shadow-sm'
+                    ? 'bg-[var(--theme-primary)]'
+                    : 'text-gray-600 hover:bg-white hover:shadow-sm'
                   }
                   ${collapsed && isDesktop ? 'justify-center px-0' : ''}
-`}
+                `}
+                style={{
+                  color: activeCategory === cat.id
+                    ? getContrastColor(config.theme?.primaryColor || '#f1404b')
+                    : undefined
+                }}
                 title={collapsed ? cat.name : ''}
               >
-                <div className={`${collapsed && isDesktop ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} ${activeCategory === cat.id ? 'text-white' : 'text-gray-400 group-hover:text-[var(--theme-primary)]'} flex items-center justify-center`}>
+                <div className={`${collapsed && isDesktop ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}
+                  style={{
+                    color: activeCategory === cat.id
+                      ? getContrastColor(config.theme?.primaryColor || '#f1404b')
+                      : undefined
+                  }}
+                >
                   <Icon icon={cat.icon} />
                 </div>
                 {(!collapsed || !isDesktop) && <span>{cat.name}</span>}
@@ -79,7 +91,7 @@ lg:hidden flex flex-col
       </div>
 
       {/* Footer / Collapse Button */}
-      <div className="p-4 mt-auto lg:mt-0">
+      < div className="p-4 mt-auto lg:mt-0" >
         <div className="flex items-center justify-between text-gray-500 bg-white lg:bg-transparent rounded-lg p-2 lg:p-0">
           <button
             onClick={toggleCollapsed}
@@ -95,7 +107,7 @@ lg:hidden flex flex-col
             )}
           </button>
         </div>
-      </div>
+      </div >
     </>
   );
 

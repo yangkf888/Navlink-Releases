@@ -11,8 +11,36 @@
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.1.1</span>
+      <span class="version">v2.1.5</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2026-01-16</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type feature">✨ 新功能</span>
+        <ul>
+          <li><strong>内容分类</strong> - 新增 Chrome 书签导入功能，支持快速同步外部数据</li>
+          <li><strong>首屏搜索</strong> - 支持自定义文字大小及颜色，个性化搜索体验</li>
+          <li><strong>全局外观</strong> - 前台热门网址、内容分类、侧边栏背景颜色支持深度定制</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type improve">🔧 优化</span>
+        <ul>
+          <li><strong>系统稳定性</strong> - 优化防止未捕获异常导致进程退出，增强自动重启机制</li>
+          <li><strong>通讯性能</strong> - 增强 SSE 连接错误处理，提升实时数据传输可靠性</li>
+          <li><strong>日志管理</strong> - 优化服务端与控制台日志显示，输出更加精简清晰</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.1.1</span>
     </div>
     <div class="date">2026-01-09</div>
     <div class="changes">

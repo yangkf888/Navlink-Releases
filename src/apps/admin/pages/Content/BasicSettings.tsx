@@ -171,7 +171,7 @@ export const BasicSettings: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <Label>热门网址标签大小 (px)</Label>
+                        <Label>热门区域标签大小 (px)</Label>
                         <Input
                             type="number"
                             min="10"
@@ -179,6 +179,34 @@ export const BasicSettings: React.FC = () => {
                             value={config.theme?.promoSubCategoryTitleSize || 12}
                             onChange={e => update(c => ({ ...c, theme: { ...c.theme, promoSubCategoryTitleSize: parseInt(e.target.value) || 12 } }))}
                         />
+                    </div>
+                    <div>
+                        <Label>热门区域背景颜色</Label>
+                        <div className="flex gap-2">
+                            <Input type="color" className="w-10 h-10 p-1" value={config.theme?.promoBgColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, promoBgColor: e.target.value } }))} />
+                            <Input value={config.theme?.promoBgColor || ''} placeholder="留空使用白色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, promoBgColor: e.target.value } }))} />
+                        </div>
+                    </div>
+                    <div>
+                        <Label>分类区域背景颜色</Label>
+                        <div className="flex gap-2">
+                            <Input type="color" className="w-10 h-10 p-1" value={config.theme?.categoryBgColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, categoryBgColor: e.target.value } }))} />
+                            <Input value={config.theme?.categoryBgColor || ''} placeholder="留空使用白色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, categoryBgColor: e.target.value } }))} />
+                        </div>
+                    </div>
+                    <div>
+                        <Label>侧边栏热门板块背景</Label>
+                        <div className="flex gap-2">
+                            <Input type="color" className="w-10 h-10 p-1" value={config.theme?.sidebarHotBgColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, sidebarHotBgColor: e.target.value } }))} />
+                            <Input value={config.theme?.sidebarHotBgColor || ''} placeholder="留空使用白色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, sidebarHotBgColor: e.target.value } }))} />
+                        </div>
+                    </div>
+                    <div>
+                        <Label>侧边栏 GitHub 榜单背景</Label>
+                        <div className="flex gap-2">
+                            <Input type="color" className="w-10 h-10 p-1" value={config.theme?.sidebarGithubBgColor || '#ffffff'} onChange={e => update(c => ({ ...c, theme: { ...c.theme, sidebarGithubBgColor: e.target.value } }))} />
+                            <Input value={config.theme?.sidebarGithubBgColor || ''} placeholder="留空使用白色" onChange={e => update(c => ({ ...c, theme: { ...c.theme, sidebarGithubBgColor: e.target.value } }))} />
+                        </div>
                     </div>
                 </div>
             </div>

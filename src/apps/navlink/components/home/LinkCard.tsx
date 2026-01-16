@@ -2,15 +2,20 @@ import React from 'react';
 import { LinkItem } from '@/shared/types';
 import { Icon } from '@/shared/components/common/Icon';
 import { ensureProtocol } from '@/shared/utils/url';
+import { getContrastColor } from '@/shared/utils/color';
 
 interface LinkCardProps {
   item: LinkItem;
   isAuthenticated?: boolean;
   onEdit?: (item: LinkItem) => void;
   onDelete?: (item: LinkItem) => void;
+  containerBgColor?: string; // 外部容器背景色
 }
 
-const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDelete }) => {
+const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDelete, containerBgColor }) => {
+  const contrastColor = getContrastColor(containerBgColor || '#ffffff');
+  const isDarkBg = contrastColor === '#ffffff';
+
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -35,7 +40,11 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
         onClick={(e) => {
           if (isAuthenticated) e.preventDefault();
         }}
-        className={`flex bg-white rounded-lg p-4 h-full border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 hover:border-transparent items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
+        className={`flex rounded-lg p-4 h-full border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
+        style={{
+          backgroundColor: containerBgColor || '#ffffff',
+          borderColor: containerBgColor || '#ffffff'
+        }}
       >
         <div className="mr-3 flex-shrink-0">
           {item.icon ? (
@@ -53,8 +62,18 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
           )}
         </div>
         <div className="flex-1 min-w-0 overflow-hidden pt-0.5">
-          <h3 className="text-sm font-bold text-gray-800 truncate mb-1.5 group-hover:text-[var(--theme-primary)] transition-colors">{item.title}</h3>
-          <p className="text-xs text-gray-400 line-clamp-2 h-[32px] leading-relaxed">{item.description}</p>
+          <h3
+            className="text-sm font-bold truncate mb-1.5 group-hover:text-[var(--theme-primary)] transition-colors"
+            style={{ color: contrastColor }}
+          >
+            {item.title}
+          </h3>
+          <p
+            className="text-xs line-clamp-2 h-[32px] leading-relaxed transition-colors"
+            style={{ color: isDarkBg ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}
+          >
+            {item.description}
+          </p>
         </div>
       </a>
 

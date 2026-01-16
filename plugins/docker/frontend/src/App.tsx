@@ -24,6 +24,7 @@ import { ContainerList } from './components/views/ContainerList';
 import { ImageList } from './components/views/ImageList';
 import { NetworkList } from './components/views/NetworkList';
 import { VolumeList } from './components/views/VolumeList';
+import { StackList } from './components/views/StackList';
 import { Layout } from './components/Layout';
 import { DockerView } from './components/Sidebar';
 
@@ -686,6 +687,16 @@ function DockerApp() {
                       hideConfirm();
                     });
                   }}
+                />
+              )}
+
+              {/* Stacks View */}
+              {activeView === 'stacks' && (
+                <StackList
+                  servers={servers}
+                  selectedServerId={selectedServer.id}
+                  onSelectServer={setSelectedServer}
+                  onAddServer={() => setShowServerForm(true)}
                 />
               )}
             </>

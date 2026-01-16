@@ -124,6 +124,10 @@ export interface ThemeConfig {
   heroSearchEngineSize?: number;
   promoTitle?: string;    // 热门网址标题文案
   promoIcon?: string;     // 热门网址图标代码
+  promoBgColor?: string;  // 热门区域背景颜色
+  categoryBgColor?: string; // 分类区域背景颜色
+  sidebarHotBgColor?: string;
+  sidebarGithubBgColor?: string;
 }
 
 export interface AIProvider {

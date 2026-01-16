@@ -24,6 +24,7 @@ import { useConfig } from '@/shared/context/ConfigContext';
 import { LinkEditModal } from './LinkEditModal';
 import { ensureProtocol } from '@/shared/utils/url';
 import { ConfirmModal } from '@/shared/components/common/ConfirmModal';
+import { getContrastColor } from '@/shared/utils/color';
 
 // --- Sortable Item Component ---
 interface SortableItemProps {
@@ -33,9 +34,11 @@ interface SortableItemProps {
     isAuthenticated: boolean;
     onEditClick: (e: React.MouseEvent, item: PromoItem) => void;
     onDeleteClick: (e: React.MouseEvent, item: PromoItem) => void;
+    contrastColor: string;
+    promoBgColor: string;
 }
 
-const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, onDeleteClick }: SortableItemProps) => {
+const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, onDeleteClick, contrastColor, promoBgColor }: SortableItemProps) => {
     const {
         attributes,
         listeners,
@@ -73,9 +76,13 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                         if (isManageMode) e.preventDefault();
                     }}
                     className={`flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
-                        ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'bg-[#f9f9f9] border-transparent hover:bg-gray-100'}
+                        ${isDragging ? 'bg-white border-[var(--theme-primary)] ring-2 ring-[var(--theme-primary)]' : 'border-transparent'}
                         ${!isManageMode ? 'cursor-pointer' : 'cursor-move'}
                     `}
+                    style={{
+                        backgroundColor: !isDragging ? 'rgba(0,0,0,0.03)' : undefined,
+                        borderColor: !isDragging ? promoBgColor : undefined
+                    }}
                 >
                     {!item.isAd && item.icon && (
                         <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
@@ -87,7 +94,12 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                         </div>
                     )}
                     {item.isAd && <span className="text-[10px] border border-gray-300 rounded px-1 text-gray-400 flex-shrink-0">Ad</span>}
-                    <span className="text-xs font-medium text-gray-700 truncate group-hover:text-[var(--theme-primary)] transition-colors flex-1">{item.title}</span>
+                    <span
+                        className="text-xs font-medium truncate group-hover:text-[var(--theme-primary)] transition-colors flex-1"
+                        style={{ color: contrastColor }}
+                    >
+                        {item.title}
+                    </span>
 
                     {/* Health Info & Status Dot */}
                     {item.health && (
@@ -379,17 +391,38 @@ const PromoArea = () => {
         }
     };
 
+    const promoBgColor = config.theme?.promoBgColor || '#ffffff';
+    const contrastColor = getContrastColor(promoBgColor);
+    const isDarkBg = contrastColor === '#ffffff';
+
     return (
-        <div className="w-full z-20 relative">
-            <div className="bg-white rounded-xl shadow-lg p-5 border border-gray-100 animate-fade-in">
-                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b border-gray-100 pb-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-500 select-none flex-shrink-0">
+        <div className="w-full z-20 relative promo-container">
+            <div
+                className="rounded-xl shadow-lg p-5 border animate-fade-in transition-all duration-500"
+                style={{
+                    backgroundColor: promoBgColor,
+                    borderColor: promoBgColor
+                }}
+            >
+                <div
+                    className={`flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b pb-3 transition-colors duration-500 ${isDarkBg ? 'border-white/10' : 'border-gray-100'}`}
+                >
+                    <div className="flex items-center gap-2 text-sm select-none flex-shrink-0">
                         <Icon icon={config.theme?.promoIcon || "fa-solid fa-fire"} className="text-red-500" />
-                        <span className="font-bold text-gray-700" style={{ fontSize: `${config.theme?.promoCategoryTitleSize || 16}px` }}>{config.theme?.promoTitle ?? "热门网址"}</span>
+                        <span
+                            className="font-bold transition-colors duration-500"
+                            style={{
+                                fontSize: `${config.theme?.promoCategoryTitleSize || 16}px`,
+                                color: contrastColor
+                            }}
+                        >
+                            {config.theme?.promoTitle ?? "热门网址"}
+                        </span>
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto sm:flex-1 pb-2 sm:pb-0" style={{ scrollbarWidth: 'thin' }}>
                         {config.promo?.map((tab) => {
+                            const isActive = activeTabName === tab.name;
                             // If the tab has a URL, render it as a link
                             if (tab.url) {
                                 return (
@@ -398,8 +431,11 @@ const PromoArea = () => {
                                         href={ensureProtocol(tab.url)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="px-4 py-1.5 rounded-lg font-medium transition-all duration-200 whitespace-nowrap text-gray-500 hover:bg-gray-100 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
-                                        style={{ fontSize: `${config.theme?.promoSubCategoryTitleSize || 12}px` }}
+                                        className="px-4 py-1.5 rounded-lg font-medium transition-all duration-200 whitespace-nowrap flex items-center gap-1 flex-shrink-0"
+                                        style={{
+                                            fontSize: `${config.theme?.promoSubCategoryTitleSize || 12}px`,
+                                            color: isDarkBg ? (isActive ? '#fff' : 'rgba(255,255,255,0.6)') : (isActive ? '#374151' : '#6b7280')
+                                        }}
                                     >
                                         {tab.name} <Icon icon="fa-solid fa-arrow-up-right-from-square" className="text-[10px] opacity-50" />
                                     </a>
@@ -413,11 +449,16 @@ const PromoArea = () => {
                                     onClick={() => handleTabClick(tab.name)}
                                     className={`
                                         px-4 py-1.5 rounded-lg font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
-                                        ${activeTabName === tab.name
-                                            ? 'bg-[var(--theme-primary)] text-white shadow-md shadow-red-100'
-                                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}
+                                        ${isActive
+                                            ? 'bg-[var(--theme-primary)]'
+                                            : isDarkBg ? 'text-white/60 hover:bg-white/10 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}
                                     `}
-                                    style={{ fontSize: `${config.theme?.promoSubCategoryTitleSize || 12}px` }}
+                                    style={{
+                                        fontSize: `${config.theme?.promoSubCategoryTitleSize || 12}px`,
+                                        color: isActive
+                                            ? getContrastColor(config.theme?.primaryColor || '#f1404b')
+                                            : undefined
+                                    }}
                                 >
                                     {tab.name}
                                 </button>
@@ -429,14 +470,14 @@ const PromoArea = () => {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setIsManageMode(!isManageMode)}
-                                className={`text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border ${isManageMode ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                                className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 border ${isManageMode ? 'bg-orange-50 text-orange-600 border-orange-200' : isDarkBg ? 'bg-white/10 text-white/70 border-white/20 hover:bg-white/20' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                             >
                                 <Icon icon={isManageMode ? "fa-solid fa-check" : "fa-solid fa-gear"} />
                                 {isManageMode ? '完成' : '管理'}
                             </button>
                             <button
                                 onClick={handleAddClick}
-                                className="text-xs bg-gray-100 hover:bg-[var(--theme-primary)] hover:text-white text-gray-600 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${isDarkBg ? 'bg-white/10 text-white/70 hover:bg-[var(--theme-primary)] hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-[var(--theme-primary)] hover:text-white'}`}
                             >
                                 <Icon icon="fa-solid fa-plus" /> 添加
                             </button>
@@ -464,6 +505,8 @@ const PromoArea = () => {
                                     isAuthenticated={isAuthenticated}
                                     onEditClick={handleEditClick}
                                     onDeleteClick={handleDeleteClick}
+                                    contrastColor={contrastColor}
+                                    promoBgColor={promoBgColor}
                                 />
                             ))}
                             {allItems.length === 0 && (
@@ -480,7 +523,7 @@ const PromoArea = () => {
                     <div className="mt-3 flex justify-center border-t border-gray-50 pt-2">
                         <button
                             onClick={toggleExpand}
-                            className="text-xs text-gray-400 hover:text-[var(--theme-primary)] flex items-center gap-1 py-1 px-4 transition-colors"
+                            className={`text-xs flex items-center gap-1 py-1 px-4 transition-colors ${isDarkBg ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-[var(--theme-primary)]'}`}
                         >
                             {isExpanded ? (
                                 <>收起 <Icon icon="fa-solid fa-angle-up" /></>

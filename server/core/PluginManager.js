@@ -26,9 +26,9 @@ try {
     const portsPath = path.join(__dirname, '../config/plugin-ports.json');
     const portsContent = await fs.readFile(portsPath, 'utf-8');
     PLUGIN_PORTS = JSON.parse(portsContent);
-    console.log('[PluginManager] Loaded fixed port configuration:', PLUGIN_PORTS);
+    logger.debug('[PluginManager] Loaded fixed port configuration:', PLUGIN_PORTS);
 } catch (err) {
-    console.warn('[PluginManager] Failed to load plugin-ports.json, using dynamic ports');
+    logger.warn('[PluginManager] Failed to load plugin-ports.json, using dynamic ports');
 }
 
 export class PluginManager {
@@ -92,12 +92,12 @@ export class PluginManager {
             for (const [id, plugin] of this.plugins) {
                 // If state is explicitly false, set enabled to false. Otherwise true.
                 plugin.enabled = states[id] !== false;
-                console.log(`[PluginManager] Plugin ${id} enabled: ${plugin.enabled}`);
+                logger.debug(`[PluginManager] Plugin ${id} enabled: ${plugin.enabled}`);
             }
 
-            console.log(`Scanned ${this.plugins.size} plugins.`);
+            logger.info(`Scanned ${this.plugins.size} plugins.`);
         } catch (error) {
-            console.error('Error scanning plugins:', error);
+            logger.error('Error scanning plugins:', error);
         }
     }
 

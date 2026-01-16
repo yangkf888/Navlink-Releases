@@ -31,6 +31,10 @@ const OBFUSCATE_IGNORE = [
     'FfmpegInstaller.js', // 包含复杂路径和下载逻辑
     'MediaScanService.js', // 核心单例服务，混淆会导致方法引用失败
     'ScanQueueService.js', // 背景队列服务，混淆可能导致呼吸模式逻辑异常
+    'ComposeService.js',   // 新增：Docker 编排命令拼装对混淆敏感
+    'dockerService.js',    // 新增：Docker SSH 隧道和流处理对混淆敏感
+    'websocket.js',        // 新增：VPS 终端和 SFTP 稳定对混淆敏感
+    'vpsService.js',       // 新增：VPS 系统监控解析对混淆敏感
     'obfuscate.js'        // 自身
 ];
 
@@ -248,10 +252,19 @@ async function packagePlugin(pluginId) {
         return null;
     }
 
-    // 1. 清理输出目录
+    // 0. 预清理：如果用户要求“干净一点”，清理本次插件的旧输出
     if (fs.existsSync(outputDir)) {
-        fs.rmSync(outputDir, { recursive: true });
+        console.log(`  🧹 清理旧的编译目录: ${outputDir}`);
+        fs.rmSync(outputDir, { recursive: true, force: true });
     }
+
+    // 只清理当前插件特定版本的 zip，而不是清理整个目录
+    // 这确保了同时打包多个插件时，之前的包不会被删掉
+    if (!fs.existsSync(ZIP_OUTPUT_DIR)) {
+        fs.mkdirSync(ZIP_OUTPUT_DIR, { recursive: true });
+    }
+
+    // 1. 创建本次输出目录
     fs.mkdirSync(outputDir, { recursive: true });
 
     // 2. 处理manifest.json

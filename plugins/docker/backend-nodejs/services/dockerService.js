@@ -29,7 +29,7 @@ const sshConnections = new Map(); // SSH连接缓存 { ssh: Client, socatPid: nu
  * 数据缓存系统
  */
 const dataCache = new Map(); // 格式: key -> { data, timestamp }
-const CACHE_TTL = 10000; // 10秒缓存有效期
+const CACHE_TTL = 3000; // 缩短缓存有效期到 3秒，提升同步感
 const pendingRefreshes = new Map(); // Key: serverId:type
 
 /**
@@ -377,7 +377,7 @@ export class DockerService {
             // 关闭SSH连接
             const sshConnection = sshConnections.get(serverId);
             if (sshConnection) {
-                console.log(`[Docker] Clearing cache for server ${serverId}`);
+                // console.log(`[DockerService] Clearing cache for server ${serverId}`);
                 const { ssh, socatPid } = sshConnection;
 
                 // 清理 socat 进程
@@ -481,13 +481,12 @@ export class DockerService {
      */
     static async createContainer(serverId, options) {
         try {
-            console.log('[DockerService] createContainer options:', JSON.stringify(options, null, 2));
+            // console.log('[DockerService] createContainer options:', JSON.stringify(options, null, 2));
             const client = await this.getClient(serverId);
             const container = await client.createContainer(options);
 
             // 使容器缓存失效
-            invalidateCache(serverId, 'containers_all=true');
-            invalidateCache(serverId, 'containers_all=false');
+            this.invalidateAllContainerCaches(serverId);
 
             await AuditLogDAO.create({
                 server_id: serverId,
@@ -512,9 +511,11 @@ export class DockerService {
         }
     }
 
-    /**
-     * 列出所有容器 (SWR Enabled)
-     */
+    static invalidateAllContainerCaches(serverId) {
+        invalidateCache(serverId, 'containers_all=true');
+        invalidateCache(serverId, 'containers_all=false');
+        // console.log(`[DockerService] All container caches invalidated for server ${serverId}`);
+    }
     static async listContainers(serverId, all = true) {
         const cacheKey = `containers_all=${all}`;
         const refreshKey = `${serverId}:${cacheKey}`;
@@ -828,7 +829,7 @@ export class DockerService {
                 logDebug(`Fetching fresh images for ${serverId}`);
                 const client = await this.getClient(serverId);
                 const images = await client.listImages();
-                console.log(`[Docker Raw] Total images from daemon: ${images.length}`, JSON.stringify(images.slice(0, 10)));
+                // console.log(`[Docker Raw] Total images from daemon: ${images.length}`, JSON.stringify(images.slice(0, 10)));
                 // 过滤虚悬镜像 (dangling images)，只保留有意义的镜像
                 // 获取所有容器正在使用的镜像 ID 列表
                 const containers = await client.listContainers({ all: true });

@@ -2,7 +2,7 @@
     "id": "docker",
     "name": "Docker Manager",
     "description": "Manage Docker containers, images, networks, and volumes.",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "type": "node",
     "entry": "backend-nodejs/server.js",
     "healthCheck": "/api/health",

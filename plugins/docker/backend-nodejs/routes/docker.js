@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DockerServerDAO } from '../database/dao/DockerServerDAO.js';
 import { AuditLogDAO } from '../database/dao/AuditLogDAO.js';
 import { DockerService } from '../services/dockerService.js';
+import { ComposeService } from '../services/ComposeService.js';
 
 const router = express.Router();
 
@@ -327,7 +328,7 @@ router.get('/servers/:serverId/images', async (req, res) => {
         const { serverId } = req.params;
         const images = await DockerService.listImages(serverId);
         // 调试日志：确认镜像的核心标识
-        console.log(`[Docker Debug] Server ${serverId} images:`, images.map(i => ({ id: i.id, tags: i.tags })));
+        // console.log(`[Docker Debug] Server ${serverId} images:`, images.map(i => ({ id: i.id, tags: i.tags })));
         res.json(images);
     } catch (error) {
         console.error('List images error:', error);
@@ -381,6 +382,31 @@ router.get('/servers/:serverId/images/pull/stream', async (req, res) => {
         return res.status(400).json({ error: 'Image name is required' });
     }
 
+    // 跟踪客户端连接状态
+    let clientDisconnected = false;
+
+    // 监听客户端断开连接
+    req.on('close', () => {
+        clientDisconnected = true;
+        console.log(`[SSE] Client disconnected during pull of ${imageName}`);
+    });
+
+    // 安全写入函数，处理 EPIPE 错误
+    const safeWrite = (data) => {
+        if (clientDisconnected) return false;
+        try {
+            res.write(data);
+            return true;
+        } catch (err) {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET') {
+                clientDisconnected = true;
+                console.log(`[SSE] Write failed (client disconnected): ${err.code}`);
+                return false;
+            }
+            throw err;
+        }
+    };
+
     // 设置 SSE Header - 禁用各种缓冲
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -389,23 +415,32 @@ router.get('/servers/:serverId/images/pull/stream', async (req, res) => {
     res.flushHeaders(); // 立即发送 headers，禁用 Express 缓冲
 
     // 发送初始心跳，确认连接建立
-    res.write(`data: ${JSON.stringify({ status: 'connecting', message: '正在连接到 Docker 服务...' })}\n\n`);
+    safeWrite(`data: ${JSON.stringify({ status: 'connecting', message: '正在连接到 Docker 服务...' })}\n\n`);
 
     try {
         await DockerService.pullImage(serverId, imageName, (chunk) => {
+            if (clientDisconnected) return; // 客户端已断开，跳过处理
             const lines = chunk.toString().split('\n').filter(l => l.trim());
             for (const line of lines) {
-                res.write(`data: ${line}\n\n`);
+                if (!safeWrite(`data: ${line}\n\n`)) break;
             }
         });
-        res.write(`data: ${JSON.stringify({ status: 'success', progress: '100%', message: 'Pull completed' })}\n\n`);
-        res.end();
+
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'success', progress: '100%', message: 'Pull completed' })}\n\n`);
+        }
     } catch (error) {
         console.error('Pull stream error:', error);
-        res.write(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
-        res.end();
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+        }
+    } finally {
+        if (!res.writableEnded) {
+            res.end();
+        }
     }
 });
+
 
 
 /**
@@ -548,6 +583,238 @@ router.get('/logs', async (req, res) => {
     } catch (error) {
         console.error('Get all audit logs error:', error);
         res.status(500).json({ error: 'Failed to get audit logs' });
+    }
+});
+
+// ==================== Compose Stack 管理 ====================
+
+/**
+ * 获取所有 Stacks
+ */
+router.get('/servers/:serverId/stacks', async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const stacks = await ComposeService.listStacks(serverId);
+        res.json(stacks);
+    } catch (error) {
+        console.error('List stacks error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 获取单个 Stack 详情
+ */
+router.get('/servers/:serverId/stacks/:name', async (req, res) => {
+    const { serverId, name } = req.params;
+    const { path: forcedPath } = req.query;
+    try {
+        const stack = await ComposeService.getStack(serverId, name, forcedPath);
+        res.json(stack);
+    } catch (error) {
+        console.error('Get stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 创建/更新 Stack
+ */
+router.post('/servers/:serverId/stacks', async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { name, yamlContent, envContent, targetDir } = req.body;
+
+        if (!name || !yamlContent) {
+            return res.status(400).json({ error: 'name and yamlContent are required' });
+        }
+
+        const result = await ComposeService.saveStack(serverId, name, yamlContent, envContent, targetDir);
+        res.json(result);
+    } catch (error) {
+        console.error('Create stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 更新 Stack
+ */
+router.put('/servers/:serverId/stacks/:name', async (req, res) => {
+    try {
+        const { serverId, name } = req.params;
+        const { yamlContent, envContent, targetDir } = req.body;
+
+        if (!yamlContent) {
+            return res.status(400).json({ error: 'yamlContent is required' });
+        }
+
+        const result = await ComposeService.saveStack(serverId, name, yamlContent, envContent, targetDir);
+        res.json(result);
+    } catch (error) {
+        console.error('Update stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 删除 Stack
+ */
+router.delete('/servers/:serverId/stacks/:name', async (req, res) => {
+    try {
+        const { serverId, name } = req.params;
+        const { removeFiles } = req.query;
+
+        const result = await ComposeService.remove(serverId, name, removeFiles === 'true');
+        res.json(result);
+    } catch (error) {
+        console.error('Delete stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 部署 Stack (SSE 流)
+ */
+router.get('/servers/:serverId/stacks/:name/up/stream', async (req, res) => {
+    const { serverId, name } = req.params;
+    const { path: customPath } = req.query;
+    console.log(`[Docker Plugin] SSE Up Stream for stack: ${name}, customPath: ${customPath}`);
+
+    let clientDisconnected = false;
+    req.on('close', () => { clientDisconnected = true; });
+
+    const safeWrite = (data) => {
+        if (clientDisconnected) return false;
+        try {
+            res.write(data);
+            return true;
+        } catch (err) {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET') {
+                clientDisconnected = true;
+                return false;
+            }
+            throw err;
+        }
+    };
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    safeWrite(`data: ${JSON.stringify({ status: 'starting', message: '正在部署 Stack...' })}\n\n`);
+
+    try {
+        await ComposeService.up(serverId, name, (chunk) => {
+            if (!clientDisconnected) {
+                safeWrite(`data: ${JSON.stringify({ status: 'progress', message: chunk })}\n\n`);
+            }
+        }, customPath);
+
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'success', message: 'Stack 部署成功' })}\n\n`);
+        }
+    } catch (error) {
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+        }
+    } finally {
+        if (!res.writableEnded) res.end();
+    }
+});
+
+/**
+ * 停止并删除 Stack (SSE 流)
+ */
+router.get('/servers/:serverId/stacks/:name/down/stream', async (req, res) => {
+    const { serverId, name } = req.params;
+    const { path: customPath } = req.query;
+
+    let clientDisconnected = false;
+    req.on('close', () => { clientDisconnected = true; });
+
+    const safeWrite = (data) => {
+        if (clientDisconnected) return false;
+        try {
+            res.write(data);
+            return true;
+        } catch (err) {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET') {
+                clientDisconnected = true;
+                return false;
+            }
+            throw err;
+        }
+    };
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    safeWrite(`data: ${JSON.stringify({ status: 'starting', message: '正在停止 Stack...' })}\n\n`);
+
+    try {
+        await ComposeService.down(serverId, name, (chunk) => {
+            if (!clientDisconnected) {
+                safeWrite(`data: ${JSON.stringify({ status: 'progress', message: chunk })}\n\n`);
+            }
+        }, customPath);
+
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'success', message: 'Stack 已停止' })}\n\n`);
+        }
+    } catch (error) {
+        if (!clientDisconnected) {
+            safeWrite(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+        }
+    } finally {
+        if (!res.writableEnded) res.end();
+    }
+});
+
+/**
+ * 启动 Stack
+ */
+router.post('/servers/:serverId/stacks/:name/start', async (req, res) => {
+    try {
+        const { serverId, name } = req.params;
+        const result = await ComposeService.start(serverId, name);
+        res.json(result);
+    } catch (error) {
+        console.error('Start stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 停止 Stack
+ */
+router.post('/servers/:serverId/stacks/:name/stop', async (req, res) => {
+    try {
+        const { serverId, name } = req.params;
+        const result = await ComposeService.stop(serverId, name);
+        res.json(result);
+    } catch (error) {
+        console.error('Stop stack error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * 重启 Stack
+ */
+router.post('/servers/:serverId/stacks/:name/restart', async (req, res) => {
+    try {
+        const { serverId, name } = req.params;
+        const result = await ComposeService.restart(serverId, name);
+        res.json(result);
+    } catch (error) {
+        console.error('Restart stack error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

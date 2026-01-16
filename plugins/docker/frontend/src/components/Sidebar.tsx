@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { DockerServer } from '../types/docker';
 
-export type DockerView = 'overview' | 'dashboard' | 'containers' | 'images' | 'networks' | 'volumes' | 'servers';
+export type DockerView = 'overview' | 'dashboard' | 'containers' | 'images' | 'networks' | 'volumes' | 'servers' | 'stacks';
 type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'docker_theme';
@@ -96,11 +96,13 @@ export function Sidebar({
         { id: 'overview' as DockerView, icon: 'fa-solid fa-globe', label: '总览' },
         { id: 'dashboard' as DockerView, icon: 'fa-solid fa-dashboard', label: '概览' },
         { id: 'containers' as DockerView, icon: 'fa-solid fa-box', label: '容器' },
+        { id: 'stacks' as DockerView, icon: 'fa-solid fa-cubes', label: 'Stacks' },
         { id: 'images' as DockerView, icon: 'fa-solid fa-layer-group', label: '镜像' },
         { id: 'networks' as DockerView, icon: 'fa-solid fa-network-wired', label: '网络' },
         { id: 'volumes' as DockerView, icon: 'fa-solid fa-database', label: '卷' },
         { id: 'servers' as DockerView, icon: 'fa-solid fa-server', label: '服务器' },
     ];
+
 
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900 shadow-sm transition-colors">

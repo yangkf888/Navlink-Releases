@@ -160,6 +160,33 @@ services:
 
 </details>
 
+<details>
+<summary>解决 Docker 管理连不上 VPS？</summary>
+
+为了能从本地操作远程 Docker，NavLink 在 SSH 连接成功后，会尝试在远程服务器上运行 `socat` 命令进行流量转发。如果连接失败，请检查以下三项：
+
+**1. 检查并安装 socat**
+
+如果 VPS 上没有安装 `socat` 可能会报错。请用终端连上服务器，输入 `socat -V` 查看是否存在。
+- **解决**：在服务器上运行 `yum install socat` (CentOS) 或 `apt install socat` (Ubuntu/Debian)。
+  > [!NOTE]
+  > 在 v2.1.2 及以上版本的 Docker 插件中，系统会尝试自动静默安装 `socat`（需具备 root 或 sudo 权限）。但为了确保连接稳定性，建议优先手动登录服务器执行 `socat -V` 确认环境就绪。
+
+**2. Docker 权限问题**
+
+如果你在 Docker 插件里填写的 SSH 用户（比如不是 root）没有加入 `docker` 用户组，它就无法读取 Docker API 套接字文件。
+- **解决**：将该用户加入 docker 用户组：
+  ```bash
+  sudo usermod -aG docker <用户名>
+  ```
+
+**3. SSH 隧道转发功能**
+
+NavLink 需要使用 SSH 的 **隧道转发（SSH Tunneling）** 功能。请检查远程服务器 `/etc/ssh/sshd_config` 文件，看是否存在 `AllowTcpForwarding no`。如果是 `no`，Docker 插件将无法通过隧道传输 Docker API 数据，导致连接失败。
+- **解决**：将 `AllowTcpForwarding` 设为 `yes`，然后重启 SSH 服务：`systemctl restart sshd`。
+
+</details>
+
 </div>
 
 <div class="faq-section">

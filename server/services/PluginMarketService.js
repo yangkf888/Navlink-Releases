@@ -37,7 +37,7 @@ export class PluginMarketService {
         }
 
         try {
-            console.log('[PluginMarket] Fetching registry from URL:', this.registryUrl);
+            // console.debug('[PluginMarket] Fetching registry from URL:', this.registryUrl);
             const response = await this.fetchJson(this.registryUrl);
             this.cachedRegistry = response.plugins || [];
             this.lastFetch = now;
@@ -46,14 +46,17 @@ export class PluginMarketService {
             try {
                 const backupPath = path.join(process.cwd(), 'data/plugin-registry.json');
                 await fs.writeFile(backupPath, JSON.stringify(response, null, 4), 'utf-8');
-                console.log('[PluginMarket] Backup saved to:', backupPath);
+                // console.debug('[PluginMarket] Backup saved to:', backupPath);
             } catch (backupErr) {
                 console.warn('[PluginMarket] Failed to save local backup:', backupErr.message);
             }
 
             return this.enrichWithLocalStatus(this.cachedRegistry);
         } catch (error) {
-            console.error('[PluginMarket] Failed to fetch registry:', error.message);
+            // 仅在获取失败且无缓存时打印错误
+            if (!this.cachedRegistry) {
+                console.error('[PluginMarket] Failed to fetch registry:', error.message);
+            }
 
             // 如果有缓存则返回缓存
             if (this.cachedRegistry) {
@@ -125,7 +128,7 @@ export class PluginMarketService {
      * 下载并安装插件
      */
     async installPlugin(pluginId, options = {}) {
-        console.log(`[PluginMarket] Installing plugin: ${pluginId} (Force: ${options.force})`);
+        // console.log(`[PluginMarket] Installing plugin: ${pluginId} (Force: ${options.force})`);
 
         // 0. 验证授权状态（升级调用时force=true，跳过验证因为updatePlugin已验证）
         if (!options.force) {

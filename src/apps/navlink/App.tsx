@@ -4,6 +4,7 @@ import TopNavbar from '@/shared/components/layout/TopNavbar';
 import SearchHero from './components/home/SearchHero';
 import PromoArea from './components/home/PromoArea';
 import Sidebar from '@/shared/components/layout/Sidebar';
+import { getContrastColor } from '@/shared/utils/color';
 import RightWidgets from './components/home/RightWidgets';
 import CategorySection from './components/home/CategorySection';
 import SearchModal from './components/common/SearchModal';
@@ -262,8 +263,11 @@ function AppContent() {
             {/* Back to Top Button */}
             <button
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className={`fixed bottom-[20vh] w-12 h-12 bg-[var(--theme-primary)] text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 z-50 hover:bg-red-600 hover:-translate-y-1 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
-                style={{ right: 'max(2rem, calc((100vw - 1800px) / 4))' }}
+                className={`fixed bottom-[20vh] w-12 h-12 bg-[var(--theme-primary)] rounded-full shadow-lg flex items-center justify-center transition-all duration-300 z-50 hover:bg-opacity-90 hover:-translate-y-1 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
+                style={{
+                    right: 'max(2rem, calc((100vw - 1800px) / 4))',
+                    color: getContrastColor(config.theme?.primaryColor || '#f1404b')
+                }}
                 title="回到顶部"
             >
                 <Icon icon="fa-solid fa-arrow-up" />
