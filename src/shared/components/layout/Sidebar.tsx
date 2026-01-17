@@ -35,11 +35,21 @@ lg:hidden flex flex-col
 
   const bgColor = config.theme?.backgroundColor || '#f1f2f3';
   const isDarkBg = getContrastColor(bgColor) === '#ffffff';
-  const defaultTextColor = isDarkBg ? 'rgba(255, 255, 255, 0.7)' : 'rgba(75, 85, 99, 1)'; // 灰度适配
-  const hoverTextColor = isDarkBg ? '#ffffff' : '#111827';
+
+  // 修正：移动端侧边栏背景固定为白色，所以必须区分对待文字颜色
+  const getResponsiveColors = (isDesktop: boolean) => {
+    // 桌面端跟随全站背景，移动端固定使用浅色背景下的文字颜色
+    const darkText = 'rgba(75, 85, 99, 1)';
+    const lightText = 'rgba(255, 255, 255, 0.7)';
+
+    const textColor = (isDesktop && isDarkBg) ? lightText : darkText;
+    const activeContrast = getContrastColor(config.theme?.primaryColor || '#f1404b');
+
+    return { textColor, activeContrast };
+  };
 
   const Content = ({ isDesktop = false }: { isDesktop?: boolean }) => {
-    const primaryContrast = getContrastColor(config.theme?.primaryColor || '#f1404b');
+    const { textColor, activeContrast } = getResponsiveColors(isDesktop);
 
     return (
       <>
@@ -53,7 +63,7 @@ lg:hidden flex flex-col
         <div className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2">
           {sidebarContent ? (
             /* Dynamic Sidebar Content */
-            <div className="w-full px-2" style={{ color: defaultTextColor }}>
+            <div className="w-full px-2" style={{ color: textColor }}>
               {sidebarContent}
             </div>
           ) : (
@@ -70,22 +80,22 @@ lg:hidden flex flex-col
                   w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
                   ${activeCategory === cat.id
                       ? 'bg-[var(--theme-primary)]'
-                      : 'hover:bg-white/10 hover:shadow-sm'
+                      : 'hover:bg-gray-100/50 hover:shadow-sm'
                     }
                   ${collapsed && isDesktop ? 'justify-center px-0' : ''}
                 `}
                   style={{
                     color: activeCategory === cat.id
-                      ? primaryContrast
-                      : defaultTextColor
+                      ? activeContrast
+                      : textColor
                   }}
                   title={collapsed ? cat.name : ''}
                 >
                   <div className={`${collapsed && isDesktop ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}
                     style={{
                       color: activeCategory === cat.id
-                        ? primaryContrast
-                        : defaultTextColor
+                        ? activeContrast
+                        : textColor
                     }}
                   >
                     <Icon icon={cat.icon} />
@@ -104,9 +114,9 @@ lg:hidden flex flex-col
             <button
               onClick={toggleCollapsed}
               className={`text-sm font-medium flex items-center transition-colors ${collapsed && isDesktop ? 'mx-auto' : ''} `}
-              style={{ color: defaultTextColor }}
+              style={{ color: textColor }}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--theme-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = defaultTextColor}
+              onMouseLeave={(e) => e.currentTarget.style.color = textColor}
               title={collapsed ? "展开" : "收起"}
             >
               {collapsed && isDesktop ? (
