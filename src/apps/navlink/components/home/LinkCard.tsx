@@ -14,8 +14,12 @@ interface LinkCardProps {
 }
 
 const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDelete, containerBgColor, hoverBgColor }) => {
-  const contrastColor = getContrastColor(containerBgColor || '#ffffff');
+  const cardBgColor = containerBgColor || '#ffffff';
+  const contrastColor = getContrastColor(cardBgColor);
   const isDarkBg = contrastColor === '#ffffff';
+  const hoverBg = hoverBgColor || cardBgColor;
+  const hoverContrastColor = getContrastColor(hoverBg);
+  const isHoverDarkBg = hoverContrastColor === '#ffffff';
 
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -43,9 +47,13 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
         }}
         className={`link-card flex rounded-lg p-4 h-full border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}
         style={{
-          backgroundColor: containerBgColor || '#ffffff',
-          borderColor: containerBgColor || '#ffffff',
-          '--hover-bg': hoverBgColor || ''
+          backgroundColor: cardBgColor,
+          borderColor: cardBgColor,
+          '--hover-bg': hoverBg,
+          '--hover-text': hoverContrastColor,
+          '--desc-opacity': isDarkBg ? '0.7' : '0.5',
+          '--hover-desc-opacity': isHoverDarkBg ? '0.7' : '0.5',
+          color: contrastColor
         } as React.CSSProperties}
       >
         <div className="mr-3 flex-shrink-0">
@@ -66,13 +74,12 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
         <div className="flex-1 min-w-0 overflow-hidden pt-0.5">
           <h3
             className="text-sm font-bold truncate mb-1.5 group-hover:text-[var(--theme-primary)] transition-colors"
-            style={{ color: contrastColor }}
+            style={{ color: 'inherit' }}
           >
             {item.title}
           </h3>
           <p
-            className="text-xs line-clamp-2 h-[32px] leading-relaxed transition-colors"
-            style={{ color: isDarkBg ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}
+            className="link-card-desc text-xs line-clamp-2 h-[32px] leading-relaxed transition-colors"
           >
             {item.description}
           </p>

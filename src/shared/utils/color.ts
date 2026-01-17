@@ -14,15 +14,19 @@ export const getContrastColor = (hex: string | undefined): string => {
         color = color.split('').map(c => c + c).join('');
     }
 
-    // 转换为 RGB
-    const r = parseInt(color.substring(0, 2), 16);
-    const g = parseInt(color.substring(2, 4), 16);
-    const b = parseInt(color.substring(4, 6), 16);
+    // 转换为 RGB 并归一化到 [0, 1]
+    const r = parseInt(color.substring(0, 2), 16) / 255;
+    const g = parseInt(color.substring(2, 4), 16) / 255;
+    const b = parseInt(color.substring(4, 6), 16) / 255;
 
-    // 计算亮度 (Luminance)
-    // 公式: 0.299*R + 0.587*G + 0.114*B
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    // W3C 相对亮度公式 (Relative Luminance)
+    // 线性化分量
+    const linearize = (c: number) => {
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
 
-    // 如果亮度 > 128，说明背景是浅色，返回黑色文字；否则返回白色文字
-    return luminance > 128 ? '#000000' : '#ffffff';
+    const L = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+
+    // 相对亮度 > 0.5 时返回黑色文字；否则返回白色文字
+    return L > 0.5 ? '#000000' : '#ffffff';
 };

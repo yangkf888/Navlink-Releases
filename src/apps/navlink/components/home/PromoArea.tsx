@@ -60,6 +60,11 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
         opacity: isDragging ? 0.3 : 1,
     };
 
+    const itemContrastColor = getContrastColor(promoCardBgColor);
+    const itemHoverBg = promoCardHoverBgColor || promoCardBgColor;
+    const itemHoverContrastColor = getContrastColor(itemHoverBg);
+    const isItemDarkBg = itemContrastColor === '#ffffff';
+
     return (
         <div
             ref={setNodeRef}
@@ -84,7 +89,9 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                     style={{
                         backgroundColor: !isDragging ? promoCardBgColor : undefined,
                         borderColor: !isDragging ? promoBgColor : undefined,
-                        '--hover-bg': promoCardHoverBgColor
+                        '--hover-bg': itemHoverBg,
+                        '--hover-text': itemHoverContrastColor,
+                        color: itemContrastColor
                     } as React.CSSProperties}
                 >
                     {!item.isAd && item.icon && (
@@ -96,10 +103,17 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                             )}
                         </div>
                     )}
-                    {item.isAd && <span className="text-[10px] border border-gray-300 rounded px-1 text-gray-400 flex-shrink-0">Ad</span>}
+                    {item.isAd && (
+                        <span
+                            className="text-[10px] border rounded px-1 flex-shrink-0 transition-colors"
+                            style={{ borderColor: 'currentColor', opacity: 0.6 }}
+                        >
+                            Ad
+                        </span>
+                    )}
                     <span
                         className="text-xs font-medium truncate group-hover:text-[var(--theme-primary)] transition-colors flex-1"
-                        style={{ color: contrastColor }}
+                        style={{ color: 'inherit' }}
                     >
                         {item.title}
                     </span>
@@ -403,14 +417,13 @@ const PromoArea = () => {
     return (
         <div className="w-full z-20 relative promo-container">
             <div
-                className="rounded-xl shadow-lg p-5 border animate-fade-in transition-all duration-500"
+                className="rounded-xl shadow-lg p-5 animate-fade-in transition-all duration-500"
                 style={{
-                    backgroundColor: promoBgColor,
-                    borderColor: promoBgColor
+                    backgroundColor: promoBgColor
                 }}
             >
                 <div
-                    className={`flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b pb-3 transition-colors duration-500 ${isDarkBg ? 'border-white/10' : 'border-gray-100'}`}
+                    className={`flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b pb-3 transition-colors duration-500 ${isDarkBg ? 'border-white/10' : 'border-gray-200/50'}`}
                 >
                     <div className="flex items-center gap-2 text-sm select-none flex-shrink-0">
                         <Icon icon={config.theme?.promoIcon || "fa-solid fa-fire"} className="text-red-500" />
