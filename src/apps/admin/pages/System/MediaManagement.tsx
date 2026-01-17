@@ -606,7 +606,7 @@ ${usedFiles.map(f => `  • ${f.filename} (${f.usageCount} 处引用)`).join('\n
                             disabled={uploading}
                             className="hidden"
                         />
-                        <div className="px-6 py-3 bg-[var(--theme-primary)] text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 inline-flex">
+                        <div className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 inline-flex">
                             <Icon icon="fa-solid fa-folder-open" />
                             选择文件
                         </div>
@@ -723,7 +723,7 @@ ${usedFiles.map(f => `  • ${f.filename} (${f.usageCount} 处引用)`).join('\n
                 </div>
             ) : viewMode === 'grid' ? (
                 /* 网格视图 */
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-4">
                     {filteredFiles.map(file => (
                         <div
                             key={file.filename}
@@ -750,7 +750,15 @@ ${usedFiles.map(f => `  • ${f.filename} (${f.usageCount} 处引用)`).join('\n
                                 <img
                                     src={file.path}
                                     alt={file.filename}
-                                    className="w-full h-full object-contain p-2"
+                                    className={`object-contain transition-all ${file.filename.toLowerCase().endsWith('.ico') ||
+                                        file.filename.toLowerCase().endsWith('.svg') ||
+                                        file.filename.toLowerCase().includes('icon-')
+                                        ? 'max-w-[48px] max-h-[48px] image-render-pixelated'
+                                        : 'w-full h-full'
+                                        }`}
+                                    style={{
+                                        imageRendering: (file.filename.toLowerCase().endsWith('.ico') || file.filename.toLowerCase().endsWith('.svg')) ? 'pixelated' : 'auto'
+                                    } as any}
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
                                         (e.target as HTMLImageElement).parentElement!.innerHTML += '<div class="text-gray-400 text-4xl"><i class="fa-solid fa-file-image"></i></div>';
@@ -758,11 +766,11 @@ ${usedFiles.map(f => `  • ${f.filename} (${f.usageCount} 处引用)`).join('\n
                                 />
                                 {/* 使用状态标记 */}
                                 {file.usageCount !== undefined && (
-                                    <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${file.usageCount > 0
+                                    <div className={`absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm ${file.usageCount > 0
                                         ? 'bg-green-500 text-white'
                                         : 'bg-gray-400 text-white'
                                         }`}>
-                                        {file.usageCount > 0 ? `使用 ${file.usageCount}` : '未使用'}
+                                        {file.usageCount > 0 ? file.usageCount : '0'}
                                     </div>
                                 )}
                             </div>

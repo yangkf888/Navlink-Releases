@@ -368,7 +368,7 @@ const CategorySectionContent: React.FC<{ cat: Category }> = ({ cat }) => {
                 backgroundColor: catBgColor
             }}
         >
-            <div className={`flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b pb-3 transition-colors duration-500 ${isDarkBg ? 'border-white/10' : 'border-gray-200/50'}`}>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 transition-colors duration-500">
                 <div className="flex items-center gap-3 flex-shrink-0">
                     {cat.icon && <Icon icon={cat.icon} className="text-xl text-[var(--theme-primary)]" />}
                     <h2

@@ -33,83 +33,95 @@ const Sidebar = ({
 lg:hidden flex flex-col
   `;
 
-  const Content = ({ isDesktop = false }: { isDesktop?: boolean }) => (
-    <>
-      {/* Mobile Header */}
-      <div className="lg:hidden h-[60px] flex items-center px-6 border-b border-gray-100">
-        <span className="text-lg font-bold text-gray-800">导航菜单</span>
-        <button onClick={() => setMobileOpen(false)} className="ml-auto text-gray-400"><Icon icon="fa-solid fa-times" /></button>
-      </div>
+  const bgColor = config.theme?.backgroundColor || '#f1f2f3';
+  const isDarkBg = getContrastColor(bgColor) === '#ffffff';
+  const defaultTextColor = isDarkBg ? 'rgba(255, 255, 255, 0.7)' : 'rgba(75, 85, 99, 1)'; // 灰度适配
+  const hoverTextColor = isDarkBg ? '#ffffff' : '#111827';
 
-      {/* Menu Items */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2">
-        {sidebarContent ? (
-          /* Dynamic Sidebar Content */
-          <div className="w-full px-2">
-            {sidebarContent}
-          </div>
-        ) : (
-          /* Default Category Navigation */
-          <nav className="space-y-1">
-            {categories.map((cat: Category) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  onScrollTo(cat.id);
-                  if (window.innerWidth < 1024) setMobileOpen(false);
-                }}
-                className={`
+  const Content = ({ isDesktop = false }: { isDesktop?: boolean }) => {
+    const primaryContrast = getContrastColor(config.theme?.primaryColor || '#f1404b');
+
+    return (
+      <>
+        {/* Mobile Header */}
+        <div className="lg:hidden h-[60px] flex items-center px-6 border-b border-gray-100">
+          <span className="text-lg font-bold text-gray-800">导航菜单</span>
+          <button onClick={() => setMobileOpen(false)} className="ml-auto text-gray-400"><Icon icon="fa-solid fa-times" /></button>
+        </div>
+
+        {/* Menu Items */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2">
+          {sidebarContent ? (
+            /* Dynamic Sidebar Content */
+            <div className="w-full px-2" style={{ color: defaultTextColor }}>
+              {sidebarContent}
+            </div>
+          ) : (
+            /* Default Category Navigation */
+            <nav className="space-y-1">
+              {categories.map((cat: Category) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    onScrollTo(cat.id);
+                    if (window.innerWidth < 1024) setMobileOpen(false);
+                  }}
+                  className={`
                   w-full flex items-center px-4 py-3 text-[14px] font-medium rounded-lg transition-all duration-200 group
                   ${activeCategory === cat.id
-                    ? 'bg-[var(--theme-primary)]'
-                    : 'text-gray-600 hover:bg-white hover:shadow-sm'
-                  }
+                      ? 'bg-[var(--theme-primary)]'
+                      : 'hover:bg-white/10 hover:shadow-sm'
+                    }
                   ${collapsed && isDesktop ? 'justify-center px-0' : ''}
                 `}
-                style={{
-                  color: activeCategory === cat.id
-                    ? getContrastColor(config.theme?.primaryColor || '#f1404b')
-                    : undefined
-                }}
-                title={collapsed ? cat.name : ''}
-              >
-                <div className={`${collapsed && isDesktop ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}
                   style={{
                     color: activeCategory === cat.id
-                      ? getContrastColor(config.theme?.primaryColor || '#f1404b')
-                      : undefined
+                      ? primaryContrast
+                      : defaultTextColor
                   }}
+                  title={collapsed ? cat.name : ''}
                 >
-                  <Icon icon={cat.icon} />
-                </div>
-                {(!collapsed || !isDesktop) && <span>{cat.name}</span>}
-                {(!collapsed || !isDesktop) && <div className="ml-auto opacity-0 group-hover:opacity-50 text-xs"><Icon icon="fa-solid fa-angle-right" /></div>}
-              </button>
-            ))}
-          </nav>
-        )}
-      </div>
-
-      {/* Footer / Collapse Button */}
-      < div className="p-4 mt-auto lg:mt-0" >
-        <div className="flex items-center justify-between text-gray-500 bg-white lg:bg-transparent rounded-lg p-2 lg:p-0">
-          <button
-            onClick={toggleCollapsed}
-            className={`hover:text-[var(--theme-primary)] text-sm font-medium flex items-center ${collapsed && isDesktop ? 'mx-auto' : ''} `}
-            title={collapsed ? "展开" : "收起"}
-          >
-            {collapsed && isDesktop ? (
-              <Icon icon="fa-solid fa-right-to-bracket" />
-            ) : (
-              <>
-                <Icon icon="fa-solid fa-right-from-bracket" className="mr-1" /> 收起
-              </>
-            )}
-          </button>
+                  <div className={`${collapsed && isDesktop ? 'text-lg w-auto mr-0' : 'w-6 text-center mr-2'} flex items-center justify-center`}
+                    style={{
+                      color: activeCategory === cat.id
+                        ? primaryContrast
+                        : defaultTextColor
+                    }}
+                  >
+                    <Icon icon={cat.icon} />
+                  </div>
+                  {(!collapsed || !isDesktop) && <span>{cat.name}</span>}
+                  {(!collapsed || !isDesktop) && <div className="ml-auto opacity-0 group-hover:opacity-100 text-xs"><Icon icon="fa-solid fa-angle-right" /></div>}
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
-      </div >
-    </>
-  );
+
+        {/* Footer / Collapse Button */}
+        < div className="p-4 mt-auto lg:mt-0" >
+          <div className="flex items-center justify-between bg-white lg:bg-transparent rounded-lg p-2 lg:p-0">
+            <button
+              onClick={toggleCollapsed}
+              className={`text-sm font-medium flex items-center transition-colors ${collapsed && isDesktop ? 'mx-auto' : ''} `}
+              style={{ color: defaultTextColor }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--theme-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = defaultTextColor}
+              title={collapsed ? "展开" : "收起"}
+            >
+              {collapsed && isDesktop ? (
+                <Icon icon="fa-solid fa-right-to-bracket" />
+              ) : (
+                <>
+                  <Icon icon="fa-solid fa-right-from-bracket" className="mr-1" /> 收起
+                </>
+              )}
+            </button>
+          </div>
+        </div >
+      </>
+    );
+  };
 
   return (
     <>

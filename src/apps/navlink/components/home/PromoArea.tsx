@@ -423,7 +423,7 @@ const PromoArea = () => {
                 }}
             >
                 <div
-                    className={`flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 border-b pb-3 transition-colors duration-500 ${isDarkBg ? 'border-white/10' : 'border-gray-200/50'}`}
+                    className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-4 transition-colors duration-500"
                 >
                     <div className="flex items-center gap-2 text-sm select-none flex-shrink-0">
                         <Icon icon={config.theme?.promoIcon || "fa-solid fa-fire"} className="text-red-500" />

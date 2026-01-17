@@ -255,7 +255,7 @@ function AppContent() {
                 </div>
 
                 {/* Footer - Centered */}
-                <footer className="text-center text-gray-400 text-sm py-8 border-t border-gray-200/50 mt-8 w-full">
+                <footer className="text-center text-gray-400 text-sm py-8 w-full">
                     <p>{footerConfig.copyright}</p>
                 </footer>
             </div>
