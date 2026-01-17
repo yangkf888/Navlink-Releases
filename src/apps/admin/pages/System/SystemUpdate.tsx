@@ -202,6 +202,43 @@ export default function SystemUpdate() {
         }
     }, []);
 
+    // 🔑 新增：升级后版本验证
+    const verifyUpgrade = async (expectedVersion: string, maxRetries = 5): Promise<{ success: boolean; message: string; actualVersion?: string }> => {
+        for (let i = 0; i < maxRetries; i++) {
+            setUpgradeStatus(prev => prev ? {
+                ...prev,
+                stage: 'verifying',
+                progress: 95 + i,
+                message: `正在验证升级结果... (${i + 1}/${maxRetries})`
+            } : null);
+
+            await new Promise(resolve => setTimeout(resolve, 10000)); // 每 10 秒检查一次
+
+            try {
+                const response = await fetch('/api/system/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    const actualVersion = data.version;
+
+                    // 比较版本号（移除 v 前缀进行比较）
+                    const expected = expectedVersion.replace(/^v/, '');
+                    const actual = actualVersion.replace(/^v/, '');
+
+                    if (actual === expected) {
+                        return { success: true, message: '升级验证成功！', actualVersion };
+                    }
+                }
+            } catch {
+                // 服务可能还在重启中，继续等待
+            }
+        }
+
+        return {
+            success: false,
+            message: '升级可能未成功完成。请手动检查版本或查看 Docker 日志。'
+        };
+    };
+
     // 执行升级
     const performUpgrade = async () => {
         try {
@@ -224,14 +261,55 @@ export default function SystemUpdate() {
             const data = await response.json();
 
             if (data.success) {
+                const expectedVersion = data.newVersion;
+
+                // 🔑 改进：显示正在重启的提示
                 setAlertMessage({
-                    title: '升级成功',
-                    message: data.message || '系统正在重启，请稍候刷新页面。'
+                    title: '升级指令已发送',
+                    message: data.note || '容器正在重启中，请等待验证...'
                 });
-                // 升级成功后刷新页面
-                setTimeout(() => {
-                    window.location.reload();
-                }, 5000);
+
+                // 🔑 新增：等待容器重启后验证版本
+                setUpgradeStatus(prev => prev ? {
+                    ...prev,
+                    stage: 'restarting',
+                    progress: 92,
+                    message: '容器正在重启，等待服务恢复...'
+                } : null);
+
+                // 等待 30 秒让容器重启
+                await new Promise(resolve => setTimeout(resolve, 30000));
+
+                // 执行版本验证
+                const verifyResult = await verifyUpgrade(expectedVersion);
+
+                if (verifyResult.success) {
+                    setAlertMessage({
+                        title: '🎉 升级成功',
+                        message: `已成功升级到 v${verifyResult.actualVersion}！页面将自动刷新。`
+                    });
+                    setUpgradeStatus(prev => prev ? {
+                        ...prev,
+                        inProgress: false,
+                        stage: 'completed',
+                        progress: 100,
+                        message: '升级完成！'
+                    } : null);
+                    // 验证成功后刷新页面
+                    setTimeout(() => window.location.reload(), 3000);
+                } else {
+                    setAlertMessage({
+                        title: '⚠️ 升级验证失败',
+                        message: verifyResult.message + (data.containerName ? `\n\n调试命令：docker logs ${data.containerName} --tail 100` : '')
+                    });
+                    setUpgradeStatus(prev => prev ? {
+                        ...prev,
+                        inProgress: false,
+                        stage: 'verify_failed',
+                        progress: 0,
+                        error: '版本验证失败'
+                    } : null);
+                }
             } else {
                 setUpgradeStatus(prev => prev ? {
                     ...prev,

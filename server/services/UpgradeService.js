@@ -20,8 +20,8 @@ export class UpgradeService {
         this.imageRegistry = 'ghcr.io';
         this.imageName = `${this.imageRegistry}/txwebroot/navlink-releases`;
 
-        // 容器配置
-        this.containerName = process.env.CONTAINER_NAME || 'navlink-app';
+        // 容器配置 - 优先使用环境变量，其次使用 HOSTNAME（Docker 默认设置为容器 ID）
+        this.containerName = process.env.CONTAINER_NAME || process.env.HOSTNAME || 'navlink-app';
 
         // 备份配置
         this.dataDir = path.join(__dirname, '../../data');
@@ -39,6 +39,52 @@ export class UpgradeService {
 
         // Socket.IO 实例 (用于推送进度)
         this.io = null;
+
+        // 异步初始化容器名检测
+        this.initContainerName();
+    }
+
+    /**
+     * 异步初始化：自动检测容器名
+     */
+    async initContainerName() {
+        try {
+            const detectedName = await this.detectContainerName();
+            if (detectedName && detectedName !== this.containerName) {
+                console.log(`[UpgradeService] Auto-detected container name: ${detectedName}`);
+                this.containerName = detectedName;
+            }
+        } catch (err) {
+            console.warn('[UpgradeService] Container name detection failed:', err.message);
+        }
+    }
+
+    /**
+     * 自动检测当前运行的容器名或 ID
+     */
+    async detectContainerName() {
+        // 方法1: 优先使用环境变量
+        if (process.env.CONTAINER_NAME) {
+            return process.env.CONTAINER_NAME;
+        }
+
+        // 方法2: 通过 hostname 获取容器 ID，然后查询容器名
+        try {
+            const { stdout: hostname } = await execAsync('hostname');
+            const containerId = hostname.trim();
+
+            // 验证这是一个有效的容器 ID 并获取容器名
+            const { stdout: inspectOut } = await execAsync(`docker inspect ${containerId} --format='{{.Name}}'`);
+            const containerName = inspectOut.trim().replace(/^\//, '').replace(/'/g, '');
+
+            if (containerName) {
+                return containerName;
+            }
+        } catch {
+            // 容器名检测失败，使用默认值
+        }
+
+        return this.containerName;
     }
 
     /**
@@ -47,6 +93,7 @@ export class UpgradeService {
     setSocketIO(io) {
         this.io = io;
     }
+
 
     /**
      * 获取升级状态
@@ -362,21 +409,34 @@ export class UpgradeService {
             await this.pullImage(version);
 
             // 4. 重启容器 (延迟执行，确保 HTTP 响应能发出)
+            // 🔑 改进：设置状态为 "restarting" 而非 "completed"
+            this.upgradeStatus.stage = 'restarting';
+            this.upgradeStatus.message = '升级指令已发送，容器即将重启...';
+
+            // 记录使用的容器名，便于排查
+            console.log(`[UpgradeService] Will restart container: ${this.containerName}`);
+
             setTimeout(() => {
-                this.restartContainer().catch(err => console.error('[UpgradeService] Restart failed:', err));
+                this.restartContainer().catch(err => {
+                    console.error('[UpgradeService] Restart failed:', err);
+                    this.upgradeStatus.error = err.message;
+                    this.upgradeStatus.stage = 'failed';
+                });
             }, 2000);
 
             this.upgradeStatus.inProgress = false;
-            this.upgradeStatus.stage = 'completed';
 
             // 清除版本缓存
             updateService.clearCache();
 
             return {
                 success: true,
-                message: '升级成功！容器正在重启，请稍候刷新页面。',
+                status: 'restarting',  // 🔑 明确状态：正在重启中
+                message: '升级指令已发送，容器正在重启中...',
+                note: '请等待约 30 秒后刷新页面。如果版本未更新，请检查 Docker 日志：docker logs ' + this.containerName + ' --tail 100',
                 previousVersion: checkResult.currentVersion,
-                newVersion: version
+                newVersion: version,
+                containerName: this.containerName  // 返回使用的容器名便于排查
             };
 
         } catch (error) {
