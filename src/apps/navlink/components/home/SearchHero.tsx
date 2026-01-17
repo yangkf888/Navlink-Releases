@@ -465,13 +465,17 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                                     setKeyword(link.title);
                                 }
                             }}
-                            className="hover:text-white transition-colors bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm hover:bg-white/20 cursor-pointer"
+                            className="text-white/60 hover:text-white transition-all cursor-pointer px-1 py-1 flex items-center justify-center gap-1.5 group relative"
                             style={{
-                                color: config.theme?.heroHotSearchColor,
+                                color: config.theme?.heroHotSearchColor ? `${config.theme.heroHotSearchColor}99` : 'rgba(255,255,255,0.6)',
                                 fontSize: config.theme?.heroHotSearchSize ? `${config.theme.heroHotSearchSize}px` : undefined
                             }}
                         >
-                            {link.title}
+                            <span className="opacity-40 group-hover:opacity-100 transition-opacity">#</span>
+                            <span className="relative">
+                                {link.title}
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[var(--theme-primary)] transition-all duration-300 group-hover:w-full"></span>
+                            </span>
                         </button>
                     ))}
                 </div>

@@ -131,7 +131,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
             className={`
                 w-full ${isOverlayMode ? 'fixed' : 'sticky'} top-0 left-0 z-40 lg:z-50 transition-all duration-300
                 ${shouldUseTransparent ? '' : 'shadow-md'}
-                ${navClass} ${textColorClass} py-2 px-4 md:px-8
+                ${navClass} ${textColorClass} py-3.5 px-6 md:px-10
             `}
             style={navBgStyle}
         >

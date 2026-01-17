@@ -126,8 +126,8 @@ const PluginLayout: React.FC = () => {
                 />
             </div>
 
-            {/* 增加 pt-14 补偿，仅在桌面端 Header 显示时生效 */}
-            <div className={`flex-1 flex overflow-hidden relative ${!hideHeader ? 'lg:pt-14' : ''}`}>
+            {/* 增加 pt-[64px] 补偿，仅在桌面端 Header 显示时生效 */}
+            <div className={`flex-1 flex overflow-hidden relative ${!hideHeader ? 'lg:pt-[64px]' : ''}`}>
                 {/* Main Content Area */}
                 <div className="flex-1 h-full overflow-hidden relative">
                     <Outlet />
