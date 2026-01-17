@@ -242,7 +242,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const buttonClass = (isActive: boolean) => `
         p-2.5 rounded-lg transition-colors text-sm
         ${isActive
-            ? 'bg-blue-600 text-primary shadow-md shadow-blue-500/20'
+            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
             : theme === 'dark'
                 ? 'text-secondary hover:text-primary hover:bg-white/10'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
@@ -653,7 +653,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 className={`px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg text-sm font-medium
                                       ${selectedSource.type === 'netdisk'
                                         ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20 text-white font-bold'
-                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 text-primary'
+                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 text-white'
                                     } 
                                       disabled:opacity-40 disabled:scale-95 disabled:cursor-not-allowed`}
                             >
@@ -676,7 +676,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 onClick={() => onModuleChange(item.key as AppModule)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5
                                 ${activeModule === item.key
-                                        ? 'bg-blue-500'
+                                        ? 'bg-blue-500 text-white'
                                         : theme === 'dark'
                                             ? 'text-secondary hover:text-primary hover:bg-secondary'
                                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'

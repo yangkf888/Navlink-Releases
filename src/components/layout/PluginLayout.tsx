@@ -68,9 +68,34 @@ const PluginLayout: React.FC = () => {
         }
     };
 
-    // 监听来自插件iframe的消息
+    // 监听来自插件 iframe 的消息
     useEffect(() => {
+        // 初始设置标题
+        if (config.siteName) {
+            document.title = config.siteName;
+        }
+
         const handleMessage = (event: MessageEvent) => {
+            // 插件请求更新标题和图标 (用于浏览器标签)
+            if (event.data.type === 'PLUGIN_UPDATE_TITLE') {
+                const title = event.data.payload?.title;
+                const logoUrl = event.data.payload?.logoUrl;
+
+                if (title) {
+                    console.log(`[PluginLayout] Updating document.title to: ${title}`);
+                    document.title = title;
+                }
+
+                if (logoUrl) {
+                    console.log(`[PluginLayout] Updating favicon to: ${logoUrl}`);
+                    const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+                    link.type = 'image/x-icon';
+                    link.rel = 'shortcut icon';
+                    link.href = logoUrl;
+                    if (!link.parentNode) document.getElementsByTagName('head')[0].appendChild(link);
+                }
+            }
+
             // 插件请求隐藏移动端顶部导航
             if (event.data.type === 'PLUGIN_REQUEST_HIDE_HEADER') {
                 const hide = event.data.payload?.hideHeader ?? event.data.payload?.hideMobile ?? false;
@@ -92,7 +117,7 @@ const PluginLayout: React.FC = () => {
             // 走出插件布局时还原主题为明亮（或默认）
             document.documentElement.removeAttribute('data-theme');
         };
-    }, []);
+    }, [config.siteName]);
 
     // Determine if we should use dark text based on navbar background color
     // In PluginLayout, the navbar typically uses theme.navbarBgColor or white

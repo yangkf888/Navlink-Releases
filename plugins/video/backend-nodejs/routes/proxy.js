@@ -101,10 +101,120 @@ router.get('/image', async (req, res) => {
 
 /**
  * HLS 代理 (m3u8/ts)
- * 省略之前的冗余逻辑，直接进入业务主线
+ * 核心功能：
+ * 1. 代理 m3u8 文件，将其中的相对路径重写为代理 URL
+ * 2. 代理 ts 分片文件
+ * GET /api/proxy/hls?url=xxx
  */
 router.get('/hls', async (req, res) => {
-    // ... 保留 HLS 代理逻辑 (建议实机保留前次正确版本，此处暂不详述)
+    let rawUrl = req.query.url;
+    if (!rawUrl) return res.status(400).send('Missing url');
+
+    // URL 解码修正
+    let targetUrl = rawUrl;
+    try {
+        let decoded = rawUrl;
+        for (let i = 0; i < 3; i++) {
+            const next = decodeURIComponent(decoded);
+            if (next === decoded) break;
+            decoded = next;
+        }
+        targetUrl = decoded;
+    } catch (e) {
+        targetUrl = rawUrl;
+    }
+
+    const requestHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
+        'Referer': new URL(targetUrl).origin + '/'
+    };
+
+    try {
+        // 跟随重定向获取最终 URL
+        let currentUrl = targetUrl;
+        let response;
+        let redirectCount = 0;
+        const maxRedirects = 10;
+
+        while (redirectCount < maxRedirects) {
+            response = await fetch(currentUrl, {
+                headers: requestHeaders,
+                redirect: 'manual',
+                timeout: 30000
+            });
+
+            if ([301, 302, 303, 307, 308].includes(response.status)) {
+                let location = response.headers.get('location');
+                if (!location) break;
+                if (!location.startsWith('http')) {
+                    location = new URL(location, currentUrl).toString();
+                }
+                currentUrl = location;
+                redirectCount++;
+                continue;
+            }
+            break;
+        }
+
+        if (!response.ok) {
+            return res.status(response.status).send(`Upstream error: ${response.status}`);
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        const content = await response.text();
+
+        // 判断是否为 m3u8 文件
+        const isM3u8 = contentType.includes('mpegurl') ||
+            contentType.includes('m3u8') ||
+            currentUrl.includes('.m3u8') ||
+            content.trim().startsWith('#EXTM3U');
+
+        if (isM3u8) {
+            // 重写 m3u8 内容中的 URL
+            const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+            const proxyBase = `/api/plugins/video/api/proxy/hls?url=`;
+
+            const rewrittenContent = content.split('\n').map(line => {
+                line = line.trim();
+                // 跳过注释行和空行
+                if (!line || line.startsWith('#')) {
+                    // 但要处理 #EXT-X-KEY 等带 URI 的标签
+                    if (line.includes('URI="')) {
+                        return line.replace(/URI="([^"]+)"/g, (match, uri) => {
+                            const fullUrl = uri.startsWith('http') ? uri : new URL(uri, baseUrl).toString();
+                            return `URI="${proxyBase}${encodeURIComponent(fullUrl)}"`;
+                        });
+                    }
+                    return line;
+                }
+                // 处理 URL 行
+                const fullUrl = line.startsWith('http') ? line : new URL(line, baseUrl).toString();
+                return `${proxyBase}${encodeURIComponent(fullUrl)}`;
+            }).join('\n');
+
+            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cache-Control', 'no-cache');
+            return res.send(rewrittenContent);
+        } else {
+            // 非 m3u8 文件（如 ts 分片），直接转发
+            res.setHeader('Content-Type', contentType || 'video/mp2t');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+
+            // 重新请求以获取二进制流
+            const streamResponse = await fetch(currentUrl, {
+                headers: requestHeaders,
+                timeout: 30000
+            });
+            streamResponse.body.pipe(res);
+        }
+    } catch (error) {
+        console.error('[HLS Proxy] Error:', error.message);
+        if (!res.headersSent) res.status(500).send(error.message);
+    }
 });
 
 /**

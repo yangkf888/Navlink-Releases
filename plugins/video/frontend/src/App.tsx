@@ -18,6 +18,49 @@ import { History } from './pages/History';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { useAuth } from './contexts/AuthContext';
 
+// 🔑 同步主应用品牌配置
+async function syncBranding() {
+    try {
+        // 使用 window.location.origin 确保请求到后端根目录
+        const res = await fetch(`${window.location.origin}/api/config`);
+        if (!res.ok) return;
+        const config = await res.json();
+
+        const siteName = config.siteName || 'NavLink';
+        const logoUrl = config.logoUrl || '';
+
+        // 1. 设置当前文档标题
+        document.title = `视频中心 - ${siteName}`;
+
+        // 2. 设置当前文档 favicon
+        if (logoUrl) {
+            let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = logoUrl;
+        }
+
+        // 3. 如果在 iframe 中，尝试通知父窗口更新标题和图标
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_UPDATE_TITLE',
+                payload: {
+                    title: `视频中心 - ${siteName}`,
+                    logoUrl: logoUrl
+                }
+            }, '*');
+        }
+    } catch (e) {
+        console.log('[Video] Failed to sync branding:', e);
+    }
+}
+
+// 在模块加载时立即调用
+syncBranding();
+
 // 视图类型
 type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin';
 

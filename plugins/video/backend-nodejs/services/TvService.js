@@ -1,6 +1,6 @@
 const { getDatabase } = require('../database');
-const { getSystemProxyAgent } = require('../utils/fetch-agent');
-const fetch = require('node-fetch');
+const { getSystemProxyAgent, getInsecureAgent } = require('../utils/fetch-agent');
+const axios = require('axios');
 
 // 内存缓存，减少频繁请求
 // Key: source_${id}, Value: { data: [], timestamp: number }
@@ -32,12 +32,41 @@ class TvService {
         console.log(`[TvService] Fetching TV source: ${source.name} (${source.url})`);
 
         // 3. 获取远程内容
-        let content;
+        let content = '';
         try {
             const agent = getSystemProxyAgent();
-            const res = await fetch(source.url, { agent, timeout: 15000 });
-            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-            content = await res.text();
+            console.log(`[TvService] Requesting URL: ${source.url}`);
+
+            const res = await axios.get(source.url, {
+                httpsAgent: agent,
+                timeout: 15000,
+                responseType: 'text',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Referer': source.url,
+                    'Connection': 'keep-alive'
+                },
+                validateStatus: (status) => status < 500
+            });
+
+            console.log(`[TvService] Response Status: ${res.status} for ${source.name}`);
+
+            if (res.status === 403) {
+                console.warn(`[TvService] Warning: Source ${source.name} returned 403.`);
+                throw new Error(`HTTP error 403`);
+            }
+
+            content = res.data;
+            console.log(`[TvService] Received content length: ${content ? content.length : 0}`);
+            if (content && typeof content === 'string' && content.length > 0) {
+                console.log(`[TvService] Content preview (100 chars): ${content.substring(0, 100).replace(/\n/g, ' ')}`);
+            } else if (content && typeof content !== 'string') {
+                // 如果 axios 还是自动解析了 JSON
+                content = JSON.stringify(content);
+                console.log(`[TvService] Content was JSON, stringified.`);
+            }
         } catch (e) {
             console.error(`[TvService] Failed to fetch source ${source.name}:`, e.message);
             throw e;

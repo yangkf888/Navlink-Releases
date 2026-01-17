@@ -35,6 +35,7 @@ const OBFUSCATE_IGNORE = [
     'dockerService.js',    // 新增：Docker SSH 隧道和流处理对混淆敏感
     'websocket.js',        // 新增：VPS 终端和 SFTP 稳定对混淆敏感
     'vpsService.js',       // 新增：VPS 系统监控解析对混淆敏感
+    'TvService.js',        // 新增：TV 订阅源抓取和 M3U 解析对混淆敏感
     'obfuscate.js'        // 自身
 ];
 
