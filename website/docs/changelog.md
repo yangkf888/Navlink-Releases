@@ -6,13 +6,46 @@
 </div>
 
 <div class="timeline">
-
 <div class="timeline-item latest">
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.1.5</span>
+      <span class="version">v2.1.6</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2026-01-17</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type feature">✨ 新功能</span>
+        <ul>
+          <li><strong>卡片定制</strong> - 热门导航和内容分类区域支持链接卡片背景及悬浮颜色自定义</li>
+          <li><strong>品牌同步</strong> - 支持站点名称全局自定义，自动同步至页面、后台及浏览器标签页</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type improve">🔧 优化</span>
+        <ul>
+          <li><strong>视觉系统</strong> - 调整顶部导航至黄金比例高度，增强页面呼吸感</li>
+          <li><strong>搜索体验</strong> - 搜索框下方热词优化为极简文字流设计，交互更通透</li>
+          <li><strong>动态对比</strong> - 全站文字支持动态对比度检测，根据背景自动切换黑白颜色</li>
+          <li><strong>资源管理</strong> - 优化网格视图下的图片显示效果，支持图标类资源锐化预览</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type fix">🐛 修复</span>
+        <ul>
+          <li><strong>侧边栏兼容</strong> - 修复主应用背景更改导致插件页顶部导航文字颜色冲突的 Bug</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.1.5</span>
     </div>
     <div class="date">2026-01-16</div>
     <div class="changes">
