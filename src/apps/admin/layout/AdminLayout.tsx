@@ -14,8 +14,21 @@ export default function AdminLayout({ children }: Props) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [version, setVersion] = useState('2.0');
-    const { isAuthenticated, isLoaded } = useConfig();
+    const { isAuthenticated, isLoaded, config } = useConfig();
     const navigate = useNavigate();
+
+    // 同步站点标题和图标到浏览器标签
+    useEffect(() => {
+        if (config.siteName) {
+            document.title = `${config.siteName} | 管理后台`;
+        }
+        if (config.logoUrl) {
+            const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+            if (favicon) {
+                favicon.href = config.logoUrl;
+            }
+        }
+    }, [config.siteName, config.logoUrl]);
 
     // 启用会话管理和Token刷新
     useSessionManager();

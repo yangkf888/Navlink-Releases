@@ -166,7 +166,7 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
                 {!collapsed && (
                     <Link to="/" className="flex items-center justify-center flex-1">
-                        <span className="text-2xl font-bold text-blue-600">NavLink</span>
+                        <span className="text-2xl font-bold text-blue-600">{config.siteName || 'NavLink'}</span>
                     </Link>
                 )}
                 <Button
@@ -288,17 +288,19 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
             {/* 用户信息 */}
             <div className="border-t border-gray-200 p-4 overflow-x-hidden">
                 <div className="flex items-center gap-3 px-3">
-                    <div className="w-8 h-8 rounded-lg bg-[var(--theme-primary)] flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/20">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20">
                         <span className="text-white font-bold text-lg">
-                            {(config.siteName || 'Navlink').substring(0, 1).toUpperCase()}
+                            {(getUsername() || 'A').substring(0, 1).toUpperCase()}
                         </span>
                     </div>
                     {!collapsed && (
                         <div className="flex flex-col animate-fade-in">
                             <span className="font-bold text-gray-900 leading-tight">
-                                {config.siteName || 'Navlink'}
+                                {getUsername() || 'Admin'}
                             </span>
-                            <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">管理后台</span>
+                            <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">
+                                {getRoleDisplayName() || '管理员'}
+                            </span>
                         </div>
                     )}
                 </div>

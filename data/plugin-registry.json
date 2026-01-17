@@ -3,26 +3,26 @@
         {
             "id": "docker",
             "name": "Docker管理",
-            "version": "2.1.0",
+            "version": "2.1.2",
             "description": "像本地一样管理你全部docker",
             "author": "NavLink Team",
             "category": "Utility",
             "icon": "📦",
             "homepage": "",
-            "downloadUrl": "https://auth.webxx.top/api/plugins/docker/download/2.1.0",
-            "changelog": "-更新了侧边栏实现方式\r\n-更新了暗黑模式和明亮模式"
+            "downloadUrl": "https://auth.webxx.top/api/plugins/docker/download/2.1.2",
+            "changelog": "新增及优化\r\n   - docker compose编排功能\r\n   - docker 插件连接健壮性优化\r\n   - 镜像在线检查更新功能\r\n   - 更样镜像下载实时过程界面"
         },
         {
             "id": "vps",
             "name": "VPS管理",
-            "version": "2.1.0",
+            "version": "2.1.1",
             "description": "集中管理你的VPS主机",
             "author": "NavLink Team",
             "category": "Utility",
             "icon": "🚀",
             "homepage": "",
-            "downloadUrl": "https://auth.webxx.top/api/plugins/vps/download/2.1.0",
-            "changelog": "-更新了侧边栏实现方式\r\n-更新了暗黑模式和明亮模式"
+            "downloadUrl": "https://auth.webxx.top/api/plugins/vps/download/2.1.1",
+            "changelog": "优化\r\n - 优化连接速度\r\n - 优化资源防泄漏控制\r\n - 优化日志，起到瘦身效果"
         },
         {
             "id": "kbrag",
@@ -37,16 +37,28 @@
             "changelog": "-更新了侧边栏实现方式\r\n-更新了暗黑模式和明亮模式"
         },
         {
+            "id": "video",
+            "name": "视频中心",
+            "version": "2.0.8",
+            "description": "集资源站、电视直播、网盘媒体库于一体的全能播放器",
+            "author": "NavLink Team",
+            "category": "Utility",
+            "icon": "🎬",
+            "homepage": "",
+            "downloadUrl": "https://auth.webxx.top/api/plugins/video/download/2.0.8",
+            "changelog": "修复\r\n-修复扫描，补全，探测流程\r\n-修复TMDB API测试错误提示\r\n\r\n新增\r\n-媒体库搜索功能\r\n-媒体库视图功能\r\n-媒体库排序功能\r\n-系统设置扫描性能设置\r\n\r\n优化\r\n-移动端显示效果"
+        },
+        {
             "id": "sub",
             "name": "订阅管理",
-            "version": "2.1.0",
+            "version": "2.1.2",
             "description": "订阅管理与通知提醒",
             "author": "NavLink Team",
             "category": "Utility",
             "icon": "📅",
             "homepage": "",
-            "downloadUrl": "https://auth.webxx.top/api/plugins/sub/download/2.1.0",
-            "changelog": "-更新了侧边栏实现方式\r\n-更新了暗黑模式和明亮模式"
+            "downloadUrl": "https://auth.webxx.top/api/plugins/sub/download/2.1.2",
+            "changelog": "修复\r\n - 推送通知，JSON 字符串转义bug"
         }
     ]
 }
