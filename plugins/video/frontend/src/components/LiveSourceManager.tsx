@@ -327,22 +327,19 @@ export function LiveSourceManager({ onSourcesChange }: LiveSourceManagerProps) {
                     <span className="text-secondary">已选择 {selectedIds.length} 项</span>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 1 })}
-                        className="px-3 py-1 bg-green-600 text-primary rounded hover:bg-green-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: 0 })}
-                        className="px-3 py-1 bg-orange-600 text-primary rounded hover:bg-orange-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={handleBatchDelete}
-                        className="px-3 py-1 bg-red-600 text-primary rounded hover:bg-red-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
                     >
                         批量删除
                     </button>

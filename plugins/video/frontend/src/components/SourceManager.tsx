@@ -458,43 +458,37 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                     <span className="text-secondary">已选择 {selectedIds.length} 项</span>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: true })}
-                        className="px-3 py-1 bg-green-600 text-primary rounded hover:bg-green-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 text-sm"
                     >
                         批量启用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ enabled: false })}
-                        className="px-3 py-1 bg-orange-600 text-primary rounded hover:bg-orange-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-500 text-sm"
                     >
                         批量禁用
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: true })}
-                        className="px-3 py-1 bg-gray-600 text-primary rounded hover:bg-gray-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 text-sm"
                     >
                         批量隐藏
                     </button>
                     <button
                         onClick={() => handleBatchUpdate({ hidden: false })}
-                        className="px-3 py-1 bg-blue-600 text-primary rounded hover:bg-blue-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
                     >
                         批量显示
                     </button>
                     <button
                         onClick={handleBatchTest}
-                        className="px-3 py-1 bg-cyan-600 text-primary rounded hover:bg-cyan-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm"
                     >
                         批量测试
                     </button>
                     <button
                         onClick={handleBatchDelete}
-                        className="px-3 py-1 bg-red-600 text-primary rounded hover:bg-red-500 text-sm"
-                        style={{ color: '#fff' }}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 text-sm"
                     >
                         批量删除
                     </button>

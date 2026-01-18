@@ -293,11 +293,22 @@ router.post('/batch-delete', (req, res) => {
         }
 
         const db = getDatabase();
-        for (const id of ids) {
-            db.run('DELETE FROM video_sources WHERE id = ?', [id]);
+        const BATCH_SIZE = 50; // 每批最多删除 50 条
+        let deletedCount = 0;
+
+        // 分批处理，每批使用事务
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batch = ids.slice(i, i + BATCH_SIZE);
+
+            db.transaction(() => {
+                for (const id of batch) {
+                    db.run('DELETE FROM video_sources WHERE id = ?', [id]);
+                    deletedCount++;
+                }
+            })();
         }
 
-        res.json({ success: true, message: `Deleted ${ids.length} sources` });
+        res.json({ success: true, message: `Deleted ${deletedCount} sources` });
     } catch (error) {
         console.error('[sources] Failed to batch delete:', error);
         res.status(500).json({ success: false, error: error.message });

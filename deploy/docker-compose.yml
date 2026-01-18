@@ -51,6 +51,7 @@ services:
     image: redis:alpine
     container_name: navlink-redis
     restart: unless-stopped
+    command: redis-server --loglevel warning
     volumes:
       - ./redis_data:/data
     # ========================================

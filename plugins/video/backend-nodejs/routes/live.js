@@ -70,11 +70,22 @@ router.post('/sources/batch-delete', (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid ids' });
         }
 
+        const { getDatabase } = require('../database');
+        const db = getDatabase();
+        const BATCH_SIZE = 50;
         let totalChanges = 0;
-        ids.forEach(id => {
-            const result = liveService.deleteSource(id);
-            totalChanges += result.changes;
-        });
+
+        // 分批处理，每批使用事务
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batch = ids.slice(i, i + BATCH_SIZE);
+
+            db.transaction(() => {
+                for (const id of batch) {
+                    const result = liveService.deleteSource(id);
+                    totalChanges += result.changes;
+                }
+            })();
+        }
 
         res.json({ success: true, changes: totalChanges });
     } catch (e) {
