@@ -13,7 +13,11 @@ import {
     FileUp,
     Palette,
     UserPlus,
-    RefreshCw
+    RefreshCw,
+    LogIn,
+    TrendingUp,
+    Layout,
+    Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/shared/hooks/usePermissions';
@@ -24,6 +28,9 @@ interface DashboardStats {
     plugins: number;
     users: number;
     views: number;
+    todayViews: number;
+    todayUsers: number;
+    topLinks: Array<{ id: string, title: string, click_count: number, type: string }>;
 }
 
 export default function Dashboard() {
@@ -34,7 +41,10 @@ export default function Dashboard() {
         categories: 0,
         plugins: 0,
         users: 0,
-        views: 0
+        views: 0,
+        todayViews: 0,
+        todayUsers: 0,
+        topLinks: []
     });
 
     // 加载统计数据
@@ -54,7 +64,7 @@ export default function Dashboard() {
             const configRes = await fetch('/api/config', { headers });
             const config = await configRes.json();
 
-            // Calculate links from Content Categories (deeply nested: categories -> subCategories -> items)
+            // Calculate links from Content Categories
             let contentLinksCount = 0;
             if (Array.isArray(config.categories)) {
                 config.categories.forEach((cat: any) => {
@@ -75,7 +85,7 @@ export default function Dashboard() {
             const plugins = await pluginsRes.json();
             const pluginsCount = plugins.length;
 
-            // Calculate links from Promo/Popular (nested: promo -> items)
+            // Calculate links from Promo/Popular
             let promoLinksCount = 0;
             // Note: Key is 'promo' in app_config.json, not 'promotions'
             if (Array.isArray(config.promo)) {
@@ -107,15 +117,33 @@ export default function Dashboard() {
                 usersCount = users.length;
             }
 
-            // 浏览量 (暂时移除或设为0，后端未实现)
-            const views = 0;
+            // 获取实时统计数据 [NEW]
+            let views = 0;
+            let todayViews = 0;
+            let todayUsers = 0;
+            let topLinks = [];
+            try {
+                const statsRes = await fetch('/api/stats/dashboard', { headers });
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    views = statsData.totalViews || 0;
+                    todayViews = statsData.todayViews || 0;
+                    todayUsers = statsData.todayUsers || 0;
+                    topLinks = statsData.topLinks || [];
+                }
+            } catch (err) {
+                console.warn('Failed to load real-time stats:', err);
+            }
 
             setStats({
                 links: totalLinks,
                 categories: categoriesCount,
                 plugins: pluginsCount,
                 users: usersCount,
-                views
+                views,
+                todayViews,
+                todayUsers,
+                topLinks
             });
         } catch (error) {
             console.error('Failed to load stats:', error);
@@ -125,25 +153,23 @@ export default function Dashboard() {
     // 定义快捷访问并添加权限要求
     const quickActions = [
         {
-            icon: UserCircle,
+            icon: LogIn,
             label: '个人中心',
-            onClick: () => navigate('/admin/users'),
+            onClick: () => navigate('/admin/profile'),
             iconBgColor: 'bg-blue-50',
-            iconColor: 'text-blue-600',
-            permission: 'user:view'
+            iconColor: 'text-blue-600'
         },
         {
             icon: ExternalLink,
             label: '查看站点',
             onClick: () => window.open('/', '_blank'),
             iconBgColor: 'bg-green-50',
-            iconColor: 'text-green-600',
-            permission: null  // 所有人可访问
+            iconColor: 'text-green-600'
         },
         {
             icon: Plus,
             label: '全局外观',
-            onClick: () => navigate('/admin/settings/basic'),
+            onClick: () => navigate('/admin/settings/appearance'),
             iconBgColor: 'bg-purple-50',
             iconColor: 'text-purple-600',
             permission: 'config:view'
@@ -152,40 +178,24 @@ export default function Dashboard() {
             icon: FileText,
             label: '内容分类',
             onClick: () => navigate('/admin/settings/categories'),
-            iconBgColor: 'bg-yellow-50',
-            iconColor: 'text-yellow-600',
-            permission: 'nav:view'
-        },
-        {
-            icon: FileUp,
-            label: '资源管理',
-            onClick: () => navigate('/admin/settings/media'),
-            iconBgColor: 'bg-pink-50',
-            iconColor: 'text-pink-600',
-            permission: 'config:view'
-        },
-        {
-            icon: Palette,
-            label: '顶部导航',
-            onClick: () => navigate('/admin/settings/topnav'),
-            iconBgColor: 'bg-indigo-50',
-            iconColor: 'text-indigo-600',
+            iconBgColor: 'bg-orange-50',
+            iconColor: 'text-orange-600',
             permission: 'nav:view'
         },
         {
             icon: Puzzle,
             label: '应用商城',
             onClick: () => navigate('/admin/plugins'),
-            iconBgColor: 'bg-cyan-50',
-            iconColor: 'text-cyan-600',
-            permission: 'plugin:view'
+            iconBgColor: 'bg-indigo-50',
+            iconColor: 'text-indigo-600',
+            permission: 'plugins:view'
         },
         {
-            icon: UserPlus,
+            icon: Users,
             label: '数据管理',
             onClick: () => navigate('/admin/settings/data'),
-            iconBgColor: 'bg-red-50',
-            iconColor: 'text-red-600',
+            iconBgColor: 'bg-pink-50',
+            iconColor: 'text-pink-600',
             permission: 'config:view'
         },
         {
@@ -205,7 +215,23 @@ export default function Dashboard() {
             permission: 'nav:view'
         },
         {
-            icon: Users,
+            icon: FileUp,
+            label: '资源管理',
+            onClick: () => navigate('/admin/settings/media'),
+            iconBgColor: 'bg-pink-50',
+            iconColor: 'text-pink-600',
+            permission: 'config:view'
+        },
+        {
+            icon: Layout,
+            label: '顶部导航',
+            onClick: () => navigate('/admin/settings/topnav'),
+            iconBgColor: 'bg-cyan-50',
+            iconColor: 'text-cyan-600',
+            permission: 'nav:view'
+        },
+        {
+            icon: Activity,
             label: '链接健康',
             onClick: () => navigate('/admin/settings/health'),
             iconBgColor: 'bg-teal-50',
@@ -260,27 +286,70 @@ export default function Dashboard() {
                 />
                 <StatCard
                     icon={Eye}
-                    label="浏览量"
+                    label="总浏览量"
                     value={stats.views}
+                    subtitle={
+                        <span className="text-xs font-medium text-blue-600">
+                            今日新增: +{stats.todayViews} | 今日访客: {stats.todayUsers}
+                        </span>
+                    }
                     iconBgColor="bg-orange-50"
                     iconColor="text-orange-600"
                 />
             </div>
 
-            {/* 快捷访问 - 全宽布局 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷访问</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {filteredQuickActions.map((action, index) => (
-                        <QuickAction
-                            key={index}
-                            icon={action.icon}
-                            label={action.label}
-                            onClick={action.onClick}
-                            iconBgColor={action.iconBgColor}
-                            iconColor={action.iconColor}
-                        />
-                    ))}
+            {/* 快捷访问与热门排行 - 复合布局 [FIXED] */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                {/* 左侧：快捷访问 (占 3/4) */}
+                <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-6 h-full">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷访问</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {filteredQuickActions.map((action, index) => (
+                            <QuickAction
+                                key={index}
+                                icon={action.icon}
+                                label={action.label}
+                                onClick={action.onClick}
+                                iconBgColor={action.iconBgColor}
+                                iconColor={action.iconColor}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* 右侧：热门网址榜单 (占 1/4) */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6 h-full flex flex-col">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <TrendingUp className="w-5 h-5 mr-2 text-orange-500" />
+                        热门网址
+                    </h2>
+                    <div className="flex-1 space-y-4">
+                        {stats.topLinks.length > 0 ? (
+                            stats.topLinks.map((link, index) => (
+                                <div key={link.id} className="flex items-center group">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                        index === 1 ? 'bg-gray-100 text-gray-600' :
+                                            index === 2 ? 'bg-orange-100 text-orange-700' :
+                                                'bg-slate-50 text-slate-400'
+                                        }`}>
+                                        {index + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-gray-700 truncate group-hover:text-blue-600 transition-colors">
+                                            {link.title}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400">
+                                            点击量: {link.click_count}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400 py-6">
+                                <div className="text-xs">暂无数据</div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

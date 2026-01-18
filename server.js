@@ -32,6 +32,7 @@ import {
 } from './server/middleware/security.js';
 import { cacheMiddleware, tenantCacheMiddleware, invalidateCacheMiddleware } from './server/middleware/cache.js';
 import { Server } from 'socket.io';
+import statsService from './server/services/StatsService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -276,6 +277,20 @@ app.use(cors({
     credentials: config.cors.credentials
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// --- 网站流量统计中间件 (旁路执行，不影响主流程) ---
+app.use((req, res, next) => {
+    // 只统计页面访问 (非 API, 非静态资源)
+    const isPage = !req.path.startsWith('/api') &&
+        !req.path.startsWith('/plugin') &&
+        !req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/i);
+
+    if (isPage) {
+        // 异步记录，不 await
+        statsService.trackVisit(req.ip).catch(() => { });
+    }
+    next();
+});
 
 // Input Validation - XSS Protection
 app.use(validateInput);
@@ -568,6 +583,144 @@ app.get('/api/verify', authenticateToken, (req, res) => {
         valid: true,
         user: req.user
     });
+});
+
+// ==========================================================================
+// 统计模块 (数据驱动仪表盘)
+// ==========================================================================
+
+// 获取仪表盘汇总统计 - 仅管理员
+app.get('/api/stats/dashboard', authenticateToken, requireAdmin, (req, res) => {
+    const stats = statsService.getDashboardStats();
+    res.json(stats);
+});
+
+// 批量导入书签并持久化到数据库
+app.post('/api/bookmarks/bulk-import', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { categories } = req.body;
+        if (!categories || !Array.isArray(categories)) {
+            return res.status(400).json({ error: 'Invalid categories data' });
+        }
+
+        const stats = { categories: 0, links: 0 };
+        const db = siteConfigDAO.db;
+        const persistedCategories = [];
+        const baseTimestamp = Date.now();
+
+        console.log('[BulkImport] Starting import for', categories.length, 'categories');
+
+        db.transaction(() => {
+            for (let i = 0; i < categories.length; i++) {
+                const cat = categories[i];
+
+                // 1. 生成唯一的分类 ID（与手动添加一致的时间戳格式）
+                let categoryId = null;
+                const existingCat = db.get('SELECT id FROM categories WHERE name = ?', [cat.name]);
+                if (existingCat) {
+                    categoryId = existingCat.id;
+                } else {
+                    categoryId = String(baseTimestamp + i);
+                    db.run('INSERT INTO categories (id, name, icon) VALUES (?, ?, ?)', [categoryId, cat.name, cat.icon || 'fa-solid fa-bookmark']);
+                    stats.categories++;
+                }
+
+                if (!categoryId) continue;
+
+                const catNode = {
+                    ...cat,
+                    id: categoryId,
+                    items: []
+                };
+
+                // 2. 处理分类下的直接链接
+                if (cat.items && cat.items.length > 0) {
+                    for (let j = 0; j < cat.items.length; j++) {
+                        const item = cat.items[j];
+                        const linkId = String(baseTimestamp + i * 10000 + j);
+                        db.run(
+                            'INSERT INTO links (id, category_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, 0)',
+                            [linkId, categoryId, item.title, item.url, item.description || '', item.icon || '']
+                        );
+                        catNode.items.push({
+                            ...item,
+                            id: linkId,
+                            click_count: 0
+                        });
+                        stats.links++;
+                    }
+                }
+
+                // 3. 处理子分类 (Tabs)
+                if (cat.subCategories && cat.subCategories.length > 0) {
+                    catNode.subCategories = []; // 只在有子分类时才初始化
+                    for (let k = 0; k < cat.subCategories.length; k++) {
+                        const sub = cat.subCategories[k];
+                        let subId = null;
+                        const existingSub = db.get('SELECT id FROM sub_categories WHERE category_id = ? AND name = ?', [categoryId, sub.name]);
+                        if (existingSub) {
+                            subId = existingSub.id;
+                        } else {
+                            subId = String(baseTimestamp + i * 10000 + 5000 + k);
+                            db.run('INSERT INTO sub_categories (id, category_id, name) VALUES (?, ?, ?)', [subId, categoryId, sub.name]);
+                        }
+
+                        if (!subId) continue;
+
+                        const subNode = {
+                            ...sub,
+                            id: subId,
+                            items: []
+                        };
+
+                        // 插入子分类下的链接
+                        if (sub.items && sub.items.length > 0) {
+                            for (let m = 0; m < sub.items.length; m++) {
+                                const item = sub.items[m];
+                                const linkId = String(baseTimestamp + i * 10000 + 5000 + k * 100 + m);
+                                db.run(
+                                    'INSERT INTO links (id, category_id, sub_category_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+                                    [linkId, categoryId, subId, item.title, item.url, item.description || '', item.icon || '']
+                                );
+                                subNode.items.push({
+                                    ...item,
+                                    id: linkId,
+                                    click_count: 0
+                                });
+                                stats.links++;
+                            }
+                        }
+                        catNode.subCategories.push(subNode);
+                    }
+                }
+
+                persistedCategories.push(catNode);
+            }
+
+            db.run('UPDATE site_config SET updated_at = CURRENT_TIMESTAMP WHERE id = 1');
+        })();
+
+        console.log('[BulkImport] SUCCESS:', stats);
+
+        res.json({
+            success: true,
+            stats,
+            persistedData: persistedCategories
+        });
+    } catch (error) {
+        console.error('[BulkImport] Critical Error:', error);
+        res.status(500).json({ error: error.message || 'Failed to bulk import bookmarks' });
+    }
+});
+
+// 记录链接点击量 (埋点上报)
+app.post('/api/stats/track-click', (req, res) => {
+    const { id, isPromo } = req.body;
+    if (!id) return res.status(400).json({ error: 'ID required' });
+
+    // 异步记录
+    statsService.trackClick(id, isPromo === true).catch(() => { });
+    res.json({ success: true });
 });
 
 // 修改密码接口

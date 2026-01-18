@@ -141,6 +141,14 @@ export function initConfigDB() {
             permissions TEXT NOT NULL, -- JSON string
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- 网站流量统计表 [NEW]
+        CREATE TABLE IF NOT EXISTS site_stats (
+            stat_date TEXT PRIMARY KEY,  -- 格式: YYYY-MM-DD
+            pv_count INTEGER DEFAULT 0,  -- 浏览量
+            uv_count INTEGER DEFAULT 0,  -- 独立访客数
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     console.log('[ConfigDB] Config database tables initialized successfully');

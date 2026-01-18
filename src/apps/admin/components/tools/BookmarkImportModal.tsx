@@ -78,7 +78,7 @@ export const BookmarkImportModal: React.FC<BookmarkImportModalProps> = ({
                     const res = await fetch('/api/download-icon', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ iconUrl: link.url }) // 使用网站 URL 尝试抓取
+                        body: JSON.stringify({ iconUrl: link.url })
                     });
                     if (res.ok) {
                         const data = await res.json();
@@ -96,7 +96,41 @@ export const BookmarkImportModal: React.FC<BookmarkImportModalProps> = ({
             }
         }
 
-        onImport(finalData);
+        // [CHANGED] 先异步落库并获取真实数据库 ID，完成后再同步到 JSON，确保“显示即正式”
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch('/api/bookmarks/bulk-import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ categories: finalData })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                console.log('Backend bulk sync successful:', result.stats);
+
+                // [CRITICAL] 使用后端返回的带真实 ID 的数据进行前端“秒显示”同步
+                // 这样导入产生的 JSON 里存储的就是真实的数据库 ID
+                if (result.persistedData) {
+                    onImport(result.persistedData);
+                } else {
+                    onImport(finalData); // 回退方案
+                }
+            } else {
+                const err = await res.json();
+                setError(`导入失败: ${err.error || '未知错误'}`);
+                // 如果后端失败，我们至少保持前端能导入预览（旧逻辑）
+                onImport(finalData);
+            }
+        } catch (err) {
+            console.error('Backend bulk sync failed:', err);
+            setError('网络请求失败');
+            onImport(finalData);
+        }
+
         setImportProgress(null);
         onClose();
     };

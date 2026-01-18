@@ -117,6 +117,91 @@ export class SiteConfigDAO {
     }
 
     /**
+     * 将数据库中的分类和链接同步回 JSON 配置中
+     * 解决 SQL 数据变更后首页不显示的问题
+     */
+    async refreshCategoriesFromDB() {
+        try {
+            const config = await this.getConfig();
+            if (!config) return false;
+
+            // 1. 获取所有分类
+            const categories = this.db.all('SELECT * FROM categories ORDER BY sort_order ASC, id ASC');
+
+            const fullCategories = [];
+
+            for (const cat of categories) {
+                const categoryNode = {
+                    id: String(cat.id),
+                    name: cat.name,
+                    icon: cat.icon,
+                    hidden: cat.hidden ? true : false,
+                    sort_order: cat.sort_order,
+                    items: [],
+                    subCategories: []
+                };
+
+                // 2. 获取该分类下的直属链接 (sub_category_id 为空)
+                const items = this.db.all(
+                    'SELECT * FROM links WHERE category_id = ? AND (sub_category_id IS NULL OR sub_category_id = "") ORDER BY sort_order ASC, id ASC',
+                    [cat.id]
+                );
+                categoryNode.items = items.map(item => ({
+                    id: String(item.id),
+                    title: item.title,
+                    url: item.url,
+                    description: item.description,
+                    icon: item.icon,
+                    color: item.color,
+                    click_count: item.click_count || 0
+                }));
+
+                // 3. 获取该分类下的子分类
+                const subCats = this.db.all(
+                    'SELECT * FROM sub_categories WHERE category_id = ? ORDER BY sort_order ASC, id ASC',
+                    [cat.id]
+                );
+
+                for (const sub of subCats) {
+                    const subNode = {
+                        id: String(sub.id),
+                        name: sub.name,
+                        icon: sub.icon,
+                        sort_order: sub.sort_order,
+                        items: []
+                    };
+
+                    // 4. 获取子分类下的链接
+                    const subItems = this.db.all(
+                        'SELECT * FROM links WHERE sub_category_id = ? ORDER BY sort_order ASC, id ASC',
+                        [sub.id]
+                    );
+                    subNode.items = subItems.map(item => ({
+                        id: String(item.id),
+                        title: item.title,
+                        url: item.url,
+                        description: item.description,
+                        icon: item.icon,
+                        color: item.color,
+                        click_count: item.click_count || 0
+                    }));
+
+                    categoryNode.subCategories.push(subNode);
+                }
+
+                fullCategories.push(categoryNode);
+            }
+
+            // 更新 JSON 配置中的 categories 字段
+            config.categories = fullCategories;
+            return await this.save(config);
+        } catch (error) {
+            console.error('[SiteConfigDAO] 同步分类失败:', error);
+            return false;
+        }
+    }
+
+    /**
      * 关闭数据库连接
      */
     close() {
