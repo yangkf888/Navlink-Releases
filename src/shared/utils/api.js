@@ -16,7 +16,7 @@ const getHeaders = () => {
         'Content-Type': 'application/json',
     };
     const token = localStorage.getItem('auth_token');
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined') {
         headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;

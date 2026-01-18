@@ -20,14 +20,19 @@ export async function apiCall(
     options: RequestInit = {}
 ): Promise<Response> {
     const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string>)
+    };
+
+    // 只有当 token 存在且不是 "null"/"undefined" 字符串时才添加 Header
+    if (token && token !== 'null' && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const response = await fetch(url, {
         ...options,
-        headers: {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
+        headers
     });
 
     if (!response.ok) {

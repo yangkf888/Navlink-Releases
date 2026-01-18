@@ -78,7 +78,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const init = async () => {
             // --- 1. Auth Check (Wait for verification) ---
             const token = localStorage.getItem('auth_token');
-            if (token) {
+            if (token && token !== 'null' && token !== 'undefined') {
                 try {
                     console.log('[ConfigContext] 正在验证身份...');
                     const response = await fetch('/api/verify', {
