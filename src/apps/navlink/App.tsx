@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ConfigProvider, useConfig } from '@/shared/context/ConfigContext';
+import { useLocation } from 'react-router-dom';
+import { useConfig } from '@/shared/context/ConfigContext';
 import TopNavbar from '@/shared/components/layout/TopNavbar';
 import SearchHero from './components/home/SearchHero';
 import PromoArea from './components/home/PromoArea';
@@ -13,8 +14,11 @@ import { AIChatModal } from './components/ai/AIChatModal';
 import LoginModal from './components/common/LoginModal';
 
 function AppContent() {
-    const { config, isLoaded, isAuthenticated, login, logout } = useConfig();
+    const { config, isLoaded, isAuthenticated, logout } = useConfig();
+    const location = useLocation();
+    const isPluginPath = location.pathname.startsWith('/apps/');
 
+    // UI states
     const [activeCategory, setActiveCategory] = useState<string>('');
     const [showSearchModal, setShowSearchModal] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -162,7 +166,7 @@ function AppContent() {
         background-color: var(--theme-bg);
         color: var(--theme-text);
     }
-  `;
+    `;
 
     // Loading State
     if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-500">Loading...</div>;
@@ -181,6 +185,7 @@ function AppContent() {
                 />
             )}
 
+            {/* Top Navbar */}
             <TopNavbar
                 config={config}
                 toggleSidebar={() => setMobileOpen(!mobileOpen)}
@@ -189,83 +194,76 @@ function AppContent() {
                 onLogout={logout}
                 isAuthenticated={isAuthenticated}
                 onSearchClick={() => setShowSearchModal(true)}
+                forceDarkText={isPluginPath}
             />
 
-            {/* FULL SCREEN LANDING SECTION with Dynamic Background */}
-            <div
-                className={`min-h-screen flex flex-col relative overflow-hidden pb-48 transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'}`}
-                style={heroBgStyle}
-            >
-                {/* Gradient Overlay for vertical transition */}
-                <div className={`absolute inset-0 ${hasBgImage
-                    ? ''
-                    : 'bg-gradient-to-b from-[var(--hero-bg)] via-[var(--hero-bg)] via-70% to-[var(--theme-bg)]'
-                    }`}></div>
+            {/* FULL SCREEN LANDING SECTION with Dynamic Background - Hidden on Plugin Paths */}
+            {!isPluginPath && (
+                <div
+                    className={`min-h-screen flex flex-col relative overflow-hidden pb-48 transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'}`}
+                    style={heroBgStyle}
+                >
+                    {/* Gradient Overlay for vertical transition */}
+                    <div className={`absolute inset-0 ${hasBgImage
+                        ? ''
+                        : 'bg-gradient-to-b from-[var(--hero-bg)] via-[var(--hero-bg)] via-70% to-[var(--theme-bg)]'
+                        }`}></div>
 
-                {!hasBgImage && (
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                )}
+                    {!hasBgImage && (
+                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                    )}
 
-                {/* Hero Content - Google-style Search Positioning */}
-                <div className="absolute top-[40%] left-0 right-0 transform -translate-y-1/2 z-30 px-4">
-                    <SearchHero
-                        config={config}
-                        isAuthenticated={isAuthenticated}
-                        onAIModeClick={() => setShowAIChatModal(true)}
-                    />
-                </div>
-            </div>
-
-            {/* Main Layout Wrapper - Second Screen */}
-            {/* Content starts on second screen for clean first impression */}
-            <div className="max-w-[1800px] mx-auto p-4 md:p-6 w-full relative">
-
-                <div className="flex gap-6 items-start">
-
-                    {/* Column 1: Left Sidebar (Collapsible) */}
-                    <Sidebar
-                        config={config}
-                        activeCategory={activeCategory}
-                        onScrollTo={scrollTo}
-                        mobileOpen={mobileOpen}
-                        setMobileOpen={setMobileOpen}
-                        collapsed={collapsed}
-                        toggleCollapsed={() => setCollapsed(!collapsed)}
-                        isAuthenticated={isAuthenticated}
-                    />
-
-                    {/* Column 2: Main Content Wrapper (Promo + Categories + Widgets) */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-6">
-
-                        {/* Promo Area - Spans full width of the right section */}
-                        <PromoArea />
-
-                        {/* Content Row */}
-                        <div className="flex gap-6 items-start">
-                            {/* Categories List */}
-                            <div className="flex-1 min-w-0">
-                                {(config.categories || [])
-                                    .filter(cat => isAuthenticated || !cat.hidden)
-                                    .map(cat => (
-                                        <CategorySection key={cat.id} cat={cat} />
-                                    ))}
-                            </div>
-
-                            {/* Right Widgets - Sticky */}
-                            <div className="hidden xl:block w-[280px] flex-shrink-0 sticky top-[80px]">
-                                <RightWidgets config={config} />
-                            </div>
-                        </div>
-
-                        {/* Footer moved out */}
+                    {/* Hero Content - Google-style Search Positioning */}
+                    <div className="absolute top-[40%] left-0 right-0 transform -translate-y-1/2 z-30 px-4">
+                        <SearchHero
+                            config={config}
+                            isAuthenticated={isAuthenticated}
+                            onAIModeClick={() => setShowAIChatModal(true)}
+                        />
                     </div>
                 </div>
+            )}
 
-                {/* Footer - Centered */}
-                <footer className="text-center text-gray-400 text-sm py-8 w-full">
-                    <p>{footerConfig.copyright}</p>
-                </footer>
-            </div>
+            {/* Main Layout Wrapper - Second Screen (Also hidden or adjusted on Plugin Paths) */}
+            {!isPluginPath && (
+                <div className="max-w-[1800px] mx-auto p-4 md:p-6 w-full relative">
+                    {/* ... rest of the main home layout */}
+                    <div className="flex gap-6 items-start">
+                        {/* Sidebar */}
+                        <Sidebar
+                            config={config}
+                            activeCategory={activeCategory}
+                            onScrollTo={scrollTo}
+                            mobileOpen={mobileOpen}
+                            setMobileOpen={setMobileOpen}
+                            collapsed={collapsed}
+                            toggleCollapsed={() => setCollapsed(!collapsed)}
+                            isAuthenticated={isAuthenticated}
+                        />
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-6">
+                            <PromoArea />
+                            <div className="flex gap-6 items-start">
+                                <div className="flex-1 min-w-0">
+                                    {(config.categories || [])
+                                        .filter(cat => isAuthenticated || !cat.hidden)
+                                        .map(cat => (
+                                            <CategorySection key={cat.id} cat={cat} />
+                                        ))}
+                                </div>
+                                <div className="hidden xl:block w-[280px] flex-shrink-0 sticky top-[80px]">
+                                    <RightWidgets config={config} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer className="text-center text-gray-400 text-sm py-8 w-full">
+                        <p>{footerConfig.copyright}</p>
+                    </footer>
+                </div>
+            )}
 
             {/* Back to Top Button */}
             <button
@@ -288,9 +286,6 @@ function AppContent() {
         </div>
     );
 }
-
-
-
 
 export default function App() {
     return <AppContent />;

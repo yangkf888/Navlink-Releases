@@ -4,7 +4,7 @@ import { Icon } from '../common/Icon';
 import { FloatingMenu } from './FloatingMenu';
 import { Button } from '../../../components/ui/Button';
 
-const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick, onLogout, isAuthenticated = false, onSearchClick, forceDarkText }: {
+const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick, onLogout, isAuthenticated = false, onSearchClick, forceDarkText: propForceDarkText }: {
     config: SiteConfig,
     toggleSidebar: any,
     mobileOpen: boolean,
@@ -14,6 +14,13 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
     onSearchClick: () => void,
     forceDarkText?: boolean
 }) => {
+    // 💡 FOOLPROOF LOGIC: Detect non-hero pages (like plugins) to ensure visibility
+    const isAppPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/apps/');
+    // Check if we are NOT in dark mode (where text should be white)
+    const isNotDarkMode = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') !== 'dark';
+
+    // Combine path detection with propensity for dark text
+    const forceDarkText = propForceDarkText || (isAppPath && isNotDarkMode);
     // ... (state logic remains same)
     const [hoverId, setHoverId] = useState<string | null>(null);
     const [isScrolled, setIsScrolled] = useState(false);
@@ -105,7 +112,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
         : (isDarkText
             ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             : 'text-white/80 hover:text-white hover:bg-white/10');
-    const linkColorStyle: React.CSSProperties = navMenuColor
+    const linkColorStyle: React.CSSProperties = (navMenuColor && !forceDarkText)
         ? { color: navMenuColor }
         : {};
 
