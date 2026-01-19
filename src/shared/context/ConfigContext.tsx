@@ -33,14 +33,34 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (typeof window !== 'undefined' && window.__INITIAL_CONFIG__) {
             console.log('[ConfigContext] ✅ Using server-injected config');
 
+            const injectedConfig = window.__INITIAL_CONFIG__;
+
+            // 🔑 关键修复：服务端注入的配置必须与 DEFAULT_CONFIG 深度合并
+            const mergedConfig = {
+                ...DEFAULT_CONFIG,
+                ...injectedConfig,
+                categories: Array.isArray(injectedConfig.categories) ? injectedConfig.categories : DEFAULT_CONFIG.categories,
+                promo: Array.isArray(injectedConfig.promo) ? injectedConfig.promo : DEFAULT_CONFIG.promo,
+                topNav: Array.isArray(injectedConfig.topNav) ? injectedConfig.topNav : DEFAULT_CONFIG.topNav,
+                searchEngines: Array.isArray(injectedConfig.searchEngines) ? injectedConfig.searchEngines : DEFAULT_CONFIG.searchEngines,
+                theme: { ...DEFAULT_CONFIG.theme, ...(injectedConfig.theme || {}) },
+                hero: { ...DEFAULT_CONFIG.hero, ...(injectedConfig.hero || {}) },
+                footer: { ...DEFAULT_CONFIG.footer, ...(injectedConfig.footer || {}) },
+                rightSidebar: {
+                    ...DEFAULT_CONFIG.rightSidebar,
+                    ...(injectedConfig.rightSidebar || {}),
+                    profile: { ...DEFAULT_CONFIG.rightSidebar?.profile, ...(injectedConfig.rightSidebar?.profile || {}) }
+                },
+            } as SiteConfig;
+
             // 同步到 LocalStorage（为子页面准备）
             try {
-                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(window.__INITIAL_CONFIG__));
+                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(mergedConfig));
             } catch (e) {
                 console.warn('[ConfigContext] ⚠️ Failed to cache config:', e);
             }
 
-            return window.__INITIAL_CONFIG__;
+            return mergedConfig;
         }
 
         // 优先级 2: LocalStorage（子页面直接访问）
@@ -52,7 +72,23 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     // 简单验证配置结构
                     if (parsedConfig.siteName && parsedConfig.theme) {
                         console.log('[ConfigContext] ✅ Using cached config from localStorage');
-                        return parsedConfig;
+                        // 🔑 同样需要合并，防止缓存的是旧的、不完整的结构
+                        return {
+                            ...DEFAULT_CONFIG,
+                            ...parsedConfig,
+                            categories: Array.isArray(parsedConfig.categories) ? parsedConfig.categories : DEFAULT_CONFIG.categories,
+                            promo: Array.isArray(parsedConfig.promo) ? parsedConfig.promo : DEFAULT_CONFIG.promo,
+                            topNav: Array.isArray(parsedConfig.topNav) ? parsedConfig.topNav : DEFAULT_CONFIG.topNav,
+                            searchEngines: Array.isArray(parsedConfig.searchEngines) ? parsedConfig.searchEngines : DEFAULT_CONFIG.searchEngines,
+                            theme: { ...DEFAULT_CONFIG.theme, ...(parsedConfig.theme || {}) },
+                            hero: { ...DEFAULT_CONFIG.hero, ...(parsedConfig.hero || {}) },
+                            footer: { ...DEFAULT_CONFIG.footer, ...(parsedConfig.footer || {}) },
+                            rightSidebar: {
+                                ...DEFAULT_CONFIG.rightSidebar,
+                                ...(parsedConfig.rightSidebar || {}),
+                                profile: { ...DEFAULT_CONFIG.rightSidebar?.profile, ...(parsedConfig.rightSidebar?.profile || {}) }
+                            },
+                        } as SiteConfig;
                     } else {
                         console.warn('[ConfigContext] ⚠️ Invalid cached config, will load from API');
                         localStorage.removeItem(CONFIG_STORAGE_KEY);
@@ -144,6 +180,12 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         const mergedConfig = {
                             ...DEFAULT_CONFIG,
                             ...serverData,
+                            // 确保 categories 始终是数组
+                            categories: Array.isArray(serverData.categories) ? serverData.categories : DEFAULT_CONFIG.categories,
+                            // 确保 promo 始终是数组
+                            promo: Array.isArray(serverData.promo) ? serverData.promo : DEFAULT_CONFIG.promo,
+                            // 确保 topNav 始终是数组
+                            topNav: Array.isArray(serverData.topNav) ? serverData.topNav : DEFAULT_CONFIG.topNav,
                             theme: { ...DEFAULT_CONFIG.theme, ...(serverData.theme || {}) },
                             rightSidebar: {
                                 ...DEFAULT_CONFIG.rightSidebar,

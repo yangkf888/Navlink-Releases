@@ -122,7 +122,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
         const links: LinkItem[] = [];
 
         // 1. Add Category Links (filter hidden categories if not authenticated)
-        const visibleCategories = config.categories.filter(cat => isAuthenticated || !cat.hidden);
+        const visibleCategories = (config.categories || []).filter(cat => isAuthenticated || !cat.hidden);
         visibleCategories.forEach(cat => {
             if (cat.items) links.push(...cat.items);
             if (cat.subCategories) {

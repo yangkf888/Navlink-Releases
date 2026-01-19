@@ -12,6 +12,9 @@ import { createPluginRouter, handlePluginWebSocket } from './server/core/PluginR
 import { initAuthDB } from './server/database/initAuthDB.js';
 import { initConfigDB } from './server/database/initConfigDB.js';
 import { runMigrations } from './server/database/migrationRunner.js';
+import { SiteConfigDAO } from './server/database/dao/SiteConfigDAO.js';
+import { DEFAULT_CONFIG } from './server/config/default-config.js';
+
 import { AuthService } from './server/services/AuthService.js';
 import cacheService from './server/services/CacheService.js';
 import ConfigService from './server/services/ConfigService.js';
@@ -1326,6 +1329,26 @@ app.get('*', async (req, res, next) => {
 
     // 运行数据库迁移
     runMigrations();
+
+    // 🚀 引导逻辑：如果配置为空，初始化默认配置
+    try {
+        const siteConfigDAO = new SiteConfigDAO();
+        const existingConfig = await siteConfigDAO.getConfig();
+        if (!existingConfig) {
+            serverLogger.info('Empty config detected, bootstrapping with DEFAULT_CONFIG...');
+            await siteConfigDAO.save(DEFAULT_CONFIG);
+            serverLogger.info('✓ Default config initialized successfully');
+        } else {
+            // 如果只有极少数几个 key（如只有 siteName），也认为是非法稀疏配置，尝试恢复部分关键字段
+            if (Object.keys(existingConfig).length < 5) {
+                serverLogger.warn('Sparse config detected, attempting to repair with DEFAULT_CONFIG...');
+                await siteConfigDAO.save({ ...DEFAULT_CONFIG, ...existingConfig });
+                serverLogger.info('✓ Config repaired');
+            }
+        }
+    } catch (bootstrapError) {
+        serverLogger.error('Failed to bootstrap config:', bootstrapError);
+    }
 
 
     await pluginManager.scanPlugins();

@@ -87,15 +87,16 @@ function AppContent() {
 
     // Set active category on load
     useEffect(() => {
-        if (isLoaded && config.categories.length > 0 && !activeCategory) {
-            setActiveCategory(config.categories[0].id);
+        const categories = config.categories || [];
+        if (isLoaded && categories.length > 0 && !activeCategory) {
+            setActiveCategory(categories[0].id);
         }
     }, [isLoaded, config.categories, activeCategory]);
 
     useEffect(() => {
         const handleScroll = () => {
             const offset = 150;
-            const visibleCategories = config.categories.filter(cat => isAuthenticated || !cat.hidden);
+            const visibleCategories = (config.categories || []).filter(cat => isAuthenticated || !cat.hidden);
             for (const cat of visibleCategories) {
                 const el = document.getElementById(cat.id);
                 if (el) {
@@ -137,7 +138,7 @@ function AppContent() {
         backgroundRepeat: 'no-repeat'
     } : {};
 
-    const footerConfig = config.footer;
+    const footerConfig = config.footer || { copyright: '', links: [], extraText: '' };
 
     // Resolve Navbar Color for CSS Variable
     let navBgColor = config.theme?.navbarBgColor || '#5d33f0';
@@ -243,7 +244,7 @@ function AppContent() {
                         <div className="flex gap-6 items-start">
                             {/* Categories List */}
                             <div className="flex-1 min-w-0">
-                                {config.categories
+                                {(config.categories || [])
                                     .filter(cat => isAuthenticated || !cat.hidden)
                                     .map(cat => (
                                         <CategorySection key={cat.id} cat={cat} />

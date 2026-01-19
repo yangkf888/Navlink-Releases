@@ -8,7 +8,8 @@ const { encrypt, decrypt } = require('../utils/crypto');
 exports.getGroups = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
-    return await all('SELECT * FROM groups ORDER BY sort_order ASC, created_at DESC');
+    const groups = await all('SELECT * FROM groups ORDER BY sort_order ASC, created_at DESC');
+    return groups || [];
 };
 
 exports.createGroup = async (group) => {
@@ -45,6 +46,11 @@ exports.getServers = async () => {
     const db = getDatabase();
     const { all } = promisifyDb(db);
     const servers = await all('SELECT * FROM servers ORDER BY created_at DESC');
+
+    // 防御性检查：确保返回数组
+    if (!servers || !Array.isArray(servers)) {
+        return [];
+    }
 
     return servers.map(server => {
         const { password, private_key, ...rest } = server;

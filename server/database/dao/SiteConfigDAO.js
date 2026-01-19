@@ -49,7 +49,47 @@ export class SiteConfigDAO {
             if (!row || !row.config_data) {
                 return null;
             }
-            return JSON.parse(row.config_data);
+            const config = JSON.parse(row.config_data);
+
+            // 防御性检查：确保关键数组字段存在
+            if (!Array.isArray(config.categories)) {
+                console.warn('[SiteConfigDAO] ⚠️ config.categories 不是数组，设置为空数组');
+                config.categories = [];
+            }
+            if (!Array.isArray(config.promo)) {
+                console.warn('[SiteConfigDAO] ⚠️ config.promo 不是数组，设置为空数组');
+                config.promo = [];
+            }
+            if (!Array.isArray(config.topNav)) {
+                console.warn('[SiteConfigDAO] ⚠️ config.topNav 不是数组，设置为空数组');
+                config.topNav = [];
+            }
+            if (!Array.isArray(config.searchEngines)) {
+                config.searchEngines = [];
+            }
+
+            // 防御性检查：确保关键对象字段存在并具有基本结构
+            if (!config.footer || typeof config.footer !== 'object') {
+                console.warn('[SiteConfigDAO] ⚠️ config.footer 不存在，初始化');
+                config.footer = { copyright: '', links: [], extraText: '' };
+            }
+            if (!config.hero || typeof config.hero !== 'object') {
+                config.hero = { title: '', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
+            }
+            // 🔑 增强 hero 内部属性的防御
+            config.hero.title = config.hero.title || '';
+            config.hero.subtitle = config.hero.subtitle || '';
+
+            if (!config.theme || typeof config.theme !== 'object') {
+                config.theme = { primaryColor: '#f1404b', backgroundColor: '#f1f2f3', textColor: '#444444' };
+            }
+            if (!config.rightSidebar || typeof config.rightSidebar !== 'object') {
+                config.rightSidebar = { profile: {}, hotTopics: [], githubTrending: {} };
+            }
+            // 🔑 增强 rightSidebar 内部属性的防御
+            config.rightSidebar.profile = config.rightSidebar.profile || {};
+
+            return config;
         } catch (error) {
             console.error('[SiteConfigDAO] 获取配置失败:', error);
             return null;
@@ -63,6 +103,16 @@ export class SiteConfigDAO {
      */
     async save(config) {
         try {
+            // 🛡️ 结构完整性校验：防止保存空的或非法配置导致前端崩溃
+            if (!config || typeof config !== 'object' || Object.keys(config).length < 3) {
+                console.error('[SiteConfigDAO] ❌ 尝试保存无效或过于稀疏的配置，已拦截:', config);
+                return false;
+            }
+
+            // 再次确保核心字段是数组，防止意外保存
+            if (!Array.isArray(config.categories)) config.categories = [];
+            if (!Array.isArray(config.promo)) config.promo = [];
+
             const configJson = JSON.stringify(config);
 
             // 先检查是否存在记录

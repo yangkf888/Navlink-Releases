@@ -28,6 +28,39 @@ export class ConfigService {
         if (row && row.config_data) {
             try {
                 const jsonConfig = JSON.parse(row.config_data);
+
+                // 防御性检查：确保关键数组字段存在
+                if (!Array.isArray(jsonConfig.categories)) {
+                    console.warn('[ConfigService] ⚠️ config.categories 不是数组，设置为空数组');
+                    jsonConfig.categories = [];
+                }
+                if (!Array.isArray(jsonConfig.promo)) {
+                    console.warn('[ConfigService] ⚠️ config.promo 不是数组，设置为空数组');
+                    jsonConfig.promo = [];
+                }
+                if (!Array.isArray(jsonConfig.topNav)) {
+                    console.warn('[ConfigService] ⚠️ config.topNav 不是数组，设置为空数组');
+                    jsonConfig.topNav = [];
+                }
+                if (!Array.isArray(jsonConfig.searchEngines)) {
+                    jsonConfig.searchEngines = [];
+                }
+
+                // 防御性检查：确保关键对象字段存在
+                if (!jsonConfig.footer || typeof jsonConfig.footer !== 'object') {
+                    console.warn('[ConfigService] ⚠️ config.footer 不存在，设置默认值');
+                    jsonConfig.footer = { copyright: '', links: [], extraText: '' };
+                }
+                if (!jsonConfig.hero || typeof jsonConfig.hero !== 'object') {
+                    jsonConfig.hero = { title: '', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
+                }
+                if (!jsonConfig.theme || typeof jsonConfig.theme !== 'object') {
+                    jsonConfig.theme = { primaryColor: '#f1404b', backgroundColor: '#f1f2f3', textColor: '#444444' };
+                }
+                if (!jsonConfig.rightSidebar || typeof jsonConfig.rightSidebar !== 'object') {
+                    jsonConfig.rightSidebar = { profile: {}, hotTopics: [], githubTrending: {} };
+                }
+
                 console.log('[ConfigService] ✅ 从 config_data JSON 字段读取配置');
                 return jsonConfig;
             } catch (error) {

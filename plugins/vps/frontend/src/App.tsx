@@ -142,10 +142,14 @@ function VPSAppContent() {
                 getGroups()
             ]);
 
-            setServers(serversData);
-            setGroups(groupsData);
+            // 防御性检查：确保数据是数组
+            setServers(Array.isArray(serversData) ? serversData : []);
+            setGroups(Array.isArray(groupsData) ? groupsData : []);
         } catch (err) {
             console.error('Failed to fetch data:', err);
+            // 发生错误时设置为空数组，避免组件崩溃
+            setServers([]);
+            setGroups([]);
         }
     }, []);
 
