@@ -31,18 +31,40 @@ class StatsService {
                 )
             `);
 
-            // 2. 为 links 表增加 click_count
+            // 2. 为 items 表增加 click_count
             try {
-                this.db.exec('ALTER TABLE links ADD COLUMN click_count INTEGER DEFAULT 0');
+                this.db.exec('ALTER TABLE items ADD COLUMN click_count INTEGER DEFAULT 0');
             } catch (e) {
                 // 字段可能已存在
             }
 
-            // 3. 为 promo_items 表增加 click_count
             try {
                 this.db.exec('ALTER TABLE promo_items ADD COLUMN click_count INTEGER DEFAULT 0');
             } catch (e) {
                 // 字段可能已存在
+            }
+
+            // 4. [NEW] 为老用户执行自动迁移: links -> items
+            try {
+                const hasLinksTable = this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='links'");
+                if (hasLinksTable) {
+                    console.log('[StatsService] Legacy links table detected, attempting migration...');
+
+                    // 尝试将 links 表中的点击量同步到 items 表 (按 URL 匹配)
+                    this.db.run(`
+                        UPDATE items SET click_count = (
+                            SELECT click_count FROM links WHERE links.url = items.url
+                        ) WHERE EXISTS (
+                            SELECT 1 FROM links WHERE links.url = items.url AND links.click_count > 0
+                        )
+                    `);
+
+                    // 迁移完成后，可选：重命名或保留 links 表以防万一
+                    // 这里选择保留，但不做进一步处理，让系统平稳过渡到 items
+                    console.log('[StatsService] Successfully migrated click_count from links to items');
+                }
+            } catch (e) {
+                console.warn('[StatsService] Migration skipped or failed:', e.message);
             }
 
             console.log('[StatsService] Database initialized successfully');
@@ -103,7 +125,7 @@ class StatsService {
     async trackClick(itemId, isPromo = false) {
         (async () => {
             try {
-                const table = isPromo ? 'promo_items' : 'links';
+                const table = isPromo ? 'promo_items' : 'items';
                 this.db.run(`UPDATE ${table} SET click_count = click_count + 1 WHERE id = ?`, [itemId]);
                 // console.log(`[StatsService] Click tracked for ${table}/${itemId}`);
             } catch (err) {
@@ -124,9 +146,9 @@ class StatsService {
 
             // 获取点击最多的 Top 5 链接
             const topLinks = this.db.all(`
-                SELECT id, title, click_count, 'link' as type FROM links WHERE click_count > 0
+                SELECT id, name as title, click_count, 'link' as type FROM items WHERE click_count > 0
                 UNION ALL
-                SELECT id, title, click_count, 'promo' as type FROM promo_items WHERE click_count > 0
+                SELECT id, name as title, click_count, 'promo' as type FROM promo_items WHERE click_count > 0
                 ORDER BY click_count DESC LIMIT 5
             `);
 

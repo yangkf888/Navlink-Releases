@@ -191,14 +191,14 @@ export class SiteConfigDAO {
                     subCategories: []
                 };
 
-                // 2. 获取该分类下的直属链接 (sub_category_id 为空)
+                // 2. 获取该分类下的直属链接 (subcategory_id 为空)
                 const items = this.db.all(
-                    'SELECT * FROM links WHERE category_id = ? AND (sub_category_id IS NULL OR sub_category_id = "") ORDER BY sort_order ASC, id ASC',
+                    'SELECT * FROM items WHERE category_id = ? AND (subcategory_id IS NULL OR subcategory_id = "") ORDER BY sort_order ASC, id ASC',
                     [cat.id]
                 );
                 categoryNode.items = items.map(item => ({
                     id: String(item.id),
-                    title: item.title,
+                    title: item.name, // 数据库里是 name，前端需要 title
                     url: item.url,
                     description: item.description,
                     icon: item.icon,
@@ -223,12 +223,12 @@ export class SiteConfigDAO {
 
                     // 4. 获取子分类下的链接
                     const subItems = this.db.all(
-                        'SELECT * FROM links WHERE sub_category_id = ? ORDER BY sort_order ASC, id ASC',
+                        'SELECT * FROM items WHERE subcategory_id = ? ORDER BY sort_order ASC, id ASC',
                         [sub.id]
                     );
                     subNode.items = subItems.map(item => ({
                         id: String(item.id),
-                        title: item.title,
+                        title: item.name, // 数据库里是 name
                         url: item.url,
                         description: item.description,
                         icon: item.icon,

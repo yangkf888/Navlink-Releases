@@ -64,6 +64,7 @@ class MediaScanService {
      * @param {number} sourceId - 网盘源 ID
      * @param {number} maxDepth - 最大扫描深度
      * @param {string} specificPath - 可选，指定扫描的子路径
+     * @param {boolean} force - 是否强制刷新（用于完整重建索引）
      */
     async scanSource(sourceId, maxDepth = 5, specificPath = null, force = false) {
         // 🚀 防止重复扫描
@@ -107,10 +108,13 @@ class MediaScanService {
 
         const status = this.scanningStatus[sourceId];
         status.scanning = true;
-        status.mode = force ? 'full' : 'incremental'; // 🚀 新增：记录当前扫描模式
+        status.mode = force ? 'full' : 'incremental';
         status.progress = 0;
         status.total = 0;
         status.message = '正在准备扫描...';
+        status.added = 0;
+        status.deleted = 0;
+        status.skipped = 0;
 
         try {
             // 解析扫描路径
@@ -148,24 +152,68 @@ class MediaScanService {
 
             // 1. 递归查找所有包含视频的媒体文件夹
             for (const folderEntry of foldersToScan) {
-                const tmdbEnabled = folderEntry.tmdb_enabled !== false; // 默认为启用
+                const tmdbEnabled = folderEntry.tmdb_enabled !== false;
                 status.paths[folderEntry.path].message = '正在检索目录结构...';
                 console.log(`[MediaScan] Finding media in: ${folderEntry.path}, tmdbEnabled=${tmdbEnabled}, force=${force}`);
                 const mediaFolders = await this.findMediaFolders(client, folderEntry.path, maxDepth, 0, force);
 
-                status.paths[folderEntry.path].total = mediaFolders.length;
-                status.paths[folderEntry.path].message = `发现 ${mediaFolders.length} 个媒体文件夹，准备处理...`;
-                status.total += mediaFolders.length;
+                // 🚀 v2.1.8+ 增量同步：DIFF 对比逻辑
+                const discoveredPaths = new Set(mediaFolders.map(f => f.path));
 
-                console.log(`[MediaScan] Processing ${mediaFolders.length} folders for ${folderEntry.path}...`);
-                // 2. 处理该根路径下的所有子文件夹 (并行处理，限制并发)
-                const concurrency = DIR_SCAN_LIMIT; // 🚀 使用动态并发配置
-                for (let i = 0; i < mediaFolders.length; i += concurrency) {
-                    const chunk = mediaFolders.slice(i, i + concurrency);
+                // 查询数据库中该扫描路径下的所有记录
+                const existingRecords = db.all(
+                    'SELECT id, path FROM netdisk_media WHERE source_id = ? AND (path = ? OR path LIKE ?)',
+                    [sourceId, folderEntry.path, folderEntry.path.endsWith('/') ? `${folderEntry.path}%` : `${folderEntry.path}/%`]
+                );
+                const existingPaths = new Set(existingRecords.map(r => r.path));
+
+                // 计算 DIFF
+                const newFolders = mediaFolders.filter(f => !existingPaths.has(f.path));
+                const deletedPaths = [...existingPaths].filter(p => !discoveredPaths.has(p));
+                const unchangedCount = mediaFolders.length - newFolders.length;
+
+                console.log(`[MediaScan] Incremental sync: +${newFolders.length} new, -${deletedPaths.length} deleted, ${unchangedCount} unchanged`);
+
+                // 🛡️ 安全阈值检查：如果待删除数量超过已有数量的 50%，跳过自动删除
+                let skipAutoDelete = false;
+                if (existingRecords.length > 0 && deletedPaths.length > existingRecords.length * 0.5) {
+                    console.warn(`[MediaScan] ⚠️ Safety threshold triggered: ${deletedPaths.length}/${existingRecords.length} records would be deleted, skipping auto-cleanup`);
+                    skipAutoDelete = true;
+                    status.paths[folderEntry.path].message = `⚠️ 检测到大量删除 (${deletedPaths.length}条)，已跳过自动清理`;
+                }
+
+                // 执行删除（仅在非强制模式且未触发安全阈值时）
+                if (!force && !skipAutoDelete && deletedPaths.length > 0) {
+                    const deleteRecords = existingRecords.filter(r => deletedPaths.includes(r.path));
+                    if (deleteRecords.length > 0) {
+                        const ids = deleteRecords.map(r => r.id);
+                        const placeholders = ids.map(() => '?').join(',');
+                        db.run(`DELETE FROM netdisk_media WHERE id IN (${placeholders})`, ids);
+                        status.deleted += ids.length;
+                        console.log(`[MediaScan] Deleted ${ids.length} orphan records`);
+                    }
+                }
+
+                // 决定要处理的文件夹列表
+                const foldersToProcess = force ? mediaFolders : newFolders;
+                status.skipped += unchangedCount;
+
+                status.paths[folderEntry.path].total = foldersToProcess.length;
+                status.paths[folderEntry.path].message = force
+                    ? `发现 ${foldersToProcess.length} 个媒体文件夹，准备处理...`
+                    : `发现 ${newFolders.length} 个新增，${deletedPaths.length} 个删除，${unchangedCount} 个不变`;
+                status.total += foldersToProcess.length;
+
+                console.log(`[MediaScan] Processing ${foldersToProcess.length} folders for ${folderEntry.path}...`);
+
+                // 2. 处理文件夹 (并行处理，限制并发)
+                const concurrency = DIR_SCAN_LIMIT;
+                for (let i = 0; i < foldersToProcess.length; i += concurrency) {
+                    const chunk = foldersToProcess.slice(i, i + concurrency);
                     await Promise.all(chunk.map(async (folder, index) => {
                         const localIndex = i + index + 1;
                         status.paths[folderEntry.path].progress = localIndex;
-                        status.paths[folderEntry.path].message = `正在解析 (${localIndex}/${mediaFolders.length}): ${folder.name}`;
+                        status.paths[folderEntry.path].message = `正在解析 (${localIndex}/${foldersToProcess.length}): ${folder.name}`;
 
                         // 全局进度更新
                         status.progress++;
@@ -173,6 +221,7 @@ class MediaScanService {
 
                         try {
                             await this.processMediaFolder(client, source, folder, tmdbEnabled, force);
+                            status.added++;
                         } catch (err) {
                             console.error(`[MediaScan] Failed to process ${folder.path}:`, err.message);
                         }
@@ -182,7 +231,9 @@ class MediaScanService {
                 status.paths[folderEntry.path].message = '扫描完成';
             }
 
-            status.message = '全量扫描完成';
+            status.message = force
+                ? '全量扫描完成'
+                : `增量同步完成：新增 ${status.added}，删除 ${status.deleted}，跳过 ${status.skipped}`;
         } catch (err) {
             console.error(`[MediaScan] Error:`, err);
             status.message = `发生错误: ${err.message}`;
@@ -190,8 +241,9 @@ class MediaScanService {
             status.scanning = false;
         }
 
-        return { success: true, count: status.progress };
+        return { success: true, count: status.progress, added: status.added, deleted: status.deleted, skipped: status.skipped };
     }
+
 
     /**
      * 清理索引
@@ -563,7 +615,7 @@ class MediaScanService {
         }
 
         // 写入数据库 - 使用 UPDATE 或 INSERT 以保持已有记录的 ID 不变
-        const existingRecord = db.get('SELECT id, poster_url, tmdb_id, is_locked, video_files, probe_status, v_codec FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
+        const existingRecord = db.get('SELECT id, poster_url, tmdb_id, is_locked, video_files, probe_status, nfo_parsed, v_codec FROM netdisk_media WHERE source_id = ? AND path = ?', [source.id, folder.path]);
 
         if (existingRecord) {
             // 💡 保护逻辑 1：如果扫描出的视频列表为空，但数据库里已有视频，则保留原有视频列表（防止 404）
@@ -576,6 +628,10 @@ class MediaScanService {
             const finalPoster = (isLocked && existingRecord.poster_url) ? existingRecord.poster_url : metadata.poster_url;
             const finalFanart = (isLocked && existingRecord.fanart_url) ? existingRecord.fanart_url : metadata.fanart_url;
             const finalTmdbId = (isLocked && existingRecord.tmdb_id) ? existingRecord.tmdb_id : metadata.tmdb_id;
+
+            // 🚀 v2.1.8+ 保护逻辑 3：非强制模式下保留原有的探测和解析状态
+            const finalProbeStatus = force ? (metadata.probe_status || 0) : (existingRecord.probe_status || 0);
+            const finalNfoParsed = force ? (metadata.nfo_parsed || 0) : (existingRecord.nfo_parsed || 0);
 
             // 已存在，使用 UPDATE 保持 ID 不变
             db.run(`
@@ -591,15 +647,16 @@ class MediaScanService {
             `, [
                 metadata.title, metadata.original_title || null, metadata.year,
                 metadata.overview, finalPoster, finalFanart, metadata.rating, metadata.genres || null,
-                metadata.media_type, finalTmdbId, JSON.stringify(finalVideoFiles), metadata.nfo_parsed,
+                metadata.media_type, finalTmdbId, JSON.stringify(finalVideoFiles), finalNfoParsed,
                 metadata.director, metadata.actor, metadata.area, metadata.tagline, metadata.studio,
                 metadata.extra_metadata ? JSON.stringify(metadata.extra_metadata) : null,
                 metadata.v_codec || null, metadata.a_codec || null, metadata.duration || 0,
-                metadata.container || null, metadata.probe_status || 0,
+                metadata.container || null, finalProbeStatus,
                 metadata.series || null, metadata.tags || null,
                 existingRecord.id
             ]);
         } else {
+
             // 不存在，使用 INSERT (scanned_at 和 created_at 默认 datetime('now'))
             db.run(`
                 INSERT INTO netdisk_media 

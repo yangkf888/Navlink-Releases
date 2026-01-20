@@ -196,19 +196,19 @@ export class ConfigService {
             if (subCategories.length > 0) {
                 item.subCategories = [];
                 for (const subCat of subCategories) {
-                    const links = await this.queryAll(
-                        'SELECT * FROM links WHERE category_id = ? AND sub_category_id = ? ORDER BY sort_order',
+                    const items = await this.queryAll(
+                        'SELECT * FROM items WHERE category_id = ? AND subcategory_id = ? ORDER BY sort_order',
                         [cat.id, subCat.id]
                     );
                     item.subCategories.push({
                         name: subCat.name,
                         color: subCat.color,
-                        items: links.map(this.formatLink)
+                        items: items.map(this.formatLink)
                     });
                 }
             } else {
-                const links = await this.queryAll(
-                    'SELECT * FROM links WHERE category_id = ? AND sub_category_id IS NULL ORDER BY sort_order',
+                const items = await this.queryAll(
+                    'SELECT * FROM items WHERE category_id = ? AND subcategory_id IS NULL ORDER BY sort_order',
                     [cat.id]
                 );
                 item.items = links.map(this.formatLink);

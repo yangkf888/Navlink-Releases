@@ -242,7 +242,12 @@ export default function SystemUpdate() {
     // 执行升级
     const performUpgrade = async () => {
         try {
+            // 立即关闭确认框
+            setConfirmUpgrade(false);
+
             setLoading(prev => ({ ...prev, upgrade: true }));
+
+            // 立即设置一个初始状态，防止对话框闪团
             setUpgradeStatus({
                 inProgress: true,
                 stage: 'init',
@@ -250,6 +255,12 @@ export default function SystemUpdate() {
                 message: '正在初始化升级...',
                 startedAt: new Date().toISOString(),
                 error: null
+            });
+
+            // 显示发送指令的状态
+            setAlertMessage({
+                title: '系统升级中',
+                message: '指令已发送，正在初始化升级环境...'
             });
 
             const response = await fetch('/api/system/upgrade', {
@@ -263,18 +274,18 @@ export default function SystemUpdate() {
             if (data.success) {
                 const expectedVersion = data.newVersion;
 
-                // 🔑 改进：显示正在重启的提示
+                // 更新状态信息
                 setAlertMessage({
-                    title: '升级指令已发送',
-                    message: data.note || '容器正在重启中，请等待验证...'
+                    title: '系统升级中',
+                    message: data.note || '容器正在重启中，系统将短暂不可用，请等待验证...'
                 });
 
-                // 🔑 新增：等待容器重启后验证版本
+                // 进入重启和验证阶段
                 setUpgradeStatus(prev => prev ? {
                     ...prev,
                     stage: 'restarting',
                     progress: 92,
-                    message: '容器正在重启，等待服务恢复...'
+                    message: '容器正在重启，服务将在数秒后恢复...'
                 } : null);
 
                 // 等待 30 秒让容器重启
@@ -333,7 +344,6 @@ export default function SystemUpdate() {
             });
         } finally {
             setLoading(prev => ({ ...prev, upgrade: false }));
-            setConfirmUpgrade(false);
         }
     };
 
@@ -417,7 +427,9 @@ export default function SystemUpdate() {
             {/* 页面标题 */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">系统升级</h1>
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold text-gray-900">系统升级</h1>
+                    </div>
                     <p className="text-gray-500 mt-1">在线检查并升级 NavLink 到最新版本</p>
                 </div>
                 <Button
@@ -616,7 +628,7 @@ export default function SystemUpdate() {
             </div>
 
             {/* 升级进度 */}
-            {upgradeStatus?.inProgress && (
+            {upgradeStatus?.inProgress && !alertMessage && (
                 <div className="bg-white rounded-xl border border-blue-200 p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Cpu className="text-blue-500" size={20} />
@@ -682,16 +694,18 @@ export default function SystemUpdate() {
                 )}
             </div>
 
-            {/* 确认升级对话框 */}
-            <ConfirmDialog
-                isOpen={confirmUpgrade}
-                title="确认升级"
-                message="升级过程中系统将短暂不可用。升级前会自动备份数据库，请确认是否继续？"
-                confirmText="确认升级"
-                confirmVariant="primary"
-                onConfirm={performUpgrade}
-                onCancel={() => setConfirmUpgrade(false)}
-            />
+            {/* 确认升级对话框 - 只有在没有进行升级且没有显示警报时才渲染 */}
+            {!upgradeStatus?.inProgress && !alertMessage && (
+                <ConfirmDialog
+                    isOpen={confirmUpgrade}
+                    title="确认升级"
+                    message="升级过程中系统将短暂不可用。升级前会自动备份数据库，请确认是否续？"
+                    confirmText="确认升级"
+                    confirmVariant="primary"
+                    onConfirm={performUpgrade}
+                    onCancel={() => setConfirmUpgrade(false)}
+                />
+            )}
 
             {/* 确认删除备份对话框 */}
             <ConfirmDialog
@@ -709,15 +723,32 @@ export default function SystemUpdate() {
                 onCancel={() => setBackupToDelete(null)}
             />
 
-            {/* 提示对话框 */}
-            {alertMessage && (
+            {/* 提示对话框 - 核心：只要在升级中，或者有提示消息，就显示弹窗 */}
+            {(alertMessage || (upgradeStatus?.inProgress && upgradeStatus.progress < 100)) && (
                 <AlertDialog
-                    isOpen={!!alertMessage}
-                    title={alertMessage.title}
-                    message={alertMessage.message}
-                    variant={alertMessage.title.includes('失败') ? 'error' : 'success'}
-                    onClose={() => setAlertMessage(null)}
-                />
+                    isOpen={true}
+                    title={alertMessage?.title || (upgradeStatus?.inProgress ? '系统升级中' : '操作提示')}
+                    message={alertMessage?.message || (upgradeStatus?.message || '正在处理程序，请稍候...')}
+                    variant={
+                        (alertMessage?.title || '').includes('失败') ? 'error' :
+                            (alertMessage?.title || '').includes('中') ? 'info' : 'success'
+                    }
+                    showButton={!upgradeStatus?.inProgress || upgradeStatus?.stage === 'completed' || !!upgradeStatus?.error}
+                    onClose={() => {
+                        setAlertMessage(null);
+                        setConfirmUpgrade(false); // 关闭状态通知时，确保确认框也关闭
+                    }}
+                >
+                    {upgradeStatus?.inProgress && upgradeStatus.progress < 100 && (
+                        <div className="space-y-3 mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="text-gray-500 font-medium">{upgradeStatus.message}</span>
+                                <span className="text-blue-600 font-bold">{upgradeStatus.progress}%</span>
+                            </div>
+                            {renderProgressBar(upgradeStatus.progress)}
+                        </div>
+                    )}
+                </AlertDialog>
             )}
         </div>
     );

@@ -7,7 +7,9 @@ interface AlertDialogProps {
     message: string;
     variant?: 'success' | 'error' | 'info' | 'warning';
     buttonText?: string;
+    showButton?: boolean;
     onClose: () => void;
+    children?: React.ReactNode;
 }
 
 export const AlertDialog: React.FC<AlertDialogProps> = ({
@@ -16,12 +18,14 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
     message,
     variant = 'info',
     buttonText = '确定',
-    onClose
+    showButton = true,
+    onClose,
+    children
 }) => {
     if (!isOpen) return null;
 
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && showButton) {
             onClose();
         }
     };
@@ -57,14 +61,21 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
 
     return (
         <div
-            className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-fade-in"
-            onClick={handleBackdropClick}
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-fade-in pointer-events-auto"
         >
-            {/* 背景遮罩 */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-            {/* 对话框 */}
-            <div className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+            {/* 背景遮罩 - 增加暗度并确保覆盖 */}
+            <div
+                className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (showButton) onClose();
+                }}
+            />
+            {/* 对话框 - 确保其本身不透传点击 */}
+            <div
+                className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* 标题 */}
                 <div className="flex items-start gap-3 mb-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${config.bgColor} ${config.textColor}`}>
@@ -76,19 +87,28 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
                 </div>
 
                 {/* 消息内容 */}
-                <p className="text-gray-600 mb-6 whitespace-pre-line leading-relaxed pl-13">
-                    {message}
-                </p>
+                <div className="pl-13 pr-4 overflow-visible">
+                    <p className="text-gray-600 whitespace-pre-line leading-relaxed mb-1">
+                        {message}
+                    </p>
+                    {children && (
+                        <div className="mt-4 block clear-both">
+                            {children}
+                        </div>
+                    )}
+                </div>
 
                 {/* 按钮 */}
-                <div className="flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className={`px-5 py-2.5 rounded-lg transition-colors font-medium text-white ${config.buttonColor}`}
-                    >
-                        {buttonText}
-                    </button>
-                </div>
+                {showButton && (
+                    <div className="flex justify-end mt-6">
+                        <button
+                            onClick={onClose}
+                            className={`px-5 py-2.5 rounded-lg transition-colors font-medium text-white ${config.buttonColor}`}
+                        >
+                            {buttonText}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
