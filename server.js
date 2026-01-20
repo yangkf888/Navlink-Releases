@@ -1344,12 +1344,15 @@ app.get('*', async (req, res, next) => {
     try {
         const siteConfigDAO = new SiteConfigDAO();
         const existingConfig = await siteConfigDAO.getConfig();
-        if (!existingConfig) {
+
+        if (existingConfig === null) {
+            // 确认为空数据且没有报错
             serverLogger.info('Empty config detected, bootstrapping with DEFAULT_CONFIG...');
             await siteConfigDAO.save(DEFAULT_CONFIG);
             serverLogger.info('✓ Default config initialized successfully');
         } else {
-            // 如果只有极少数几个 key（如只有 siteName），也认为是非法稀疏配置，尝试恢复部分关键字段
+            // 逻辑保护：即便 existingConfig 有值，但如果它太稀疏也要检查，
+            // 但因为 getConfig 已加了错误抛出，这里拿到的 existingConfig 是可信的。
             if (Object.keys(existingConfig).length < 5) {
                 serverLogger.warn('Sparse config detected, attempting to repair with DEFAULT_CONFIG...');
                 await siteConfigDAO.save({ ...DEFAULT_CONFIG, ...existingConfig });
@@ -1357,7 +1360,9 @@ app.get('*', async (req, res, next) => {
             }
         }
     } catch (bootstrapError) {
-        serverLogger.error('Failed to bootstrap config:', bootstrapError);
+        // 🚨 核心保护：如果 getConfig 报错了（比如数据库锁定），代码会走到这里
+        serverLogger.error('Failed to load config during bootstrap (possibly DB locked). Skipping bootstrap to protect existing data.');
+        // 不要在这里进行 save 操作，维持现状，等待下次加载
     }
 
 

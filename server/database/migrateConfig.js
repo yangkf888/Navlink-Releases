@@ -216,11 +216,11 @@ async function migrateSearchEngines(db, engines) {
 async function migrateTopNav(db, topNav) {
     if (!topNav || topNav.length === 0) return;
 
-    await dbRun(db, 'DELETE FROM top_nav_items');
+    await dbRun(db, 'DELETE FROM nav_items');
 
     async function insertNavItem(item, parentId, order) {
         await dbRun(db, `
-            INSERT INTO top_nav_items (id, title, url, icon, parent_id, hidden, show_on_mobile, sort_order)
+            INSERT INTO nav_items (id, title, url, icon, parent_id, hidden, show_on_mobile, sort_order)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             item.id,
@@ -252,8 +252,8 @@ async function migrateTopNav(db, topNav) {
 async function migrateCategories(db, categories) {
     if (!categories || categories.length === 0) return;
 
-    await dbRun(db, 'DELETE FROM links');
-    await dbRun(db, 'DELETE FROM sub_categories');
+    await dbRun(db, 'DELETE FROM items');
+    await dbRun(db, 'DELETE FROM subcategories');
     await dbRun(db, 'DELETE FROM categories');
 
     let totalLinks = 0;
@@ -272,7 +272,7 @@ async function migrateCategories(db, categories) {
                 const subCatId = `${cat.id}_sub_${subIndex}`;
 
                 await dbRun(db, `
-                    INSERT INTO sub_categories (id, category_id, name, color, sort_order)
+                    INSERT INTO subcategories (id, category_id, name, color, sort_order)
                     VALUES (?, ?, ?, ?, ?)
                 `, [subCatId, cat.id, subCat.name, subCat.color || null, subIndex]);
 
@@ -280,7 +280,7 @@ async function migrateCategories(db, categories) {
                     for (let itemIndex = 0; itemIndex < subCat.items.length; itemIndex++) {
                         const item = subCat.items[itemIndex];
                         await dbRun(db, `
-                            INSERT INTO links (id, category_id, sub_category_id, title, url, description, icon, color, sort_order)
+                            INSERT INTO items (id, category_id, subcategory_id, title, url, description, icon, color, sort_order)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         `, [item.id, cat.id, subCatId, item.title, item.url, item.description || '', item.icon || null, item.color || null, itemIndex]);
                         totalLinks++;
@@ -291,7 +291,7 @@ async function migrateCategories(db, categories) {
             for (let itemIndex = 0; itemIndex < cat.items.length; itemIndex++) {
                 const item = cat.items[itemIndex];
                 await dbRun(db, `
-                    INSERT INTO links (id, category_id, sub_category_id, title, url, description, icon, color, sort_order)
+                    INSERT INTO items (id, category_id, subcategory_id, title, url, description, icon, color, sort_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [item.id, cat.id, null, item.title, item.url, item.description || '', item.icon || null, item.color || null, itemIndex]);
                 totalLinks++;
@@ -315,7 +315,7 @@ async function migratePromo(db, promo) {
         const tab = promo[tabIndex];
 
         await dbRun(db, `
-            INSERT INTO promo_tabs (id, name, url, sort_order)
+            INSERT INTO promo_categories (id, name, url, sort_order)
             VALUES (?, ?, ?, ?)
         `, [tab.id, tab.name, tab.url || null, tabIndex]);
 
@@ -323,7 +323,7 @@ async function migratePromo(db, promo) {
             for (let itemIndex = 0; itemIndex < tab.items.length; itemIndex++) {
                 const item = tab.items[itemIndex];
                 await dbRun(db, `
-                    INSERT INTO promo_items (id, tab_id, title, url, color, icon, is_ad, sort_order)
+                    INSERT INTO promo_items (id, promo_category_id, title, url, color, icon, is_ad, sort_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `, [item.id, tab.id, item.title, item.url || null, item.color, item.icon, item.isAd ? 1 : 0, itemIndex]);
                 totalItems++;
@@ -422,9 +422,9 @@ async function migrateFooter(db, footer) {
 // 验证迁移
 async function validateMigration(db, originalConfig) {
     const categories = await dbGet(db, 'SELECT COUNT(*) as count FROM categories');
-    const links = await dbGet(db, 'SELECT COUNT(*) as count FROM links');
+    const links = await dbGet(db, 'SELECT COUNT(*) as count FROM items');
     const searchEngines = await dbGet(db, 'SELECT COUNT(*) as count FROM search_engines');
-    const promoTabs = await dbGet(db, 'SELECT COUNT(*) as count FROM promo_tabs');
+    const promoTabs = await dbGet(db, 'SELECT COUNT(*) as count FROM promo_categories');
 
     return {
         categories: categories.count,

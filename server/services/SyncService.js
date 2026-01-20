@@ -125,16 +125,17 @@ export class SyncService {
         }
 
         this.db.run(
-            `INSERT INTO items (id, category_id, subcategory_id, name, url, description, icon, click_count) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            `INSERT INTO items (id, category_id, subcategory_id, title, url, description, icon, click_count, sort_order) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
              ON CONFLICT(id) DO UPDATE SET 
                 category_id=excluded.category_id,
                 subcategory_id=excluded.subcategory_id,
-                name=excluded.name,
+                title=excluded.title,
                 url=excluded.url,
                 description=excluded.description,
-                icon=excluded.icon`,
-            [itemId, categoryId, subcategoryId, item.title, item.url, item.description || '', item.icon || '']
+                icon=excluded.icon,
+                sort_order=excluded.sort_order`,
+            [itemId, categoryId, subcategoryId, item.title, item.url, item.description || '', item.icon || '', item.sort_order || 0]
         );
     }
 
@@ -158,11 +159,11 @@ export class SyncService {
                     if (itemId === null) continue;
 
                     this.db.run(
-                        `INSERT INTO promo_items (id, promo_category_id, name, url, description, click_count)
+                        `INSERT INTO promo_items (id, promo_category_id, title, url, description, click_count)
                          VALUES (?, ?, ?, ?, ?, 0)
                          ON CONFLICT(id) DO UPDATE SET
                             promo_category_id=excluded.promo_category_id,
-                            name=excluded.name,
+                            title=excluded.title,
                             url=excluded.url,
                             description=excluded.description`,
                         [itemId, tabId, item.title, item.url || '', item.description || '']

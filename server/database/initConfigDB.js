@@ -63,6 +63,7 @@ export function initConfigDB() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             category_id INTEGER NOT NULL,
             name TEXT NOT NULL,
+            color TEXT,
             collapsed BOOLEAN DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +75,7 @@ export function initConfigDB() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             subcategory_id INTEGER,  -- 允许为空，支持归属于主分类
             category_id INTEGER,     -- 支持直接归属于主分类 [NEW]
-            name TEXT NOT NULL,
+            title TEXT NOT NULL,
             url TEXT NOT NULL,
             description TEXT,
             icon TEXT,               -- 支持图标 [NEW]
@@ -91,6 +92,7 @@ export function initConfigDB() {
             name TEXT NOT NULL,
             color TEXT DEFAULT '#3b82f6',
             icon TEXT,
+            url TEXT,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -99,9 +101,12 @@ export function initConfigDB() {
         CREATE TABLE IF NOT EXISTS promo_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             promo_category_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
+            title TEXT NOT NULL,
             url TEXT NOT NULL,
             description TEXT,
+            color TEXT,
+            icon TEXT,
+            is_ad BOOLEAN DEFAULT 0,
             click_count INTEGER DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -133,12 +138,16 @@ export function initConfigDB() {
         -- 导航项配置表
         CREATE TABLE IF NOT EXISTS nav_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
+            title TEXT NOT NULL,
             url TEXT NOT NULL,
             icon TEXT,
+            parent_id INTEGER,
             target TEXT DEFAULT '_self',
+            hidden BOOLEAN DEFAULT 0,
+            show_on_mobile BOOLEAN DEFAULT 1,
             sort_order INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (parent_id) REFERENCES nav_items(id) ON DELETE CASCADE
         );
 
         -- 角色权限表（RBAC）
@@ -154,6 +163,72 @@ export function initConfigDB() {
             pv_count INTEGER DEFAULT 0,  -- 浏览量
             uv_count INTEGER DEFAULT 0,  -- 独立访客数
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Hero 配置表
+        CREATE TABLE IF NOT EXISTS hero_config (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            title TEXT DEFAULT 'Welcome',
+            subtitle TEXT,
+            background_color TEXT,
+            overlay_navbar BOOLEAN DEFAULT 0,
+            CHECK (id = 1)
+        );
+
+        -- Hero 热门链接表
+        CREATE TABLE IF NOT EXISTS hero_hot_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0
+        );
+
+        -- 页脚配置表
+        CREATE TABLE IF NOT EXISTS footer_config (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            copyright TEXT,
+            extra_text TEXT,
+            CHECK (id = 1)
+        );
+
+        -- 页脚链接表
+        CREATE TABLE IF NOT EXISTS footer_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            url TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0
+        );
+
+        -- 社交链接表
+        CREATE TABLE IF NOT EXISTS social_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            icon TEXT NOT NULL,
+            url TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0
+        );
+
+        -- 右侧栏配置表
+        CREATE TABLE IF NOT EXISTS right_sidebar_config (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            profile_logo_text TEXT DEFAULT 'io',
+            profile_avatar_url TEXT,
+            profile_title TEXT,
+            profile_description TEXT,
+            profile_custom_bg_color TEXT,
+            github_trending_title TEXT DEFAULT 'GitHub Trending',
+            github_trending_api_url TEXT,
+            github_trending_web_url TEXT,
+            CHECK (id = 1)
+        );
+
+        -- 热门话题源表
+        CREATE TABLE IF NOT EXISTS hot_topic_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            api_url TEXT,
+            web_url TEXT,
+            limit_count INTEGER DEFAULT 10,
+            sort_order INTEGER DEFAULT 0
         );
     `);
 

@@ -196,9 +196,9 @@ export const DEFAULT_CONFIG = {
         },
         profileCardBgColor: '',
         hotTopics: [
-            { id: 'ht1', name: '百度热点', apiUrl: 'https://api.vvhan.com/api/hotlist?type=baidu', webUrl: 'https://top.baidu.com/board', limit: 5 },
-            { id: 'ht2', name: '抖音热榜', apiUrl: 'https://api.vvhan.com/api/hotlist?type=douyin', webUrl: 'https://www.douyin.com/hot', limit: 5 },
-            { id: 'ht3', name: '微博热搜', apiUrl: 'https://api.vvhan.com/api/hotlist?type=weibo', webUrl: 'https://s.weibo.com/top/summary', limit: 5 }
+            { id: 'ht1', name: '百度热点', apiUrl: 'https://orz.ai/api/v1/dailynews/?platform=baidu', webUrl: 'https://top.baidu.com/board', limit: 5 },
+            { id: 'ht2', name: '抖音热榜', apiUrl: 'https://orz.ai/api/v1/dailynews/?platform=douyin', webUrl: 'https://www.douyin.com/hot', limit: 5 },
+            { id: 'ht3', name: '微博热搜', apiUrl: 'https://orz.ai/api/v1/dailynews/?platform=weibo', webUrl: 'https://s.weibo.com/top/summary', limit: 5 }
         ],
         githubTrending: {
             title: 'Github 榜单',

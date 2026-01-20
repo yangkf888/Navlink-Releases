@@ -6,11 +6,12 @@ import Database from 'better-sqlite3';
  */
 export class DatabaseWrapper {
     constructor(filename, options = {}) {
-        // 创建 better-sqlite3 数据库实例
-        this.db = new Database(filename, options);
+        // 创建 better-sqlite3 数据库实例，增加超时重试时间
+        this.db = new Database(filename, { timeout: 5000, ...options });
 
         // 启用外键约束和 WAL 模式（提升并发性能）
         this.db.pragma('journal_mode = WAL');
+        this.db.pragma('busy_timeout = 5000');
         this.db.pragma('foreign_keys = ON');
 
         console.log(`[AuthDB] Database opened: ${filename}`);

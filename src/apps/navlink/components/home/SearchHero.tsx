@@ -63,7 +63,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
     const [hasUserInteracted, setHasUserInteracted] = useState(false); // 标记用户是否已开始输入
     const searchRef = useRef<HTMLDivElement>(null);
 
-    const activeEngine = config.searchEngines?.find(e => e.id === activeEngineId) || config.searchEngines?.[0];
+    const activeEngine = config.searchEngines?.find(e => e.id === activeEngineId) || (config.searchEngines && config.searchEngines[0]);
 
     // ========== 需求1: 自动聚焦 ==========
     useEffect(() => {
@@ -281,7 +281,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                         fontSize: config.theme?.heroTitleSize ? `${config.theme.heroTitleSize}px` : undefined
                     }}
                 >
-                    {config.hero.title}
+                    {config.hero?.title || 'Welcome'}
                 </h1>
                 <p
                     className="text-blue-200 mb-8 text-center"
@@ -290,7 +290,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                         fontSize: config.theme?.heroSubtitleSize ? `${config.theme.heroSubtitleSize}px` : undefined
                     }}
                 >
-                    {config.hero.subtitle}
+                    {config.hero?.subtitle}
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/80 text-[15px] font-medium">
@@ -455,7 +455,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
-                    {config.hero.hotSearchLinks?.map((link, idx) => (
+                    {config.hero?.hotSearchLinks?.map((link, idx) => (
                         <button
                             key={idx}
                             onClick={() => {

@@ -12,7 +12,13 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 });
 
 const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
-    const { profile, hotTopics, githubTrending } = config.rightSidebar;
+    // 🛡️ 防御性检查：确保 rightSidebar 及其内部对象存在，防止数据库锁定期间回退导致崩溃
+    const sidebar = config.rightSidebar || {
+        profile: { logoText: 'NL', title: 'Navlink', description: '', socials: [] },
+        hotTopics: [],
+        githubTrending: { title: 'Github 榜单', apiUrl: '', webUrl: '' }
+    };
+    const { profile, hotTopics, githubTrending } = sidebar;
 
     // Fallbacks
     const currentHotTopics = hotTopics || [];
@@ -81,7 +87,7 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
     // -------------------------------------------------------------------------
     // Profile Card Style Detection
     // -------------------------------------------------------------------------
-    const profileBg = config.rightSidebar.profileCardBgColor;
+    const profileBg = sidebar.profileCardBgColor;
     const profileContrastColor = getContrastColor(profileBg || '#a18cd1');
     const isProfileDarkBg = profileContrastColor === '#ffffff';
 
@@ -203,9 +209,9 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
                                 )}
                             </div>
 
-                            {currentHotTopics[activeHotTab] && (
+                            {hotTopics[activeHotTab] && (
                                 <a
-                                    href={currentHotTopics[activeHotTab].webUrl}
+                                    href={hotTopics[activeHotTab].webUrl}
                                     target="_blank"
                                     rel="noreferrer"
                                     className={`block text-center text-xs mt-4 pt-3 border-t hover:text-[var(--theme-primary)] transition-colors ${isDarkBg ? 'text-white/40 border-white/10' : 'text-gray-400 border-gray-50'}`}
@@ -334,5 +340,5 @@ const RightWidgets = ({ config }: { config: SiteConfig }) => {
 // Wrap with React.memo to prevent unnecessary re-renders
 export default React.memo(RightWidgets, (prevProps, nextProps) => {
     // Only re-render if rightSidebar config actually changed
-    return prevProps.config.rightSidebar === nextProps.config.rightSidebar;
+    return JSON.stringify(prevProps.config.rightSidebar) === JSON.stringify(nextProps.config.rightSidebar);
 });

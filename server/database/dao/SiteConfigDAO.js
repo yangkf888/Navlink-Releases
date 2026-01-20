@@ -44,56 +44,61 @@ export class SiteConfigDAO {
      * @returns {Object|null} 配置对象，如果不存在返回 null
      */
     async getConfig() {
-        try {
-            const row = await this.get('SELECT config_data FROM site_config WHERE id = 1');
-            if (!row || !row.config_data) {
-                return null;
-            }
-            const config = JSON.parse(row.config_data);
+        let attempts = 0;
+        const maxAttempts = 3;
 
-            // 防御性检查：确保关键数组字段存在
-            if (!Array.isArray(config.categories)) {
-                console.warn('[SiteConfigDAO] ⚠️ config.categories 不是数组，设置为空数组');
-                config.categories = [];
-            }
-            if (!Array.isArray(config.promo)) {
-                console.warn('[SiteConfigDAO] ⚠️ config.promo 不是数组，设置为空数组');
-                config.promo = [];
-            }
-            if (!Array.isArray(config.topNav)) {
-                console.warn('[SiteConfigDAO] ⚠️ config.topNav 不是数组，设置为空数组');
-                config.topNav = [];
-            }
-            if (!Array.isArray(config.searchEngines)) {
-                config.searchEngines = [];
-            }
+        while (attempts < maxAttempts) {
+            try {
+                const row = await this.get('SELECT config_data FROM site_config WHERE id = 1');
+                if (!row || !row.config_data) {
+                    return null; // 确认为空，可触发 bootstrap
+                }
 
-            // 防御性检查：确保关键对象字段存在并具有基本结构
-            if (!config.footer || typeof config.footer !== 'object') {
-                console.warn('[SiteConfigDAO] ⚠️ config.footer 不存在，初始化');
-                config.footer = { copyright: '', links: [], extraText: '' };
-            }
-            if (!config.hero || typeof config.hero !== 'object') {
-                config.hero = { title: '', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
-            }
-            // 🔑 增强 hero 内部属性的防御
-            config.hero.title = config.hero.title || '';
-            config.hero.subtitle = config.hero.subtitle || '';
+                const config = JSON.parse(row.config_data);
 
-            if (!config.theme || typeof config.theme !== 'object') {
-                config.theme = { primaryColor: '#f1404b', backgroundColor: '#f1f2f3', textColor: '#444444' };
-            }
-            if (!config.rightSidebar || typeof config.rightSidebar !== 'object') {
-                config.rightSidebar = { profile: {}, hotTopics: [], githubTrending: {} };
-            }
-            // 🔑 增强 rightSidebar 内部属性的防御
-            config.rightSidebar.profile = config.rightSidebar.profile || {};
+                // 防御性检查：确保关键数组字段存在
+                if (!Array.isArray(config.categories)) config.categories = [];
+                if (!Array.isArray(config.promo)) config.promo = [];
+                if (!Array.isArray(config.topNav)) config.topNav = [];
+                if (!Array.isArray(config.searchEngines)) config.searchEngines = [];
 
-            return config;
-        } catch (error) {
-            console.error('[SiteConfigDAO] 获取配置失败:', error);
-            return null;
+                // 防御性检查：确保关键对象字段存在并具有基本结构
+                if (!config.footer || typeof config.footer !== 'object') {
+                    config.footer = { copyright: '', links: [], extraText: '' };
+                }
+                if (!config.hero || typeof config.hero !== 'object') {
+                    config.hero = { title: 'Welcome', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
+                }
+                // 🔑 增强 hero 内部属性的防御
+                config.hero = config.hero || {};
+                config.hero.title = config.hero.title || 'Welcome';
+                config.hero.subtitle = config.hero.subtitle || '';
+                config.hero.hotSearchLinks = Array.isArray(config.hero.hotSearchLinks) ? config.hero.hotSearchLinks : [];
+
+                if (!config.theme || typeof config.theme !== 'object') {
+                    config.theme = { primaryColor: '#f1404b', backgroundColor: '#f1f2f3', textColor: '#444444' };
+                }
+                if (!config.rightSidebar || typeof config.rightSidebar !== 'object') {
+                    config.rightSidebar = { profile: { logoText: 'NL', title: 'Navlink', description: '', socials: [] }, hotTopics: [], githubTrending: {} };
+                }
+                // 🔑 增强 rightSidebar 内部属性的防御
+                config.rightSidebar.profile = config.rightSidebar.profile || { logoText: 'NL', title: 'Navlink', description: '', socials: [] };
+
+                return config;
+            } catch (error) {
+                attempts++;
+                if (error.message.includes('busy') || error.message.includes('locked')) {
+                    console.warn(`[SiteConfigDAO] 读取配置忙碌 (重试 ${attempts}/${maxAttempts}):`, error.message);
+                    if (attempts < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 300 * attempts));
+                        continue;
+                    }
+                }
+                console.error('[SiteConfigDAO] 🚨 获取配置发生严重错误:', error.message);
+                throw error; // 核心修改：如果是由于锁定导致的错误，抛出而不是返回 null，防止误触发引导逻辑
+            }
         }
+        return null;
     }
 
     /**
@@ -102,42 +107,49 @@ export class SiteConfigDAO {
      * @returns {boolean} 是否成功
      */
     async save(config) {
-        try {
-            // 🛡️ 结构完整性校验：防止保存空的或非法配置导致前端崩溃
-            if (!config || typeof config !== 'object' || Object.keys(config).length < 3) {
-                console.error('[SiteConfigDAO] ❌ 尝试保存无效或过于稀疏的配置，已拦截:', config);
-                return false;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (attempts < maxAttempts) {
+            try {
+                // 🛡️ 结构完整性校验：防止保存空的或非法配置
+                if (!config || typeof config !== 'object' || Object.keys(config).length < 3) {
+                    console.error('[SiteConfigDAO] ❌ 尝试保存无效配置，已拦截');
+                    return false;
+                }
+
+                // 再次确保核心字段是数组
+                if (!Array.isArray(config.categories)) config.categories = [];
+                if (!Array.isArray(config.promo)) config.promo = [];
+
+                const configJson = JSON.stringify(config);
+
+                // 先检查是否存在记录
+                const existing = await this.get('SELECT id FROM site_config WHERE id = 1');
+
+                if (existing) {
+                    await this.run(
+                        'UPDATE site_config SET config_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
+                        [configJson]
+                    );
+                } else {
+                    await this.run(
+                        'INSERT INTO site_config (id, config_data) VALUES (1, ?)',
+                        [configJson]
+                    );
+                }
+
+                console.log('[SiteConfigDAO] 配置保存成功');
+                return true;
+            } catch (error) {
+                attempts++;
+                console.error(`[SiteConfigDAO] 保存配置失败 (重试 ${attempts}/${maxAttempts}):`, error.message);
+                if (attempts === maxAttempts) return false;
+                // 等待一段时间后重试
+                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
             }
-
-            // 再次确保核心字段是数组，防止意外保存
-            if (!Array.isArray(config.categories)) config.categories = [];
-            if (!Array.isArray(config.promo)) config.promo = [];
-
-            const configJson = JSON.stringify(config);
-
-            // 先检查是否存在记录
-            const existing = await this.get('SELECT id FROM site_config WHERE id = 1');
-
-            if (existing) {
-                // 更新现有记录
-                await this.run(
-                    'UPDATE site_config SET config_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
-                    [configJson]
-                );
-            } else {
-                // 插入新记录
-                await this.run(
-                    'INSERT INTO site_config (id, config_data) VALUES (1, ?)',
-                    [configJson]
-                );
-            }
-
-            console.log('[SiteConfigDAO] 配置保存成功');
-            return true;
-        } catch (error) {
-            console.error('[SiteConfigDAO] 保存配置失败:', error);
-            return false;
         }
+        return false;
     }
 
     /**
@@ -198,7 +210,7 @@ export class SiteConfigDAO {
                 );
                 categoryNode.items = items.map(item => ({
                     id: String(item.id),
-                    title: item.name, // 数据库里是 name，前端需要 title
+                    title: item.title, // 统一使用 title
                     url: item.url,
                     description: item.description,
                     icon: item.icon,
@@ -208,7 +220,7 @@ export class SiteConfigDAO {
 
                 // 3. 获取该分类下的子分类
                 const subCats = this.db.all(
-                    'SELECT * FROM sub_categories WHERE category_id = ? ORDER BY sort_order ASC, id ASC',
+                    'SELECT * FROM subcategories WHERE category_id = ? ORDER BY sort_order ASC, id ASC',
                     [cat.id]
                 );
 
@@ -228,7 +240,7 @@ export class SiteConfigDAO {
                     );
                     subNode.items = subItems.map(item => ({
                         id: String(item.id),
-                        title: item.name, // 数据库里是 name
+                        title: item.title, // 统一使用 title
                         url: item.url,
                         description: item.description,
                         icon: item.icon,

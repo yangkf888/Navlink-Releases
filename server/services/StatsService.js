@@ -146,9 +146,9 @@ class StatsService {
 
             // 获取点击最多的 Top 5 链接
             const topLinks = this.db.all(`
-                SELECT id, name as title, click_count, 'link' as type FROM items WHERE click_count > 0
+                SELECT id, title, click_count, 'link' as type FROM items WHERE click_count > 0
                 UNION ALL
-                SELECT id, name as title, click_count, 'promo' as type FROM promo_items WHERE click_count > 0
+                SELECT id, title, click_count, 'promo' as type FROM promo_items WHERE click_count > 0
                 ORDER BY click_count DESC LIMIT 5
             `);
 

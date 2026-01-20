@@ -23,78 +23,41 @@ export class ConfigService {
      * 优先从 config_data JSON 字段读取（与保存逻辑一致）
      */
     async getFullConfig() {
-        // 🔑 优先从 config_data JSON 字段读取（SiteConfigDAO 保存的位置）
-        const row = await this.queryOne('SELECT config_data FROM site_config WHERE id = 1');
-        if (row && row.config_data) {
-            try {
+        try {
+            // 🎯 核心回归：100% 只信 JSON 字段，不再进行多表降级，确保内容绝对一致
+            const row = await this.queryOne('SELECT config_data FROM site_config WHERE id = 1');
+
+            if (row && row.config_data) {
                 const jsonConfig = JSON.parse(row.config_data);
 
-                // 防御性检查：确保关键数组字段存在
-                if (!Array.isArray(jsonConfig.categories)) {
-                    console.warn('[ConfigService] ⚠️ config.categories 不是数组，设置为空数组');
-                    jsonConfig.categories = [];
-                }
-                if (!Array.isArray(jsonConfig.promo)) {
-                    console.warn('[ConfigService] ⚠️ config.promo 不是数组，设置为空数组');
-                    jsonConfig.promo = [];
-                }
-                if (!Array.isArray(jsonConfig.topNav)) {
-                    console.warn('[ConfigService] ⚠️ config.topNav 不是数组，设置为空数组');
-                    jsonConfig.topNav = [];
-                }
-                if (!Array.isArray(jsonConfig.searchEngines)) {
-                    jsonConfig.searchEngines = [];
+                // 防御性：补全关键结构，防止前端崩溃，但不覆盖具体内容
+                if (!Array.isArray(jsonConfig.categories)) jsonConfig.categories = [];
+                if (!Array.isArray(jsonConfig.promo)) jsonConfig.promo = [];
+                if (!Array.isArray(jsonConfig.topNav)) jsonConfig.topNav = [];
+                if (!Array.isArray(jsonConfig.searchEngines)) jsonConfig.searchEngines = [];
+
+                if (!jsonConfig.rightSidebar) {
+                    jsonConfig.rightSidebar = {
+                        profile: { logoText: 'NL', title: 'Navlink', description: '', socials: [] },
+                        hotTopics: [],
+                        githubTrending: {}
+                    };
                 }
 
-                // 防御性检查：确保关键对象字段存在
-                if (!jsonConfig.footer || typeof jsonConfig.footer !== 'object') {
-                    console.warn('[ConfigService] ⚠️ config.footer 不存在，设置默认值');
-                    jsonConfig.footer = { copyright: '', links: [], extraText: '' };
-                }
-                if (!jsonConfig.hero || typeof jsonConfig.hero !== 'object') {
-                    jsonConfig.hero = { title: '', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
-                }
-                if (!jsonConfig.theme || typeof jsonConfig.theme !== 'object') {
-                    jsonConfig.theme = { primaryColor: '#f1404b', backgroundColor: '#f1f2f3', textColor: '#444444' };
-                }
-                if (!jsonConfig.rightSidebar || typeof jsonConfig.rightSidebar !== 'object') {
-                    jsonConfig.rightSidebar = { profile: {}, hotTopics: [], githubTrending: {} };
-                }
-
-                console.log('[ConfigService] ✅ 从 config_data JSON 字段读取配置');
+                console.log('[ConfigService] ✅ Successfully loaded canonical config from JSON');
                 return jsonConfig;
-            } catch (error) {
-                console.warn('[ConfigService] ⚠️ config_data JSON 解析失败，降级到多表读取:', error);
             }
+        } catch (error) {
+            // 如果是锁定，向上抛出触发重试/报错，绝对不要在此层降级到默认值
+            if (error.message.includes('busy') || error.message.includes('locked')) {
+                console.error('[ConfigService] ❌ Database busy/locked during JSON read.');
+                throw error;
+            }
+            console.error('[ConfigService] 🚨 Failed to load config:', error.message);
         }
 
-        // 降级方案：从多表结构读取（向后兼容旧数据）
-        console.log('[ConfigService] ℹ️ 从多表结构读取配置（降级方案）');
-        const config = {
-            logoUrl: '',
-            headerQuote: '',
-            backgroundImage: null,
-            searchShortcut: 'Cmd+K',
-            theme: await this.getTheme(),
-            hero: await this.getHero(),
-            searchEngines: await this.getSearchEngines(),
-            topNav: await this.getTopNav(),
-            promo: await this.getPromo(),
-            categories: await this.getCategories(),
-            rightSidebar: await this.getRightSidebar(),
-            footer: await this.getFooter()
-        };
-
-        // 获取基础配置
-        const basicConfig = await this.queryOne('SELECT * FROM site_config WHERE id = 1');
-        if (basicConfig) {
-            config.logoUrl = basicConfig.logo_url || '';
-            config.headerQuote = basicConfig.header_quote || '';
-            config.backgroundImage = basicConfig.background_image;
-            config.searchShortcut = basicConfig.search_shortcut || 'Cmd+K';
-        }
-
-        return config;
+        // 如果真的数据库中没有任何记录，返回 null
+        return null;
     }
 
     /**
@@ -128,10 +91,10 @@ export class ConfigService {
             title: hero?.title || 'Welcome',
             subtitle: hero?.subtitle || '',
             backgroundColor: hero?.background_color,
-            overlayNavbar: hero?.overlay_navbar === 1,
-            hotSearchLinks: hotLinks.map(link => ({
-                title: link.title,
-                url: link.url
+            overlayNavbar: Boolean(hero?.overlay_navbar),
+            hotSearchLinks: (hotLinks || []).map(link => ({
+                title: link.title || '',
+                url: link.url || ''
             }))
         };
     }
@@ -153,7 +116,7 @@ export class ConfigService {
      * 获取顶部导航
      */
     async getTopNav() {
-        const allItems = await this.queryAll('SELECT * FROM top_nav_items ORDER BY sort_order');
+        const allItems = await this.queryAll('SELECT * FROM nav_items ORDER BY sort_order');
 
         // 构建树形结构
         const buildTree = (parentId) => {
@@ -164,8 +127,8 @@ export class ConfigService {
                     title: item.title,
                     url: item.url,
                     icon: item.icon,
-                    hidden: item.hidden === 1,
-                    showOnMobile: item.show_on_mobile === 1,
+                    hidden: Boolean(item.hidden),
+                    showOnMobile: Boolean(item.show_on_mobile),
                     children: buildTree(item.id)
                 }));
         };
@@ -182,7 +145,7 @@ export class ConfigService {
         const result = [];
         for (const cat of categories) {
             const subCategories = await this.queryAll(
-                'SELECT * FROM sub_categories WHERE category_id = ? ORDER BY sort_order',
+                'SELECT * FROM subcategories WHERE category_id = ? ORDER BY sort_order',
                 [cat.id]
             );
 
@@ -211,7 +174,7 @@ export class ConfigService {
                     'SELECT * FROM items WHERE category_id = ? AND subcategory_id IS NULL ORDER BY sort_order',
                     [cat.id]
                 );
-                item.items = links.map(this.formatLink);
+                item.items = items.map(this.formatLink);
             }
 
             result.push(item);
@@ -224,12 +187,12 @@ export class ConfigService {
      * 获取推荐配置
      */
     async getPromo() {
-        const tabs = await this.queryAll('SELECT * FROM promo_tabs ORDER BY sort_order');
+        const tabs = await this.queryAll('SELECT * FROM promo_categories ORDER BY sort_order');
 
         const result = [];
         for (const tab of tabs) {
             const items = await this.queryAll(
-                'SELECT * FROM promo_items WHERE tab_id = ? ORDER BY sort_order',
+                'SELECT * FROM promo_items WHERE promo_category_id = ? ORDER BY sort_order',
                 [tab.id]
             );
             result.push({

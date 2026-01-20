@@ -71,18 +71,17 @@ class DataMigration {
         // 3. 为每个分类读取subcategories和items
         const fullCategories = [];
         for (const cat of categories) {
-            // 读取子分类
             const subcategories = await this.all(`
                 SELECT id, name, color, sort_order
-                FROM sub_categories
+                FROM subcategories
                 WHERE category_id = ?
                 ORDER BY sort_order
             `, [cat.id]);
 
             // 读取该分类的链接
             const items = await this.all(`
-                SELECT id, title, url, description, icon, color, sort_order, sub_category_id
-                FROM links
+                SELECT id, title, url, description, icon, color, sort_order, subcategory_id
+                FROM items
                 WHERE category_id = ?
                 ORDER BY sort_order
             `, [cat.id]);
@@ -105,7 +104,7 @@ class DataMigration {
                     description: item.description || '',
                     icon: item.icon || 'fa-solid fa-link',
                     color: item.color || '#000000',
-                    subcategoryId: item.sub_category_id || undefined
+                    subcategoryId: item.subcategory_id || undefined
                 }))
             };
 
@@ -135,7 +134,7 @@ class DataMigration {
 
         const promoTabs = await this.all(`
             SELECT id, name, url, sort_order
-            FROM promo_tabs
+            FROM promo_categories
             ORDER BY sort_order
         `);
 
@@ -149,7 +148,7 @@ class DataMigration {
             const items = await this.all(`
                 SELECT id, title, url, color, icon, is_ad, sort_order
                 FROM promo_items
-                WHERE tab_id = ?
+                WHERE promo_category_id = ?
                 ORDER BY sort_order
             `, [tab.id]);
 
