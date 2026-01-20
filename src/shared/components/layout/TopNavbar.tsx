@@ -174,6 +174,8 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                 <a
                                     key={link.id}
                                     href={link.url}
+                                    target={link.openInNewTab ? '_blank' : undefined}
+                                    rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
                                     className={`flex items-center gap-2 px-2 py-2 text-sm font-medium rounded-lg transition-all ${linkColorClass}`}
                                     style={linkColorStyle}
                                 >
@@ -188,6 +190,8 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                                             <a
                                                 key={sub.id}
                                                 href={sub.url}
+                                                target={sub.openInNewTab ? '_blank' : undefined}
+                                                rel={sub.openInNewTab ? 'noopener noreferrer' : undefined}
                                                 className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors text-sm"
                                             >
                                                 {sub.icon && <i className={`${sub.icon} text-gray-400 w-5 text-center`}></i>}

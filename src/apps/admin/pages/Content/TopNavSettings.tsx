@@ -110,6 +110,16 @@ export const TopNavSettings: React.FC = () => {
                                                                 />
                                                                 <Label className="!mb-0 cursor-pointer select-none" htmlFor={`nav-mobile-${item.id}`}>移动端显示</Label>
                                                             </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`nav-newtab-${item.id}`}
+                                                                    checked={item.openInNewTab === true}
+                                                                    onChange={(e) => { const n = [...config.topNav]; n[idx].openInNewTab = e.target.checked; update(c => ({ ...c, topNav: n })) }}
+                                                                    className="w-4 h-4 text-[var(--theme-primary)] rounded border-gray-300 focus:ring-[var(--theme-primary)] cursor-pointer"
+                                                                />
+                                                                <Label className="!mb-0 cursor-pointer select-none" htmlFor={`nav-newtab-${item.id}`}>新窗口打开</Label>
+                                                            </div>
                                                         </div>
 
                                                         {/* Submenu Editor */}
@@ -150,6 +160,20 @@ export const TopNavSettings: React.FC = () => {
                                                                                                 n[idx].children![cIdx].icon = e.target.value;
                                                                                                 update(c => ({ ...c, topNav: n }));
                                                                                             }} placeholder="图标" />
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                id={`subnav-newtab-${child.id}`}
+                                                                                                checked={child.openInNewTab === true}
+                                                                                                onChange={(e) => {
+                                                                                                    const n = [...config.topNav];
+                                                                                                    n[idx].children![cIdx].openInNewTab = e.target.checked;
+                                                                                                    update(c => ({ ...c, topNav: n }));
+                                                                                                }}
+                                                                                                className="w-3.5 h-3.5 text-[var(--theme-primary)] rounded border-gray-300 focus:ring-[var(--theme-primary)] cursor-pointer"
+                                                                                            />
+                                                                                            <Label className="!mb-0 cursor-pointer select-none text-xs text-gray-500" htmlFor={`subnav-newtab-${child.id}`}>新窗口</Label>
                                                                                         </div>
                                                                                         <button onClick={() => {
                                                                                             const n = [...config.topNav];
