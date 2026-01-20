@@ -125,6 +125,8 @@ const PluginLayout: React.FC = () => {
     const useDarkText = isLightColor(navBgColor);
 
 
+    const isOverlayMode = config.hero?.overlayNavbar !== false;
+
     return (
         <div className="h-screen flex flex-col bg-[var(--theme-bg)] font-sans text-[var(--theme-text)] overflow-hidden">
             {/* Search Modal */}
@@ -151,8 +153,8 @@ const PluginLayout: React.FC = () => {
                 />
             </div>
 
-            {/* 增加 pt-[64px] 补偿，仅在桌面端 Header 显示时生效 */}
-            <div className={`flex-1 flex overflow-hidden relative ${!hideHeader ? 'lg:pt-[64px]' : ''}`}>
+            {/* 增加 pt-[64px] 补偿，仅在Overlay模式(fixed定位)下生效，FixedArea模式(sticky)无需补偿 */}
+            <div className={`flex-1 flex overflow-hidden relative ${!hideHeader && isOverlayMode ? 'lg:pt-[64px]' : ''}`}>
                 {/* Main Content Area */}
                 <div className="flex-1 h-full overflow-hidden relative">
                     <Outlet />

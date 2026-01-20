@@ -58,41 +58,55 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
         navClass = 'bg-transparent';
         textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
     } else {
-        if (navColor === 'hero') {
-            if (!isOverlayMode) {
-                navBgStyle = { backgroundColor: config.hero?.backgroundColor || '#5d33f0' };
-                textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
-            } else {
-                if (isScrolled) {
-                    navBgStyle = {
-                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
-                        color: '#1f2937'
-                    };
-                    textColorClass = 'text-gray-800';
-                } else {
-                    navBgStyle = {
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                    };
-                    textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
-                }
-            }
-        } else if (navColor === 'transparent') {
+        // [FIXED LOGIC] Prioritize Plugin/App pages in "Fixed Area" mode.
+        // If we are in "Fixed Area" mode (!isOverlayMode) AND on a Plugin/App page (isAppPath),
+        // we MUST enforce theme-based colors (via CSS variables) to ensure readability and correct theming.
+        // This overrides ANY user-configured navbar color (Hero, Transparent, or Custom Hex).
+        if (!isOverlayMode && isAppPath) {
             navBgStyle = {
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                color: '#1f2937'
+                backgroundColor: 'var(--theme-bg, #ffffff)',
+                borderBottom: '1px solid var(--theme-border, #e5e7eb)',
+                color: 'var(--theme-text, #1f2937)'
             };
-            textColorClass = 'text-gray-800';
-        } else {
-            navBgStyle = { backgroundColor: navColor };
             textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+        } else {
+            // Standard Logic for Landing Page OR Overlay Mode (scrolled) OR Plugin Page in Overlay Mode
+            if (navColor === 'hero') {
+                if (!isOverlayMode) {
+                    navBgStyle = { backgroundColor: config.hero?.backgroundColor || '#5d33f0' };
+                    textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+                } else {
+                    if (isScrolled) {
+                        navBgStyle = {
+                            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+                            color: '#1f2937'
+                        };
+                        textColorClass = 'text-gray-800';
+                    } else {
+                        navBgStyle = {
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                        };
+                        textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+                    }
+                }
+            } else if (navColor === 'transparent') {
+                navBgStyle = {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    color: '#1f2937'
+                };
+                textColorClass = 'text-gray-800';
+            } else {
+                navBgStyle = { backgroundColor: navColor };
+                textColorClass = forceDarkText ? 'text-gray-800' : 'text-white';
+            }
         }
     }
 
