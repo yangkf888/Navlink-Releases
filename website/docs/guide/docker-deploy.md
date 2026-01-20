@@ -135,7 +135,7 @@ DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin123
 
 # Redis 配置 (如不使用可设为 false)
-REDIS_ENABLED=false
+REDIS_ENABLED=true
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=your_redis_password
@@ -195,7 +195,7 @@ NavLink 依然可以运行，但性能和响应速度会有轻微下降。
 | `ENCRYPTION_KEY` | `your-encryption-key` | 加密密钥 ⚠️ |
 | `DEFAULT_ADMIN_USERNAME` | `admin` | 初始管理员用户名 |
 | `DEFAULT_ADMIN_PASSWORD` | `admin123` | 初始管理员密码 ⚠️ 首次登录后修改 |
-| `REDIS_ENABLED` | `false` | 是否启用 Redis 缓存 |
+| `REDIS_ENABLED` | `true` | 是否启用 Redis 缓存 |
 | `REDIS_HOST` | `redis` | Redis 主机地址 |
 | `REDIS_PORT` | `6379` | Redis 端口 |
 | `REDIS_PASSWORD` | `your_password` | Redis 密码 (没有留空) |
@@ -217,6 +217,10 @@ NavLink 依然可以运行，但性能和响应速度会有轻微下降。
 ├── vps.db         # VPS 插件数据
 ├── sub.db         # 订阅插件数据
 ├── kbrag.db       # 知识库插件数据
+├── video.db       # 视频插件数据
+├── uploads        # 图标/图片数据
+├── cache          # video插件视频封面数据
+├── transcode      # video插件视频转码临时数据（会自动删除）
 └── backups/       # 自动备份目录
 ```
 

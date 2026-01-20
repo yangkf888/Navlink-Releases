@@ -10,8 +10,37 @@
   <div class="timeline-dot"></div>
   <div class="timeline-content">
     <div class="version-header">
-      <span class="version">v2.1.6</span>
+      <span class="version">v2.1.9</span>
       <span class="badge-latest">最新版本</span>
+    </div>
+    <div class="date">2026-01-20</div>
+    <div class="changes">
+      <div class="change-group">
+        <span class="change-type feature">✨ 新功能</span>
+        <ul>
+          <li><strong>顶部导航</strong> - 支持链接在新页面打开</li>
+        </ul>
+      </div>
+      <div class="change-group">
+        <span class="change-type improve">🔧 优化</span>
+        <ul>
+          <li><strong>系统升级</strong> - 优化升级交互体验，进度反馈更加直观</li>
+          <li><strong>数据同步</strong> - 增强数据同步服务稳定性</li>
+          <li><strong>数据管理</strong> - 优化配置导出导入功能</li>
+          <li><strong>基础组件</strong> - 增强通用组件库</li>
+          <li><strong>数据库层</strong> - 优化数据库访问层性能</li>
+          <li><strong>点击统计</strong> - 修复导入书签无法统计点击的问题</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline-item">
+  <div class="timeline-dot"></div>
+  <div class="timeline-content">
+    <div class="version-header">
+      <span class="version">v2.1.6</span>
     </div>
     <div class="date">2026-01-17</div>
     <div class="changes">
