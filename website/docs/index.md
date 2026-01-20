@@ -16,9 +16,6 @@ hero:
       text: Demo演示(demo/demo)
       link: https://demo.webxx.top
     - theme: alt
-      text: GitHub
-      link: https://github.com/txwebroot/Navlink-Releases
-    - theme: alt
       text: ✈️ Telegram交流群
       link: https://t.me/+Jim9BO22f2VkY2M9
 
