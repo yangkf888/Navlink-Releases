@@ -25,3 +25,8 @@ tmp_packages/*
 Navlink-plugins
 navmanage
 website
+deploy
+chrome-extension
+dist-plugins
+docs
+scripts

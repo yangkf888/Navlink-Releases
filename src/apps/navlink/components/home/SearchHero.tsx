@@ -274,15 +274,17 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
     return (
         <div className="w-full flex flex-col items-center justify-center px-4 animate-fade-in relative z-30">
             <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
-                <h1
-                    className="text-4xl font-bold text-white mb-2 drop-shadow-lg text-center"
-                    style={{
-                        color: config.theme?.heroTitleColor,
-                        fontSize: config.theme?.heroTitleSize ? `${config.theme.heroTitleSize}px` : undefined
-                    }}
-                >
-                    {config.hero?.title || 'Welcome'}
-                </h1>
+                {config.hero?.title && (
+                    <h1
+                        className="text-4xl font-bold text-white mb-2 drop-shadow-lg text-center"
+                        style={{
+                            color: config.theme?.heroTitleColor,
+                            fontSize: config.theme?.heroTitleSize ? `${config.theme.heroTitleSize}px` : undefined
+                        }}
+                    >
+                        {config.hero.title}
+                    </h1>
+                )}
                 <p
                     className="text-blue-200 mb-8 text-center"
                     style={{

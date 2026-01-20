@@ -198,9 +198,12 @@ function AppContent() {
             />
 
             {/* FULL SCREEN LANDING SECTION with Dynamic Background - Hidden on Plugin Paths */}
-            {!isPluginPath && (
+            {!isPluginPath && config.hero?.layoutMode !== 'minimal' && (
                 <div
-                    className={`min-h-screen flex flex-col relative overflow-hidden pb-48 transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'}`}
+                    className={`flex flex-col relative transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'} ${config.hero?.layoutMode === 'content'
+                        ? 'min-h-[420px] pt-28 pb-8 z-40 items-center justify-center'
+                        : 'min-h-screen pb-48 overflow-hidden'
+                        }`}
                     style={heroBgStyle}
                 >
                     {/* Gradient Overlay for vertical transition */}
@@ -213,20 +216,31 @@ function AppContent() {
                         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                     )}
 
-                    {/* Hero Content - Google-style Search Positioning */}
-                    <div className="absolute top-[40%] left-0 right-0 transform -translate-y-1/2 z-30 px-4">
-                        <SearchHero
-                            config={config}
-                            isAuthenticated={isAuthenticated}
-                            onAIModeClick={() => setShowAIChatModal(true)}
-                        />
-                    </div>
+                    {/* Hero Content - Different positioning for different modes */}
+                    {config.hero?.layoutMode === 'content' ? (
+                        <div className="relative z-30 px-4 w-full">
+                            <SearchHero
+                                config={config}
+                                isAuthenticated={isAuthenticated}
+                                onAIModeClick={() => setShowAIChatModal(true)}
+                            />
+                        </div>
+                    ) : (
+                        <div className="absolute left-0 right-0 transform -translate-y-1/2 z-30 px-4 top-[40%]">
+                            <SearchHero
+                                config={config}
+                                isAuthenticated={isAuthenticated}
+                                onAIModeClick={() => setShowAIChatModal(true)}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Main Layout Wrapper - Second Screen (Also hidden or adjusted on Plugin Paths) */}
             {!isPluginPath && (
-                <div className="max-w-[1800px] mx-auto p-4 md:p-6 w-full relative">
+                <div className={`max-w-[1800px] mx-auto p-4 md:p-6 w-full relative ${config.hero?.layoutMode === 'minimal' && config.hero?.overlayNavbar !== false ? 'pt-20 md:pt-24' : ''
+                    }`}>
                     {/* ... rest of the main home layout */}
                     <div className="flex gap-6 items-start">
                         {/* Sidebar */}

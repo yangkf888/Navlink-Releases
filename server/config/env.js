@@ -12,9 +12,12 @@ const envExamplePath = path.join(__dirname, '../../.env.example');
 
 if (existsSync(envPath)) {
     dotenv.config({ path: envPath });
-    console.log('✅ Environment variables loaded from .env');
+    console.log('✅ Environment variables loaded from .env file');
+} else if (process.env.NODE_ENV || process.env.PORT) {
+    // Docker or other environments where variables are injected directly
+    console.log('✅ Using injected environment variables (Docker/System)');
 } else {
-    console.warn('⚠️  .env file not found, using default values');
+    console.warn('⚠️  .env file not found and no environment variables detected');
     console.warn(`   Please copy ${envExamplePath} to ${envPath} and configure it`);
 }
 

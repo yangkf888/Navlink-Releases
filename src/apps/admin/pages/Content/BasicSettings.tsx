@@ -258,56 +258,87 @@ export const BasicSettings: React.FC = () => {
                 </h3>
 
                 <div className="space-y-8">
-                    {/* Background Selection */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                            <Label>首屏展示模式</Label>
-                            <ButtonGroup>
-                                <ToggleButton active={!isImageMode} onClick={() => update(c => ({ ...c, backgroundImage: '' }))}>
-                                    <Icon icon="fa-solid fa-fill-drip" className="mr-2" /> 纯色背景
-                                </ToggleButton>
-                                <ToggleButton active={isImageMode} onClick={() => { if (!config.backgroundImage) update(c => ({ ...c, backgroundImage: ' ' })); }}>
-                                    <Icon icon="fa-solid fa-image" className="mr-2" /> 氛围图片
-                                </ToggleButton>
-                            </ButtonGroup>
+                    {/* Layout Mode Selection */}
+                    <div className="bg-white/80 p-4 rounded-xl border border-blue-100/50">
+                        <Label className="mb-2">首页布局模式</Label>
+                        <p className="text-xs text-gray-400 mb-3">控制首屏 Hero 区域的高度和显示方式</p>
+                        <ButtonGroup>
+                            <ToggleButton
+                                active={(config.hero?.layoutMode || 'search') === 'search'}
+                                onClick={() => update(c => ({ ...c, hero: { ...c.hero, layoutMode: 'search' } }))}
+                            >
+                                <Icon icon="fa-solid fa-search" className="mr-2" /> 搜索优先
+                            </ToggleButton>
+                            <ToggleButton
+                                active={config.hero?.layoutMode === 'content'}
+                                onClick={() => update(c => ({ ...c, hero: { ...c.hero, layoutMode: 'content' } }))}
+                            >
+                                <Icon icon="fa-solid fa-th-large" className="mr-2" /> 内容优先
+                            </ToggleButton>
+                            <ToggleButton
+                                active={config.hero?.layoutMode === 'minimal'}
+                                onClick={() => update(c => ({ ...c, hero: { ...c.hero, layoutMode: 'minimal' } }))}
+                            >
+                                <Icon icon="fa-solid fa-eye-slash" className="mr-2" /> 隐藏 Hero
+                            </ToggleButton>
+                        </ButtonGroup>
+                        <p className="text-[10px] text-blue-400 mt-2 leading-relaxed">
+                            搜索优先 = 首屏仅显示搜索框 | 内容优先 = 首屏直接显示导航链接 | 隐藏 Hero = 完全不显示 Hero 区域
+                        </p>
+                    </div>
 
-                            {!isImageMode ? (
-                                <div className="animate-fade-in bg-white p-4 rounded-xl border border-blue-200/50">
-                                    <Label>首屏主基调</Label>
-                                    <div className="flex gap-4 items-center">
-                                        <Input type="color" className="flex-1 h-10 p-1 cursor-pointer" value={config.hero.backgroundColor || config.theme?.navbarBgColor} onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))} />
-                                        <span className="text-sm font-mono text-blue-600 flex-shrink-0">{config.hero.backgroundColor || config.theme?.navbarBgColor}</span>
+                    {/* Background Selection - Only show when not minimal mode */}
+                    {config.hero?.layoutMode !== 'minimal' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <Label>首屏展示模式</Label>
+                                <ButtonGroup>
+                                    <ToggleButton active={!isImageMode} onClick={() => update(c => ({ ...c, backgroundImage: '' }))}>
+                                        <Icon icon="fa-solid fa-fill-drip" className="mr-2" /> 纯色背景
+                                    </ToggleButton>
+                                    <ToggleButton active={isImageMode} onClick={() => { if (!config.backgroundImage) update(c => ({ ...c, backgroundImage: ' ' })); }}>
+                                        <Icon icon="fa-solid fa-image" className="mr-2" /> 氛围图片
+                                    </ToggleButton>
+                                </ButtonGroup>
+
+                                {!isImageMode ? (
+                                    <div className="animate-fade-in bg-white p-4 rounded-xl border border-blue-200/50">
+                                        <Label>首屏主基调</Label>
+                                        <div className="flex gap-4 items-center">
+                                            <Input type="color" className="flex-1 h-10 p-1 cursor-pointer" value={config.hero.backgroundColor || config.theme?.navbarBgColor} onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))} />
+                                            <span className="text-sm font-mono text-blue-600 flex-shrink-0">{config.hero.backgroundColor || config.theme?.navbarBgColor}</span>
+                                        </div>
+                                        <p className="text-[10px] text-blue-400 mt-2 leading-relaxed">提示：此颜色作为首屏顶部色，会自动向页面底色进行线性过渡渐变。</p>
                                     </div>
-                                    <p className="text-[10px] text-blue-400 mt-2 leading-relaxed">提示：此颜色作为首屏顶部色，会自动向页面底色进行线性过渡渐变。</p>
-                                </div>
-                            ) : (
-                                <div className="animate-fade-in bg-white p-4 rounded-xl border border-blue-200/50 space-y-4">
-                                    <div>
-                                        <Label>背景图片 URL</Label>
-                                        <Input value={config.backgroundImage?.trim() || ''} onChange={e => update(c => ({ ...c, backgroundImage: e.target.value }))} placeholder="https://..." />
+                                ) : (
+                                    <div className="animate-fade-in bg-white p-4 rounded-xl border border-blue-200/50 space-y-4">
+                                        <div>
+                                            <Label>背景图片 URL</Label>
+                                            <Input value={config.backgroundImage?.trim() || ''} onChange={e => update(c => ({ ...c, backgroundImage: e.target.value }))} placeholder="https://..." />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <label className="cursor-pointer bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2">
+                                                <Icon icon="fa-solid fa-upload" /> 上传本地
+                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            </label>
+                                            <ImagePicker onSelect={(path) => update(c => ({ ...c, backgroundImage: path }))} buttonText="从图片库选择" buttonClassName="text-xs px-4 py-2" />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <label className="cursor-pointer bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2">
-                                            <Icon icon="fa-solid fa-upload" /> 上传本地
-                                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                        </label>
-                                        <ImagePicker onSelect={(path) => update(c => ({ ...c, backgroundImage: path }))} buttonText="从图片库选择" buttonClassName="text-xs px-4 py-2" />
+                                )}
+                            </div>
+
+                            {/* Image Preview */}
+                            {isImageMode && config.backgroundImage && config.backgroundImage.length > 5 && (
+                                <div className="relative group rounded-xl overflow-hidden border border-blue-200 shadow-inner min-h-[160px]">
+                                    <img src={config.backgroundImage} alt="Hero Preview" className="w-full h-full object-cover absolute inset-0" />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-white/90 backdrop-blur rounded text-[10px] text-blue-800 font-bold border border-blue-100 shadow-lg flex items-center gap-1">
+                                        预览效果 <Icon icon="fa-solid fa-eye" />
                                     </div>
                                 </div>
                             )}
                         </div>
-
-                        {/* Image Preview */}
-                        {isImageMode && config.backgroundImage && config.backgroundImage.length > 5 && (
-                            <div className="relative group rounded-xl overflow-hidden border border-blue-200 shadow-inner min-h-[160px]">
-                                <img src={config.backgroundImage} alt="Hero Preview" className="w-full h-full object-cover absolute inset-0" />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
-                                <div className="absolute bottom-2 right-2 px-2 py-1 bg-white/90 backdrop-blur rounded text-[10px] text-blue-800 font-bold border border-blue-100 shadow-lg flex items-center gap-1">
-                                    预览效果 <Icon icon="fa-solid fa-eye" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    )}
 
                     {/* Navbar Interaction Panels */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-blue-200/50">

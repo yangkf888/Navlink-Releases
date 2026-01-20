@@ -170,6 +170,7 @@ export interface SiteConfig {
     hotSearchLinks: { title: string; url: string }[];
     backgroundColor?: string; // Specific background color for hero section
     overlayNavbar?: boolean;  // Whether hero background extends behind navbar (transparent nav)
+    layoutMode?: 'search' | 'content' | 'minimal'; // 首页布局模式
   };
   searchEngines: SearchEngine[];
   searchShortcut?: string; // Keyboard shortcut to open global search (e.g., "Cmd+K", "Ctrl+K")
