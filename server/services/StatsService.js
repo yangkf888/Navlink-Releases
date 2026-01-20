@@ -125,9 +125,17 @@ class StatsService {
     async trackClick(itemId, isPromo = false) {
         (async () => {
             try {
+                // [FIX] 强制转换为数字类型，防止 SQLite 在不同系统（如 Linux ARM Docker）下的类型转换差异
+                // 导致字符串 ID "123" 无法匹配数字 ID 123
+                // 注意：JS Number 安全整数范围为 9e15，当前时间戳 1.7e12 远未超限
+                let dbId = itemId;
+                if (typeof itemId === 'string' && /^\d+$/.test(itemId)) {
+                    dbId = parseInt(itemId, 10);
+                }
+
                 const table = isPromo ? 'promo_items' : 'items';
-                this.db.run(`UPDATE ${table} SET click_count = click_count + 1 WHERE id = ?`, [itemId]);
-                // console.log(`[StatsService] Click tracked for ${table}/${itemId}`);
+                this.db.run(`UPDATE ${table} SET click_count = click_count + 1 WHERE id = ?`, [dbId]);
+                // console.log(`[StatsService] Click tracked for ${table}/${itemId} -> ${dbId}`);
             } catch (err) {
                 console.warn('[StatsService] Error tracking click:', err.message);
             }

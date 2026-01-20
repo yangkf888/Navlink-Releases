@@ -43,15 +43,15 @@ const LinkCard: React.FC<LinkCardProps> = ({ item, isAuthenticated, onEdit, onDe
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => {
+          // 无论登录与否，都记录点击量
+          fetch('/api/stats/track-click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, isPromo: false })
+          }).catch(() => { });
+
           if (isAuthenticated) {
             e.preventDefault();
-          } else {
-            // 异步记录点击量 (不等待结果) [NEW]
-            fetch('/api/stats/track-click', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: item.id, isPromo: false })
-            }).catch(() => { });
           }
         }}
         className={`link-card flex rounded-lg p-4 h-full border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 items-start relative ${cardOpacity} ${isAuthenticated ? 'cursor-move' : 'cursor-pointer'}`}

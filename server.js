@@ -645,7 +645,7 @@ app.post('/api/bookmarks/bulk-import', authenticateToken, requireAdmin, async (r
                     const item = cat.items[j];
                     const linkId = String(baseTimestamp + i * 10000 + j);
                     db.run(
-                        'INSERT INTO items (id, category_id, name, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, 0)',
+                        'INSERT INTO items (id, category_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, 0)',
                         [linkId, categoryId, item.title, item.url, item.description || '', item.icon || '']
                     );
                     catNode.items.push({
@@ -685,7 +685,7 @@ app.post('/api/bookmarks/bulk-import', authenticateToken, requireAdmin, async (r
                             const item = sub.items[m];
                             const linkId = String(baseTimestamp + i * 10000 + 5000 + k * 100 + m);
                             db.run(
-                                'INSERT INTO items (id, category_id, subcategory_id, name, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+                                'INSERT INTO items (id, category_id, subcategory_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
                                 [linkId, categoryId, subId, item.title, item.url, item.description || '', item.icon || '']
                             );
                             subNode.items.push({
@@ -705,13 +705,10 @@ app.post('/api/bookmarks/bulk-import', authenticateToken, requireAdmin, async (r
 
         db.run('UPDATE site_config SET updated_at = CURRENT_TIMESTAMP WHERE id = 1');
 
-        // 🎉 关键异步同步：确保新增链接进入 items 统计表
-        const fullConfig = await siteConfigDAO.getConfig();
-        if (fullConfig) {
-            syncService.syncConfigToSQL(fullConfig).catch(err => {
-                console.error('[BulkImport] Background SQL sync failed:', err);
-            });
-        }
+        // 🎉 关键异步同步：确保 site_config.json 与刚刚插入的 SQL 数据保持一致
+        // 原来的逻辑错误地调用了 syncConfigToSQL (JSON -> SQL)，会导致刚插入的数据被旧 JSON 覆盖
+        // 正确的做法是调用 refreshCategoriesFromDB (SQL -> JSON)
+        await siteConfigDAO.refreshCategoriesFromDB();
 
         console.log('[BulkImport] SUCCESS:', stats);
 
