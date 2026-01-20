@@ -13,8 +13,8 @@ hero:
       text: 🚀 快速开始
       link: /guide/getting-started
     - theme: alt
-      text: 📦 Docker 部署
-      link: /guide/docker-deploy
+      text: Demo演示(demo/demo)
+      link: https://demo.webxx.top
     - theme: alt
       text: GitHub
       link: https://github.com/txwebroot/Navlink-Releases
