@@ -36,6 +36,7 @@ import {
 import { cacheMiddleware, tenantCacheMiddleware, invalidateCacheMiddleware } from './server/middleware/cache.js';
 import { Server } from 'socket.io';
 import statsService from './server/services/StatsService.js';
+import syncService from './server/services/SyncService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -545,6 +546,10 @@ app.post('/api/config', authenticateToken, requireAdmin, invalidateCacheMiddlewa
     try {
         const success = await siteConfigDAO.save(req.body);
         if (success) {
+            // 🎉 触发后台同步以更新 SQL 表（items, categories 等）
+            syncService.syncConfigToSQL(req.body).catch(err => {
+                console.error('[Sync] Background sync failed:', err);
+            });
             res.json({ success: true });
         } else {
             res.status(500).json({ error: 'Failed to save configuration' });
@@ -606,102 +611,107 @@ app.post('/api/bookmarks/bulk-import', authenticateToken, requireAdmin, async (r
             return res.status(400).json({ error: 'Invalid categories data' });
         }
 
-        const stats = { categories: 0, links: 0 };
         const db = siteConfigDAO.db;
-        const persistedCategories = [];
+        // 直接在 try 块内处理逻辑，确保等待完成
         const baseTimestamp = Date.now();
+        const persistedCategories = [];
+        const stats = { categories: 0, links: 0 };
 
-        console.log('[BulkImport] Starting import for', categories.length, 'categories');
+        for (let i = 0; i < categories.length; i++) {
+            const cat = categories[i];
 
-        db.transaction(() => {
-            for (let i = 0; i < categories.length; i++) {
-                const cat = categories[i];
-
-                // 1. 生成唯一的分类 ID（与手动添加一致的时间戳格式）
-                let categoryId = null;
-                const existingCat = db.get('SELECT id FROM categories WHERE name = ?', [cat.name]);
-                if (existingCat) {
-                    categoryId = existingCat.id;
-                } else {
-                    categoryId = String(baseTimestamp + i);
-                    db.run('INSERT INTO categories (id, name, icon) VALUES (?, ?, ?)', [categoryId, cat.name, cat.icon || 'fa-solid fa-bookmark']);
-                    stats.categories++;
-                }
-
-                if (!categoryId) continue;
-
-                const catNode = {
-                    ...cat,
-                    id: categoryId,
-                    items: []
-                };
-
-                // 2. 处理分类下的直接链接
-                if (cat.items && cat.items.length > 0) {
-                    for (let j = 0; j < cat.items.length; j++) {
-                        const item = cat.items[j];
-                        const linkId = String(baseTimestamp + i * 10000 + j);
-                        db.run(
-                            'INSERT INTO links (id, category_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, 0)',
-                            [linkId, categoryId, item.title, item.url, item.description || '', item.icon || '']
-                        );
-                        catNode.items.push({
-                            ...item,
-                            id: linkId,
-                            click_count: 0
-                        });
-                        stats.links++;
-                    }
-                }
-
-                // 3. 处理子分类 (Tabs)
-                if (cat.subCategories && cat.subCategories.length > 0) {
-                    catNode.subCategories = []; // 只在有子分类时才初始化
-                    for (let k = 0; k < cat.subCategories.length; k++) {
-                        const sub = cat.subCategories[k];
-                        let subId = null;
-                        const existingSub = db.get('SELECT id FROM sub_categories WHERE category_id = ? AND name = ?', [categoryId, sub.name]);
-                        if (existingSub) {
-                            subId = existingSub.id;
-                        } else {
-                            subId = String(baseTimestamp + i * 10000 + 5000 + k);
-                            db.run('INSERT INTO sub_categories (id, category_id, name) VALUES (?, ?, ?)', [subId, categoryId, sub.name]);
-                        }
-
-                        if (!subId) continue;
-
-                        const subNode = {
-                            ...sub,
-                            id: subId,
-                            items: []
-                        };
-
-                        // 插入子分类下的链接
-                        if (sub.items && sub.items.length > 0) {
-                            for (let m = 0; m < sub.items.length; m++) {
-                                const item = sub.items[m];
-                                const linkId = String(baseTimestamp + i * 10000 + 5000 + k * 100 + m);
-                                db.run(
-                                    'INSERT INTO links (id, category_id, sub_category_id, title, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
-                                    [linkId, categoryId, subId, item.title, item.url, item.description || '', item.icon || '']
-                                );
-                                subNode.items.push({
-                                    ...item,
-                                    id: linkId,
-                                    click_count: 0
-                                });
-                                stats.links++;
-                            }
-                        }
-                        catNode.subCategories.push(subNode);
-                    }
-                }
-
-                persistedCategories.push(catNode);
+            // 1. 生成唯一的分类 ID（与手动添加一致的时间戳格式）
+            let categoryId = null;
+            const existingCat = db.get('SELECT id FROM categories WHERE name = ?', [cat.name]);
+            if (existingCat) {
+                categoryId = existingCat.id;
+            } else {
+                categoryId = String(baseTimestamp + i);
+                db.run('INSERT INTO categories (id, name, icon) VALUES (?, ?, ?)', [categoryId, cat.name, cat.icon || 'fa-solid fa-bookmark']);
+                stats.categories++;
             }
 
-            db.run('UPDATE site_config SET updated_at = CURRENT_TIMESTAMP WHERE id = 1');
-        })();
+            if (!categoryId) continue;
+
+            const catNode = {
+                ...cat,
+                id: categoryId,
+                items: []
+            };
+
+            // 2. 处理分类下的直接链接
+            if (cat.items && cat.items.length > 0) {
+                for (let j = 0; j < cat.items.length; j++) {
+                    const item = cat.items[j];
+                    const linkId = String(baseTimestamp + i * 10000 + j);
+                    db.run(
+                        'INSERT INTO items (id, category_id, name, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, 0)',
+                        [linkId, categoryId, item.title, item.url, item.description || '', item.icon || '']
+                    );
+                    catNode.items.push({
+                        ...item,
+                        id: linkId,
+                        click_count: 0
+                    });
+                    stats.links++;
+                }
+            }
+
+            // 3. 处理子分类 (Tabs)
+            if (cat.subCategories && cat.subCategories.length > 0) {
+                catNode.subCategories = []; // 只在有子分类时才初始化
+                for (let k = 0; k < cat.subCategories.length; k++) {
+                    const sub = cat.subCategories[k];
+                    let subId = null;
+                    const existingSub = db.get('SELECT id FROM subcategories WHERE category_id = ? AND name = ?', [categoryId, sub.name]);
+                    if (existingSub) {
+                        subId = existingSub.id;
+                    } else {
+                        subId = String(baseTimestamp + i * 10000 + 5000 + k);
+                        db.run('INSERT INTO subcategories (id, category_id, name) VALUES (?, ?, ?)', [subId, categoryId, sub.name]);
+                    }
+
+                    if (!subId) continue;
+
+                    const subNode = {
+                        ...sub,
+                        id: subId,
+                        items: []
+                    };
+
+                    // 插入子分类下的链接
+                    if (sub.items && sub.items.length > 0) {
+                        for (let m = 0; m < sub.items.length; m++) {
+                            const item = sub.items[m];
+                            const linkId = String(baseTimestamp + i * 10000 + 5000 + k * 100 + m);
+                            db.run(
+                                'INSERT INTO items (id, category_id, subcategory_id, name, url, description, icon, click_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+                                [linkId, categoryId, subId, item.title, item.url, item.description || '', item.icon || '']
+                            );
+                            subNode.items.push({
+                                ...item,
+                                id: linkId,
+                                click_count: 0
+                            });
+                            stats.links++;
+                        }
+                    }
+                    catNode.subCategories.push(subNode);
+                }
+            }
+
+            persistedCategories.push(catNode);
+        }
+
+        db.run('UPDATE site_config SET updated_at = CURRENT_TIMESTAMP WHERE id = 1');
+
+        // 🎉 关键异步同步：确保新增链接进入 items 统计表
+        const fullConfig = await siteConfigDAO.getConfig();
+        if (fullConfig) {
+            syncService.syncConfigToSQL(fullConfig).catch(err => {
+                console.error('[BulkImport] Background SQL sync failed:', err);
+            });
+        }
 
         console.log('[BulkImport] SUCCESS:', stats);
 

@@ -1,6 +1,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { Icon as IconifyIcon } from '@iconify/react';
 export const Icon = ({ icon, className = '', style, onClick }) => {
+    if (!icon || typeof icon !== 'string') return null;
     // Check if the icon string is an Iconify icon (contains a colon, e.g., "mdi:home")
     // or if it explicitly starts with "iconify:" (custom convention if needed, but colon is standard)
     const isIconify = icon.includes(':');

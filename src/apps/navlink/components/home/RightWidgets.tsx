@@ -118,7 +118,7 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
                         {profile.description}
                     </p>
                     <div className="flex space-x-5 text-xl" style={{ color: profileContrastColor }}>
-                        {profile.socials.map((s, i) => (
+                        {Array.isArray(profile?.socials) && profile.socials.map((s, i) => (
                             <a key={i} href={s.url} className="hover:scale-110 transition-transform cursor-pointer opacity-80 hover:opacity-100">
                                 <Icon icon={s.icon} />
                             </a>
@@ -143,7 +143,7 @@ const RightWidgetsContent = ({ config }: { config: SiteConfig }) => {
                     return (
                         <>
                             <div className={`flex items-center gap-2 mb-4 border-b pb-2 justify-between ${isDarkBg ? 'border-white/10' : 'border-gray-50'}`}>
-                                {currentHotTopics.map((topic, idx) => (
+                                {Array.isArray(currentHotTopics) && currentHotTopics.map((topic, idx) => (
                                     <button
                                         key={topic.id}
                                         onClick={() => setActiveHotTab(idx)}

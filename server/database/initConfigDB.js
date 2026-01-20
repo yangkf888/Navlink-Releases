@@ -52,6 +52,7 @@ export function initConfigDB() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             icon TEXT,
+            hidden BOOLEAN DEFAULT 0,
             collapsed BOOLEAN DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -71,13 +72,17 @@ export function initConfigDB() {
         -- 链接项表
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subcategory_id INTEGER NOT NULL,
+            subcategory_id INTEGER,  -- 允许为空，支持归属于主分类
+            category_id INTEGER,     -- 支持直接归属于主分类 [NEW]
             name TEXT NOT NULL,
             url TEXT NOT NULL,
             description TEXT,
+            icon TEXT,               -- 支持图标 [NEW]
+            click_count INTEGER DEFAULT 0, -- 支持点击统计 [NEW]
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE
+            FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
         );
 
         -- 热门推广分类表
@@ -97,6 +102,7 @@ export function initConfigDB() {
             name TEXT NOT NULL,
             url TEXT NOT NULL,
             description TEXT,
+            click_count INTEGER DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (promo_category_id) REFERENCES promo_categories(id) ON DELETE CASCADE

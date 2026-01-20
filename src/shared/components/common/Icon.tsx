@@ -9,9 +9,11 @@ interface IconProps {
 }
 
 export const Icon: React.FC<IconProps> = ({ icon, className = '', style, onClick }) => {
+    if (!icon) return null;
+
     // Check if the icon string is an Iconify icon (contains a colon, e.g., "mdi:home")
     // or if it explicitly starts with "iconify:" (custom convention if needed, but colon is standard)
-    const isIconify = icon.includes(':');
+    const isIconify = icon && typeof icon === 'string' && icon.includes(':');
 
     if (isIconify) {
         return <IconifyIcon icon={icon} className={className} style={style} onClick={onClick} />;
