@@ -201,8 +201,8 @@ function AppContent() {
             {!isPluginPath && config.hero?.layoutMode !== 'minimal' && (
                 <div
                     className={`flex flex-col relative transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'} ${config.hero?.layoutMode === 'content'
-                        ? 'min-h-[420px] pt-28 pb-8 z-40 items-center justify-center'
-                        : 'min-h-screen pb-48 overflow-hidden'
+                        ? 'min-h-[300px] md:min-h-[420px] pt-24 md:pt-28 pb-8 z-40 items-center justify-center'
+                        : 'min-h-screen pb-48 overflow-hidden z-40'
                         }`}
                     style={heroBgStyle}
                 >
@@ -239,11 +239,11 @@ function AppContent() {
 
             {/* Main Layout Wrapper - Second Screen (Also hidden or adjusted on Plugin Paths) */}
             {!isPluginPath && (
-                <div className={`max-w-[1800px] mx-auto p-4 md:p-6 w-full relative ${config.hero?.layoutMode === 'minimal' && config.hero?.overlayNavbar !== false ? 'pt-20 md:pt-24' : ''
+                <div className={`max-w-[1800px] mx-auto p-4 md:p-6 w-full relative z-30 ${config.hero?.layoutMode === 'minimal' && config.hero?.overlayNavbar !== false ? 'pt-20 md:pt-24' : ''
                     }`}>
                     {/* ... rest of the main home layout */}
                     <div className="flex gap-6 items-start">
-                        {/* Sidebar */}
+                        {/* Sidebar (Desktop version) */}
                         <Sidebar
                             config={config}
                             activeCategory={activeCategory}
@@ -297,6 +297,20 @@ function AppContent() {
 
             {/* 登录模态框 */}
             <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+
+            {/* Sidebar (Mobile version Portals or logic inside the same component) */}
+            <div className="lg:hidden">
+                <Sidebar
+                    config={config}
+                    activeCategory={activeCategory}
+                    onScrollTo={scrollTo}
+                    mobileOpen={mobileOpen}
+                    setMobileOpen={setMobileOpen}
+                    collapsed={collapsed}
+                    toggleCollapsed={() => setCollapsed(!collapsed)}
+                    isAuthenticated={isAuthenticated}
+                />
+            </div>
         </div>
     );
 }

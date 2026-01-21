@@ -304,9 +304,19 @@ export const BasicSettings: React.FC = () => {
                                 {!isImageMode ? (
                                     <div className="animate-fade-in bg-white p-4 rounded-xl border border-blue-200/50">
                                         <Label>首屏主基调</Label>
-                                        <div className="flex gap-4 items-center">
-                                            <Input type="color" className="flex-1 h-10 p-1 cursor-pointer" value={config.hero.backgroundColor || config.theme?.navbarBgColor} onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))} />
-                                            <span className="text-sm font-mono text-blue-600 flex-shrink-0">{config.hero.backgroundColor || config.theme?.navbarBgColor}</span>
+                                        <div className="grid grid-cols-2 gap-2 items-center w-full">
+                                            <Input
+                                                type="color"
+                                                className="w-full h-10 p-0.5 cursor-pointer rounded-lg border-none bg-transparent"
+                                                value={config.hero.backgroundColor || config.theme?.navbarBgColor}
+                                                onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))}
+                                            />
+                                            <Input
+                                                className="w-full font-mono text-sm h-10"
+                                                value={config.hero.backgroundColor || config.theme?.navbarBgColor}
+                                                onChange={e => update(c => ({ ...c, hero: { ...c.hero, backgroundColor: e.target.value } }))}
+                                                placeholder="#HEX"
+                                            />
                                         </div>
                                         <p className="text-[10px] text-blue-400 mt-2 leading-relaxed">提示：此颜色作为首屏顶部色，会自动向页面底色进行线性过渡渐变。</p>
                                     </div>

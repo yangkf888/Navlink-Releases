@@ -150,7 +150,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
     return (
         <nav
             className={`
-                w-full ${isOverlayMode ? 'fixed' : 'sticky'} top-0 left-0 z-40 lg:z-50 transition-all duration-300
+                w-full ${isOverlayMode ? 'fixed' : 'sticky'} top-0 left-0 z-50 transition-all duration-300
                 ${shouldUseTransparent ? '' : 'shadow-md'}
                 ${navClass} ${textColorClass} py-3.5 px-6 md:px-10
             `}
@@ -224,7 +224,7 @@ const TopNavbar = ({ config, toggleSidebar, mobileOpen: _mobileOpen, onUserClick
                     <span className={`hidden md:block text-xs mr-4 truncate max-w-[500px] ${quoteColorClass}`} style={quoteColorStyle} title={config.headerQuote}>
                         {config.headerQuote || '对你竖大拇指的人，不一定是在夸你，也可能是用炮在瞄你。'}
                     </span>
-                    <div className={`flex items-center gap-6 pl-6 sm:border-l ${borderColorClass}`}>
+                    <div className={`flex items-center gap-3 md:gap-6 md:pl-6 md:border-l ${borderColorClass}`}>
                         <div
                             className="relative"
                             onMouseEnter={() => {

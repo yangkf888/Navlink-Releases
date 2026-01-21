@@ -88,7 +88,7 @@ export class ConfigService {
         const hotLinks = await this.queryAll('SELECT * FROM hero_hot_links ORDER BY sort_order');
 
         return {
-            title: hero?.title || 'Welcome',
+            title: hero?.title || '',
             subtitle: hero?.subtitle || '',
             backgroundColor: hero?.background_color,
             overlayNavbar: Boolean(hero?.overlay_navbar),

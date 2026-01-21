@@ -276,7 +276,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
             <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
                 {config.hero?.title && (
                     <h1
-                        className="text-4xl font-bold text-white mb-2 drop-shadow-lg text-center"
+                        className="text-2xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg text-center"
                         style={{
                             color: config.theme?.heroTitleColor,
                             fontSize: config.theme?.heroTitleSize ? `${config.theme.heroTitleSize}px` : undefined

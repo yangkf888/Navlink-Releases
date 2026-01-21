@@ -67,11 +67,11 @@ export class SiteConfigDAO {
                     config.footer = { copyright: '', links: [], extraText: '' };
                 }
                 if (!config.hero || typeof config.hero !== 'object') {
-                    config.hero = { title: 'Welcome', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
+                    config.hero = { title: '', subtitle: '', backgroundColor: '#5d33f0', hotSearchLinks: [] };
                 }
                 // 🔑 增强 hero 内部属性的防御
                 config.hero = config.hero || {};
-                config.hero.title = config.hero.title || 'Welcome';
+                config.hero.title = config.hero.title || '';
                 config.hero.subtitle = config.hero.subtitle || '';
                 config.hero.hotSearchLinks = Array.isArray(config.hero.hotSearchLinks) ? config.hero.hotSearchLinks : [];
 

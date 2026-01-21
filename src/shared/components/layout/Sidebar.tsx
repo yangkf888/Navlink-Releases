@@ -28,7 +28,7 @@ const Sidebar = ({
 `;
 
   const mobileClass = `
-    fixed inset-y-0 left-0 w-[240px] bg-white z-[70] shadow-2xl transform transition-transform duration-300 ease-in-out
+    fixed inset-y-0 left-0 w-[240px] bg-white z-[100] shadow-2xl transform transition-transform duration-300 ease-in-out
     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
 lg:hidden flex flex-col
   `;
@@ -141,7 +141,7 @@ lg:hidden flex flex-col
       <div className={mobileClass}>
         <Content isDesktop={false} />
       </div>
-      {mobileOpen && <div className="fixed inset-0 bg-black/40 z-[65] lg:hidden backdrop-blur-sm" onClick={() => setMobileOpen(false)}></div>}
+      {mobileOpen && <div className="fixed inset-0 bg-black/40 z-[90] lg:hidden backdrop-blur-sm" onClick={() => setMobileOpen(false)}></div>}
     </>
   );
 };
