@@ -80,6 +80,13 @@ const SortableItem = ({ id, item, isManageMode, isAuthenticated, onEditClick, on
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => {
+                        // 记录点击量
+                        fetch('/api/stats/track-click', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: item.id, isPromo: true })
+                        }).catch(() => { });
+
                         if (isManageMode) e.preventDefault();
                     }}
                     className={`promo-card flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 h-full relative border
