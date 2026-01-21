@@ -5,6 +5,7 @@ import { Label, Input, TextArea } from '@/shared/components/ui/AdminInput';
 import { Button } from '@/shared/components/ui/AdminButton';
 import { useDialogs } from '@/shared/hooks/useDialogs';
 import { AlertDialog } from '@/shared/components/common/AlertDialog';
+import { AssetPickerModal } from '@/shared/components/common/AssetPickerModal';
 
 interface LinkEditModalProps {
     isOpen: boolean;
@@ -56,6 +57,7 @@ export const LinkEditModal: React.FC<LinkEditModalProps> = ({
     const [selectedSection, setSelectedSection] = useState<'category' | 'promo'>(currentSection || 'category');
     const [iconMode, setIconMode] = useState<'local' | 'online'>('online');
     const [uploading, setUploading] = useState(false);
+    const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false);
     const { alertDialog, showAlert, hideAlert } = useDialogs();
 
     // Determine if we're in promo mode
@@ -285,7 +287,7 @@ export const LinkEditModal: React.FC<LinkEditModalProps> = ({
                                     className="pl-10"
                                     value={formData.icon || ''}
                                     onChange={e => setFormData({ ...formData, icon: e.target.value })}
-                                    placeholder="fa-brands fa-google 或 mdi:google 或 URL"
+                                    placeholder="fa-brands fa-google 或 mdi:google"
                                 />
                             </div>
                         ) : (
@@ -301,36 +303,59 @@ export const LinkEditModal: React.FC<LinkEditModalProps> = ({
                                         value={formData.icon || ''}
                                         onChange={e => setFormData({ ...formData, icon: e.target.value })}
                                         placeholder="/uploads/icon.png"
-                                        readOnly
                                     />
                                 </div>
                                 <div className="flex gap-2">
-                                    <label className="cursor-pointer flex-1 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center justify-center gap-2">
-                                        <Icon icon="fa-solid fa-upload" />
-                                        {uploading ? '上传中...' : '上传图片'}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleIconUpload}
-                                            disabled={uploading}
-                                            className="hidden"
-                                        />
-                                    </label>
-                                    {formData.icon && !formData.icon.startsWith('/uploads/') && !formData.icon.includes('fa-') && !formData.icon.includes(':') && (
+                                    <div className="flex-1 flex gap-1">
+                                        <label className="cursor-pointer flex-1 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center justify-center gap-2">
+                                            <Icon icon="fa-solid fa-upload" />
+                                            {uploading ? '上传' : '上传'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleIconUpload}
+                                                disabled={uploading}
+                                                className="hidden"
+                                            />
+                                        </label>
                                         <button
                                             type="button"
-                                            onClick={handleDownloadIcon}
-                                            disabled={uploading}
-                                            className="flex-1 px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                                            onClick={() => setIsAssetPickerOpen(true)}
+                                            className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center justify-center gap-2"
                                         >
-                                            <Icon icon="fa-solid fa-download" />
-                                            下载图标
+                                            <Icon icon="fa-solid fa-images" />
+                                            浏览
                                         </button>
-                                    )}
+                                    </div>
+                                    {formData.icon &&
+                                        !formData.icon.startsWith('/uploads/') &&
+                                        !formData.icon.startsWith('/') &&
+                                        !formData.icon.includes('fa-') &&
+                                        !formData.icon.includes(':') && (
+                                            <button
+                                                type="button"
+                                                onClick={handleDownloadIcon}
+                                                disabled={uploading}
+                                                className="flex-1 px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                <Icon icon="fa-solid fa-download" />
+                                                下载
+                                            </button>
+                                        )}
                                 </div>
                             </div>
                         )}
                     </div>
+
+                    <AssetPickerModal
+                        isOpen={isAssetPickerOpen}
+                        onClose={() => setIsAssetPickerOpen(false)}
+                        onSelect={(url) => {
+                            setFormData({ ...formData, icon: url });
+                            setIconMode('local');
+                            setIsAssetPickerOpen(false);
+                        }}
+                    />
 
                     <div>
                         <Label>图标颜色</Label>

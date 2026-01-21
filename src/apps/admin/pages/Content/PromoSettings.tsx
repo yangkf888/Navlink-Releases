@@ -214,7 +214,7 @@ const PromoItemEditor: React.FC<{
                 {/* 图标输入 */}
                 <div className="col-span-5">
                     <Label className="text-xs mb-1.5">
-                        {iconMode === 'online' ? '图标代码/URL' : '本地图标路径'}
+                        {iconMode === 'online' ? '图标代码' : '本地图标路径'}
                     </Label>
                     <div className="relative">
                         <Icon icon={item.icon || 'fa-solid fa-image'} className="absolute left-2.5 top-2.5 text-gray-400" />
@@ -222,7 +222,7 @@ const PromoItemEditor: React.FC<{
                             className="pl-8"
                             value={item.icon || ''}
                             onChange={e => updateItem('icon', e.target.value)}
-                            placeholder={iconMode === 'online' ? 'fa-xxx 或 mdi:xxx 或 URL' : '/uploads/icon.png'}
+                            placeholder={iconMode === 'online' ? 'fa-xxx 或 mdi:xxx' : '/uploads/icon.png'}
                         />
                     </div>
                 </div>

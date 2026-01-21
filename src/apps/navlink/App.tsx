@@ -201,8 +201,8 @@ function AppContent() {
             {!isPluginPath && config.hero?.layoutMode !== 'minimal' && (
                 <div
                     className={`flex flex-col relative transition-colors duration-500 ${!hasBgImage ? 'bg-[var(--hero-bg)]' : 'bg-gray-800'} ${config.hero?.layoutMode === 'content'
-                        ? 'min-h-[300px] md:min-h-[420px] pt-24 md:pt-28 pb-8 z-40 items-center justify-center'
-                        : 'min-h-screen pb-48 overflow-hidden z-40'
+                        ? 'min-h-[300px] md:min-h-[420px] pt-24 md:pt-28 pb-8 z-10 items-center justify-center'
+                        : 'min-h-screen pb-48 overflow-hidden z-10'
                         }`}
                     style={heroBgStyle}
                 >
