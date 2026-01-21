@@ -3,6 +3,7 @@ import { LinkItem, Category } from '../../types';
 import { Icon } from '../common/Icon';
 import { Input, Label } from './AdminInput';
 import { Button } from '../../../components/ui/Button';
+import { AssetPickerModal } from '../common/AssetPickerModal';
 
 interface LinkItemEditorProps {
     item: LinkItem;
@@ -49,6 +50,7 @@ export const LinkItemEditor: React.FC<LinkItemEditorProps> = ({
         return 'online';
     });
     const [uploading, setUploading] = useState(false);
+    const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false);
 
     // 当 item.icon 在外部改变时（如导入抓取成功），同步更新 iconMode
     useEffect(() => {
@@ -241,38 +243,61 @@ export const LinkItemEditor: React.FC<LinkItemEditorProps> = ({
                     <div className="flex gap-1.5">
                         {iconMode === 'local' ? (
                             <>
-                                {/* 上传按钮 - 保持为label因为包含file input */}
-                                <label className="cursor-pointer flex-1 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs flex items-center justify-center gap-1 whitespace-nowrap h-8">
-                                    <Icon icon="fa-solid fa-upload" />
-                                    {uploading ? '上传中' : '上传'}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleIconUpload}
-                                        disabled={uploading}
-                                        className="hidden"
-                                    />
-                                </label>
-                                {/* 下载按钮 */}
-                                {item.icon && !item.icon.startsWith('/uploads/') && !item.icon.includes('fa-') && !item.icon.includes(':') && (
-                                    <Button
-                                        size="sm"
-                                        onClick={handleDownloadIcon}
-                                        disabled={uploading}
-                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                                        title="下载外部图标到服务器"
+                                <div className="flex-1 flex gap-1">
+                                    {/* 上传按钮 - 保持为label因为包含file input */}
+                                    <label className="cursor-pointer flex-1 px-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs flex items-center justify-center gap-1 whitespace-nowrap h-8">
+                                        <Icon icon="fa-solid fa-upload" />
+                                        {uploading ? '上传' : '上传'}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleIconUpload}
+                                            disabled={uploading}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    <button
+                                        onClick={() => setIsAssetPickerOpen(true)}
+                                        className="flex-1 px-2 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap h-8"
                                     >
-                                        <Icon icon="fa-solid fa-download" />
-                                        下载
-                                    </Button>
-                                )}
+                                        <Icon icon="fa-solid fa-images" />
+                                        浏览
+                                    </button>
+                                </div>
+                                {/* 下载按钮 */}
+                                {item.icon &&
+                                    !item.icon.startsWith('/uploads/') &&
+                                    !item.icon.startsWith('/') && // Ensure local paths starting with / don't trigger download
+                                    !item.icon.includes('fa-') &&
+                                    !item.icon.includes(':') && (
+                                        <Button
+                                            size="sm"
+                                            onClick={handleDownloadIcon}
+                                            disabled={uploading}
+                                            className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                                            title="下载外部图标到服务器"
+                                        >
+                                            <Icon icon="fa-solid fa-download" />
+                                            下载
+                                        </Button>
+                                    )}
                             </>
                         ) : (
-                            <div className="flex-1 text-xs text-gray-500 px-3 py-2 bg-gray-100 rounded flex items-center justify-center">
+                            <div className="flex-1 text-xs text-gray-500 px-3 py-2 bg-gray-100 rounded flex items-center justify-center h-8">
                                 支持 URL/图标库
                             </div>
                         )}
                     </div>
+
+                    <AssetPickerModal
+                        isOpen={isAssetPickerOpen}
+                        onClose={() => setIsAssetPickerOpen(false)}
+                        onSelect={(url) => {
+                            onChange({ ...item, icon: url });
+                            setIconMode('local');
+                            setIsAssetPickerOpen(false);
+                        }}
+                    />
                 </div>
 
                 {/* 颜色选择器 */}
