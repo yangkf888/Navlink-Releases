@@ -11,6 +11,45 @@ import config from '../config/env.js';
 const DB_PATH = path.join(__dirname, '../../data/auth.db');
 
 /**
+ * 认证数据库迁移
+ */
+function migrateAuthSchema(db) {
+    try {
+        // 1. 检查并创建 tenants 表
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS tenants (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                status TEXT DEFAULT 'active',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 2. 检查 users 表是否包含 tenant_id 字段
+        const tableInfo = db.all('PRAGMA table_info(users)');
+        const hasTenantId = tableInfo.some(col => col.name === 'tenant_id');
+
+        if (!hasTenantId) {
+            console.log('[AuthDB] Migration: Adding tenant_id column to users table...');
+            // SQLite 不支持直接在有数据的表上添加带 NOT NULL 约束的列（除非有默认值）
+            // 这里我们先允许为 NULL，然后更新数据，最后如果需要再加约束
+            db.exec('ALTER TABLE users ADD COLUMN tenant_id TEXT DEFAULT \'default\'');
+            console.log('[AuthDB] Migration: Added tenant_id column to users');
+        }
+
+        // 3. 确保存在默认租户
+        const tenant = db.get('SELECT id FROM tenants WHERE id = ?', ['default']);
+        if (!tenant) {
+            console.log('[AuthDB] Creating default tenant...');
+            db.run("INSERT INTO tenants (id, name) VALUES ('default', 'Default Tenant')");
+        }
+    } catch (err) {
+        console.error('[AuthDB] Migration failed:', err.message);
+    }
+}
+
+/**
  * 初始化认证数据库（同步版本）
  */
 export function initAuthDB() {
@@ -28,6 +67,9 @@ export function initAuthDB() {
     }
 
     const db = new DatabaseWrapper(DB_PATH);
+
+    // 执行迁移
+    migrateAuthSchema(db);
 
     // 创建租户表
     db.exec(`
