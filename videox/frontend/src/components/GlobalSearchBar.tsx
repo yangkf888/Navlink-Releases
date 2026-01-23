@@ -1,0 +1,684 @@
+/**
+ * 全局搜索栏组件
+ * 置顶显示在所有页面，支持选择视频源进行搜索
+ * 包含收藏、历史、管理按钮和主题切换
+ */
+
+import React, { useState, useEffect } from 'react';
+import { VideoSource, NetdiskSource } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { AppModule } from '../App';
+
+interface GlobalSearchBarProps {
+    sources: VideoSource[];
+    onSearch: (keyword: string, sourceId: number | null, netdiskPath?: string) => void;
+    onNavigate: (view: string, params?: Record<string, unknown>) => void;
+    activeView: string;
+    activeModule: AppModule;
+    onModuleChange: (module: AppModule) => void;
+    onToggleSidebar?: () => void; // 移动端侧边栏切换
+    theme: 'light' | 'dark';
+    onToggleTheme: () => void;
+    isAdminPasswordEnabled?: boolean;
+    netdiskSources: NetdiskSource[];
+}
+
+
+
+
+// localStorage key
+const THEME_KEY = 'video_theme';
+
+export function GlobalSearchBar({ sources, netdiskSources, onSearch, onNavigate, activeView, activeModule, onModuleChange, onToggleSidebar, theme, onToggleTheme, isAdminPasswordEnabled }: GlobalSearchBarProps) {
+    const [keyword, setKeyword] = useState('');
+    const [selectedSource, setSelectedSource] = useState<{ type: 'all' | 'video' | 'netdisk'; id: number | null; name: string; path?: string }>({ type: 'all', id: null, name: '全部源' });
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false); // 移动端搜索弹出层
+    const [isVideoSourcesExpanded, setIsVideoSourcesExpanded] = useState(true);
+    const [isNetdiskExpanded, setIsNetdiskExpanded] = useState(true);
+
+    const { isAdminAuthenticated, login, logout } = useAuth();
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+
+
+
+    // 应用主题到 document
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+
+        if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.add('light-theme');
+            document.body.classList.remove('dark-theme');
+        } else {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark-theme');
+            document.body.classList.remove('light-theme');
+        }
+    }, [theme]);
+
+    const submitSearch = (kw: string) => {
+        const trimmedKw = kw.trim();
+        console.log('[SearchDebug] submitSearch called with:', {
+            kw: trimmedKw,
+            sourceType: selectedSource.type,
+            sourceId: selectedSource.id,
+            path: selectedSource.path
+        });
+
+        // 如果是聚合或普通源，且没有关键字，则不提交
+        if (!trimmedKw && selectedSource.type !== 'netdisk') {
+            console.warn('[SearchDebug] Empty keyword for non-netdisk source, skipping.');
+            return;
+        }
+
+        if (selectedSource.type === 'netdisk') {
+            onSearch(trimmedKw, null, selectedSource.path || '/');
+        } else {
+            onSearch(trimmedKw, selectedSource.id, undefined);
+        }
+        setIsDropdownOpen(false);
+    };
+
+    const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+        console.log('[SearchDebug] handleSubmit triggered!', { eventType: e?.type });
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        submitSearch(keyword);
+    };
+
+    const handleUserIconClick = async () => {
+        if (isAdminAuthenticated) {
+            setIsUserMenuOpen(!isUserMenuOpen);
+        } else if (!isAdminPasswordEnabled) {
+            // 后台未启用密码：自动免密登录
+            login('', 'admin');
+        } else {
+            // 触发全局登录显示事件 (由 App.tsx 处理)
+            window.dispatchEvent(new CustomEvent('videox-show-login', {
+                detail: {
+                    title: '管理员登录',
+                    subtitle: '请输入管理密码以访问受限内容',
+                    type: 'admin'
+                }
+            }));
+        }
+    };
+
+    const handleLogout = () => {
+        logout('admin');
+        setIsUserMenuOpen(false);
+        // 退出管理员登录后再自动返回首页，并刷新全页以清理侧边栏内容
+        onNavigate('home');
+        window.location.reload();
+    };
+
+    // 按钮样式
+    const buttonClass = (isActive: boolean) => `
+        p-2.5 rounded-lg transition-colors text-sm
+        ${isActive
+            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+            : theme === 'dark'
+                ? 'text-secondary hover:text-primary hover:bg-white/10'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+        }
+    `;
+
+    const buttonStyle = (isActive: boolean) => isActive ? { color: '#fff' } : undefined;
+
+    return (
+        <>
+            {/* 移动端导航栏 - 简洁版 */}
+            <div className={`lg:hidden sticky top-0 z-20 border-b px-3 py-2 transition-colors
+                ${theme === 'dark'
+                    ? 'bg-secondary/95 border-border-color backdrop-blur-lg'
+                    : 'bg-white/95 border-gray-200 backdrop-blur-lg'
+                }`}
+            >
+                <div className="flex items-center justify-between">
+                    {/* 左侧：侧边栏按钮 + 标题 */}
+                    <div className="flex items-center gap-3">
+                        {onToggleSidebar && (
+                            <button
+                                onClick={onToggleSidebar}
+                                className={`p-2 rounded-lg transition-colors
+                                    ${theme === 'dark'
+                                        ? 'text-secondary hover:text-primary hover:bg-white/10'
+                                        : 'text-secondary hover:text-slate-900 hover:bg-black/5'
+                                    }`}
+                            >
+                                <i className="fas fa-bars text-lg"></i>
+                            </button>
+                        )}
+                        <h1 className={`text-lg font-bold ${theme === 'dark' ? 'text-primary' : 'text-gray-900'}`}>
+                            VideoX
+                        </h1>
+                    </div>
+
+                    {/* 右侧：工具按钮 */}
+                    <div className="flex items-center gap-1">
+                        {/* 搜索按钮 */}
+                        <button
+                            onClick={() => setIsMobileSearchOpen(true)}
+                            className={`p-2 rounded-lg transition-colors
+                                ${theme === 'dark'
+                                    ? 'text-secondary hover:text-primary hover:bg-secondary'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                }`}
+                        >
+                            <i className="fas fa-search"></i>
+                        </button>
+
+                        {/* 主题切换 */}
+                        <button
+                            onClick={onToggleTheme}
+                            className={`p-2 rounded-lg transition-colors
+                                ${theme === 'dark'
+                                    ? 'text-secondary hover:text-primary hover:bg-secondary'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                }`}
+                        >
+                            <i className={`fas ${theme === 'dark' ? 'fa-moon' : 'fa-sun'}`}></i>
+                        </button>
+
+                        {/* 用户图标 - 始终显示以提供管理入口 */}
+                        <div className="relative">
+                            <button
+                                onClick={handleUserIconClick}
+                                className={`p-2 rounded-lg transition-colors
+                                    ${isAdminAuthenticated
+                                        ? 'text-green-400'
+                                        : theme === 'dark'
+                                            ? 'text-secondary hover:text-primary'
+                                            : 'text-secondary hover:text-gray-600'
+                                    }`}
+                            >
+                                <i className={`fas ${isAdminAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
+                            </button>
+
+                            {/* 移动端用户菜单 */}
+                            {isUserMenuOpen && isAdminAuthenticated && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-[60]"
+                                        onClick={() => setIsUserMenuOpen(false)}
+                                    ></div>
+                                    <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                    ${theme === 'dark'
+                                            ? 'bg-secondary border border-border-color shadow-black/50'
+                                            : 'bg-white border border-gray-100 shadow-slate-200'
+                                        }`}
+                                    >
+                                        <div className="px-4 py-2 border-b border-border-color mb-1">
+                                            <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
+                                            <p className="text-sm font-bold text-primary">系统管理员</p>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
+                                            ${theme === 'dark'
+                                                    ? 'text-red-400 hover:bg-red-500/10'
+                                                    : 'text-red-500 hover:bg-red-50'
+                                                }`}
+                                        >
+                                            <i className="fas fa-sign-out-alt"></i>
+                                            <span className="font-bold">安全退出登录</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 移动端搜索弹出层 */}
+            {isMobileSearchOpen && (
+                <div className={`lg:hidden fixed inset-0 z-50 ${theme === 'dark' ? 'bg-secondary' : 'bg-white'}`}>
+                    <div className="flex flex-col h-full">
+                        {/* 搜索标题栏 */}
+                        <div className={`flex items-center gap-3 px-3 py-3 border-b ${theme === 'dark' ? 'border-border-color' : 'border-gray-200'}`}>
+                            <button
+                                onClick={() => setIsMobileSearchOpen(false)}
+                                className={`p-2 rounded-lg transition-colors
+                                    ${theme === 'dark'
+                                        ? 'text-secondary hover:text-primary hover:bg-secondary'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                    }`}
+                            >
+                                <i className="fas fa-arrow-left"></i>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    submitSearch(keyword);
+                                    setIsMobileSearchOpen(false);
+                                }}
+                                className={`absolute left-0 top-0 bottom-0 px-3 flex items-center justify-center transition-colors group z-10`}
+                                title="点击搜索"
+                            >
+                                <i className={`fas fa-search text-sm
+                                        ${theme === 'dark' ? 'text-secondary group-hover:text-blue-400' : 'text-secondary group-hover:text-blue-600'}`}></i>
+                            </button>
+                            <input
+                                type="text"
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        submitSearch(keyword);
+                                        setIsMobileSearchOpen(false);
+                                    }
+                                }}
+                                placeholder="搜索电影、电视剧、动漫..."
+                                autoFocus
+                                className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
+                                        ${theme === 'dark'
+                                        ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
+                                        : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
+                                    }`}
+                            />
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    submitSearch(keyword);
+                                    setIsMobileSearchOpen(false);
+                                }}
+                                className={`px-4 py-2.5 rounded-lg transition-colors text-sm font-bold
+                                    ${selectedSource.type === 'netdisk' || keyword.trim()
+                                        ? 'bg-red-500 text-primary hover:bg-red-600'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                搜索
+                            </button>
+                        </div>
+
+                        {/* 搜索提示 */}
+                        <div className="flex-1 p-4">
+                            <p className={`text-sm ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}>
+                                <i className="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                                输入关键词后点击搜索或按回车键
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 桌面端导航栏 (原有布局) */}
+            <div className={`hidden lg:block sticky top-0 z-[50] border-b px-4 py-3 h-16 transition-colors
+                ${theme === 'dark'
+                    ? 'bg-secondary/80 border-border-color backdrop-blur-lg'
+                    : 'bg-white/80 border-gray-200 backdrop-blur-lg'
+                }`}
+            >
+                <div className="flex items-center gap-2">
+                    {/* 左侧：视频源选择器 + 搜索框 */}
+                    <div className="flex items-center gap-2 flex-1 max-w-3xl">
+                        {/* 视频源选择器 */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg text-sm transition-colors min-w-[100px]
+                                ${theme === 'dark'
+                                        ? 'bg-secondary border-border-color text-primary hover:bg-gray-750'
+                                        : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                            >
+                                <i className="fas fa-database text-xs opacity-70"></i>
+                                <span className="truncate">{selectedSource.name}</span>
+                                <i className={`fas fa-chevron-down text-xs transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                            </button>
+
+                            {isDropdownOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-10"
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    ></div>
+                                    <div className={`absolute top-full left-0 mt-1 w-56 border rounded-lg shadow-xl z-20 py-1 max-h-96 overflow-y-auto
+                                    ${theme === 'dark'
+                                            ? 'bg-secondary border-border-color shadow-black/80'
+                                            : 'bg-white border-gray-200 shadow-slate-200'
+                                        }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedSource({ type: 'all', id: null, name: '全部源' });
+                                                setIsDropdownOpen(false);
+                                            }}
+                                            className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2
+                                            ${selectedSource.type === 'all'
+                                                    ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
+                                                    : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            <i className="fas fa-globe text-xs opacity-70"></i>
+                                            <span className="font-bold">全部源 (聚合搜索)</span>
+                                        </button>
+
+                                        {/* 资源站分类 */}
+                                        <div className="flex items-center justify-between mt-1 px-3 py-2 border-b border-border-color/30">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSource({ type: 'video', id: null, name: '全站视频' });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'video' && !selectedSource.id
+                                                        ? 'text-blue-500'
+                                                        : theme === 'dark' ? 'text-secondary hover:text-blue-400' : 'text-gray-900 hover:text-blue-600'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-film text-xs"></i>
+                                                资源站 (全站视频)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsVideoSourcesExpanded(!isVideoSourcesExpanded);
+                                                }}
+                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
+                                            >
+                                                <i className={`fas fa-chevron-${isVideoSourcesExpanded ? 'down' : 'right'} text-[10px]`}></i>
+                                            </button>
+                                        </div>
+
+                                        {isVideoSourcesExpanded && sources.map(source => (
+                                            <button
+                                                key={`video-${source.id}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSource({ type: 'video', id: source.id, name: source.name });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'video' && selectedSource.id === source.id
+                                                        ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
+                                                        : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-layer-group text-[10px] opacity-40 shrink-0"></i>
+                                                <span className="truncate">{source.name}</span>
+                                            </button>
+                                        ))}
+
+                                        {/* 媒体库分类 */}
+                                        <div className="flex items-center justify-between mt-3 px-3 py-2 border-t border-b border-border-color/30 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSource({ type: 'netdisk', id: null, name: '全部媒体库', path: '/' });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
+                                                    ${selectedSource.type === 'netdisk' && !selectedSource.id
+                                                        ? 'text-green-500'
+                                                        : theme === 'dark' ? 'text-secondary hover:text-green-400' : 'text-gray-900 hover:text-green-600'
+                                                    }`}
+                                            >
+                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                媒体库 [全局搜索]
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsNetdiskExpanded(!isNetdiskExpanded);
+                                                }}
+                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
+                                            >
+                                                <i className={`fas fa-chevron-${isNetdiskExpanded ? 'down' : 'right'} text-[10px]`}></i>
+                                            </button>
+                                        </div>
+
+                                        {isNetdiskExpanded && netdiskSources.map(source => {
+                                            const scanPaths = Array.isArray(source.scan_paths) ? source.scan_paths : [];
+
+                                            // 🛡️ 兜底：如果确实没路径，显示一个默认项
+                                            const itemsToRender = scanPaths.length > 0 ? scanPaths : [{ name: '源根目录', path: '/' }];
+
+                                            return itemsToRender.map((sp: any) => {
+                                                const uniqueId = `${source.id}-${sp.path || 'root'}`;
+                                                return (
+                                                    <button
+                                                        key={`netdisk-${uniqueId}`}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedSource({
+                                                                type: 'netdisk',
+                                                                id: source.id,
+                                                                name: sp.name || sp.path?.split('/').pop() || source.name,
+                                                                path: sp.path || '/'
+                                                            });
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
+                                                        ${selectedSource.type === 'netdisk' && selectedSource.id === source.id && selectedSource.path === sp.path
+                                                                ? theme === 'dark' ? 'text-green-400 bg-green-500/10' : 'text-green-600 bg-green-50'
+                                                                : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                            }`}
+                                                    >
+                                                        <i className="fas fa-folder-open text-[10px] opacity-50 shrink-0"></i>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="truncate font-medium">{sp.name || sp.path?.split('/').pop() || '未知目录'}</span>
+                                                            <span className="text-[10px] opacity-40 truncate">来源: {source.name}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            });
+                                        })}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* 搜索输入框 */}
+                        <form
+                            onSubmit={handleSubmit}
+                            className="flex-1 relative flex gap-2"
+                        >
+                            <div className="flex-1 relative">
+                                <div
+                                    className={`absolute left-0 top-0 bottom-0 px-3 flex items-center justify-center pointer-events-none z-10`}
+                                >
+                                    <i className={`fas fa-search text-sm
+                                        ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}></i>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={keyword}
+                                    onChange={(e) => setKeyword(e.target.value)}
+                                    autoComplete="off"
+                                    placeholder="搜索电影、电视剧、动漫..."
+                                    className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
+                                    ${theme === 'dark'
+                                            ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
+                                            : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
+                                        }`}
+                                />
+                                {keyword && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setKeyword('')}
+                                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors z-20
+                                        ${theme === 'dark' ? 'text-secondary hover:text-primary' : 'text-secondary hover:text-gray-600'}`}
+                                    >
+                                        <i className="fas fa-times text-xs"></i>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* 搜索按钮 */}
+                            <button
+                                type="submit"
+                                className={`px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg text-sm font-medium
+                                      ${selectedSource.type === 'netdisk'
+                                        ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20 text-white font-bold'
+                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 text-white'
+                                    } 
+                                      disabled:opacity-40 disabled:scale-95 disabled:cursor-not-allowed`}
+                            >
+                                <i className="fas fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* 导航菜单 - 放在搜索框和右侧工具栏之间，靠右 */}
+                    <div className="hidden md:flex items-center gap-1 flex-shrink-0 ml-auto">
+                        {[
+                            { key: 'home', label: '首页', icon: 'fa-home' },
+                            { key: 'sources', label: '资源站', icon: 'fa-database' },
+                            { key: 'tv', label: '电视', icon: 'fa-tv' },
+                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
+                            { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
+                        ].map(item => (
+                            <button
+                                key={item.key}
+                                onClick={() => onModuleChange(item.key as AppModule)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5
+                                ${activeModule === item.key
+                                        ? 'bg-blue-500 text-white'
+                                        : theme === 'dark'
+                                            ? 'text-secondary hover:text-primary hover:bg-secondary'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                                    }`}
+                                style={activeModule === item.key ? { color: '#fff' } : undefined}
+                            >
+                                <i className={`fas ${item.icon} text-xs`}></i>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 右侧工具栏 */}
+                    <div className="flex items-center gap-1">
+                        {/* 主题切换开关 */}
+                        <div
+                            className={`relative w-14 h-7 rounded-full cursor-pointer transition-colors flex items-center px-1
+                            ${theme === 'dark' ? 'bg-gray-700' : 'bg-blue-100'}`}
+                            onClick={onToggleTheme}
+                            title={theme === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}
+                        >
+                            {/* 滑块 */}
+                            <div
+                                className={`absolute w-5 h-5 rounded-full shadow-md transition-all duration-300 flex items-center justify-center
+                                ${theme === 'dark'
+                                        ? 'left-1 bg-gray-600'
+                                        : 'left-8 bg-yellow-400'
+                                    }`}
+                            >
+                                <i className={`fas ${theme === 'dark' ? 'fa-moon text-blue-300' : 'fa-sun text-yellow-600'} text-xs`}></i>
+                            </div>
+                        </div>
+
+                        {/* 分隔线 */}
+                        <div className={`w-px h-6 mx-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+
+                        {/* 收藏按钮 */}
+                        {(!isAdminPasswordEnabled || isAdminAuthenticated) && (
+                            <button
+                                onClick={() => onNavigate('favorites')}
+                                className={buttonClass(activeView === 'favorites')}
+                                style={buttonStyle(activeView === 'favorites')}
+                                title="我的收藏"
+                            >
+                                <i className="fas fa-heart"></i>
+                            </button>
+                        )}
+
+                        {/* 历史按钮 */}
+                        {(!isAdminPasswordEnabled || isAdminAuthenticated) && (
+                            <button
+                                onClick={() => onNavigate('history')}
+                                className={buttonClass(activeView === 'history')}
+                                style={buttonStyle(activeView === 'history')}
+                                title="观看历史"
+                            >
+                                <i className="fas fa-history"></i>
+                            </button>
+                        )}
+
+                        {/* 管理按钮 */}
+                        {(!isAdminPasswordEnabled || isAdminAuthenticated) && (
+                            <button
+                                onClick={() => onNavigate('admin')}
+                                className={buttonClass(activeView === 'admin')}
+                                style={buttonStyle(activeView === 'admin')}
+                                title="视频源管理"
+                            >
+                                <i className="fas fa-cog"></i>
+                            </button>
+                        )}
+
+                        {/* 登录状态图标 - 始终显示以提供管理入口 */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={handleUserIconClick}
+                                className={`p-2.5 rounded-lg text-sm transition-colors ${isAdminAuthenticated
+                                    ? 'text-green-400 hover:bg-gray-700/50'
+                                    : theme === 'dark' ? 'text-gray-600 hover:text-primary hover:bg-gray-700/50' : 'text-secondary hover:text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                title={isAdminAuthenticated ? '已认证 (点击管理)' : '未认证 (点击登录)'}
+                            >
+                                <i className={`fas ${isAdminAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
+                            </button>
+
+                            {/* 用户菜单 - 增加美化与层级控制 */}
+                            {isUserMenuOpen && isAdminAuthenticated && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-[60]"
+                                        onClick={() => setIsUserMenuOpen(false)}
+                                    ></div>
+                                    <div className={`absolute right-0 top-full mt-2 w-56 py-3 rounded-2xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                    ${theme === 'dark'
+                                            ? 'bg-[#1a1c1e] border border-white/10 shadow-black/60 backdrop-blur-xl'
+                                            : 'bg-white border border-slate-100 shadow-slate-200/80'
+                                        }`}
+                                    >
+                                        <div className="px-4 py-3 border-b border-border-color/50 mb-2 bg-gradient-to-r from-red-500/5 to-transparent">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                                <p className="text-[10px] text-secondary uppercase font-black tracking-[0.2em]">当前用户</p>
+                                            </div>
+                                            <p className="text-sm font-extrabold text-primary">系统管理员</p>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-all duration-300
+                                            ${theme === 'dark'
+                                                    ? 'text-red-400 hover:bg-red-500/20 hover:pl-5'
+                                                    : 'text-red-500 hover:bg-red-50 hover:pl-5'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                                                <i className="fas fa-sign-out-alt"></i>
+                                            </div>
+                                            <span className="font-bold">全面退出登录</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+        </>
+    );
+}
