@@ -30,8 +30,20 @@ function initDatabase() {
     // 创建数据库连接
     db = new DatabaseWrapper(DB_PATH);
 
-    // 初始化表结构
+    // 初始化表结构（同步执行）
     initSchema(db);
+
+    // 🔧 修复：确保迁移总是在初始化后执行（不依赖回调）
+    // 这解决了升级场景下旧数据库缺少新列的问题
+    try {
+        migrateSchema(db);
+        insertDefaultSettings(db);
+        insertDefaultSources(db);
+        insertDefaultTvSources(db);
+        console.log('[Database] Video schema and migrations completed');
+    } catch (err) {
+        console.error('[Database] Migration/defaults error:', err.message);
+    }
 
     console.log('[Database] Video SQLite initialized at:', DB_PATH);
 
@@ -52,6 +64,7 @@ function initSchema(db) {
             api_key TEXT,
             enabled INTEGER DEFAULT 1,
             hidden INTEGER DEFAULT 0,
+            proxy_enabled INTEGER DEFAULT 0,
             tags TEXT,
             remark TEXT,
             response_time INTEGER,
@@ -238,19 +251,8 @@ function initSchema(db) {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
         } else {
-            console.log('[Database] Video schema initialized');
-
-            // 迁移：为旧数据库添加新列
-            migrateSchema(db);
-
-            // 插入默认设置
-            insertDefaultSettings(db);
-
-            // 插入预置资源站
-            insertDefaultSources(db);
-
-            // 插入预置电视源
-            insertDefaultTvSources(db);
+            console.log('[Database] Video schema tables created');
+            // 注意：migrateSchema, insertDefaultSettings 等已在 initDatabase 中执行
         }
     });
 }

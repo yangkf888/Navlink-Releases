@@ -1,6 +1,6 @@
 {
     "name": "videox-backend",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "VideoX - Standalone Video Aggregation Application",
     "main": "server.js",
     "scripts": {
