@@ -55,6 +55,8 @@ interface SourceSection {
     sourceType: string;
     items: MediaItem[];
     total: number;
+    path?: string;     // 新增：具体扫描路径
+    pathName?: string; // 新增：具体扫描路径名称
 }
 
 // 扫描目录板块数据（支持分页扩展）
@@ -236,38 +238,81 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     };
 
     // 加载全部网盘源的板块数据（类似 SourceOverview）
+    // 修改逻辑：优先按扫描目录聚合，如果没有目录则按源聚合
     const loadAllSourcesSections = async () => {
         setLoading(true);
         try {
             const enabledSources = sources.filter(s => s.enabled);
-            const promises = enabledSources.map(async (source) => {
-                // 构建筛选参数
-                let url = `/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}&sort=${activeFilters.sort || 'latest'}`;
-                if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
-                if (activeFilters.year) url += `&year=${activeFilters.year}`;
-                if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
-                if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
-                if (activeFilters.studio) url += `&studio=${encodeURIComponent(activeFilters.studio)}`;
-                if (activeFilters.series) url += `&series=${encodeURIComponent(activeFilters.series)}`;
-                if (activeFilters.tags) url += `&tags=${encodeURIComponent(activeFilters.tags)}`;
-                if (activeFilters.date) url += `&date=${activeFilters.date}`;
+            const allSections: SourceSection[] = [];
 
-                const res = await apiGet<MediaItem[]>(url);
-                if (res.success && res.data && res.data.length > 0) {
-                    return {
-                        sourceId: source.id,
-                        sourceName: source.name,
-                        sourceType: source.type || 'alist',
-                        items: res.data,
-                        total: (res as any).total || res.data.length
-                    } as SourceSection;
+            for (const source of enabledSources) {
+                // 解析扫描目录
+                let scanPaths: any[] = [];
+                try {
+                    if (typeof source.scan_paths === 'string') {
+                        scanPaths = JSON.parse(source.scan_paths);
+                    } else if (Array.isArray(source.scan_paths)) {
+                        scanPaths = source.scan_paths;
+                    }
+                } catch (e) {
+                    console.error(`Failed to parse scan_paths for source ${source.id}:`, e);
                 }
-                return null;
-            });
 
-            const results = await Promise.all(promises);
-            const validSections = results.filter((s): s is SourceSection => s !== null);
-            setSourceSections(validSections);
+                // 过滤掉隐藏的路径
+                const activePaths = scanPaths.filter(p => !p.hidden);
+
+                if (activePaths.length > 0) {
+                    // 情况 A：有下级目录，为每个目录创建一个板块
+                    const pathPromises = activePaths.map(async (pathObj) => {
+                        let url = `/netdisk/media?sourceId=${source.id}&path=${encodeURIComponent(pathObj.path)}&limit=${SOURCE_PREVIEW_COUNT}&sort=${activeFilters.sort || 'latest'}`;
+
+                        // 应用过滤
+                        if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
+                        if (activeFilters.year) url += `&year=${activeFilters.year}`;
+                        if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
+                        if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
+                        if (activeFilters.tags) url += `&tags=${encodeURIComponent(activeFilters.tags)}`;
+
+                        const res = await apiGet<MediaItem[]>(url);
+                        if (res.success && res.data && res.data.length > 0) {
+                            return {
+                                sourceId: source.id,
+                                sourceName: source.name,
+                                sourceType: source.type || 'alist',
+                                items: res.data,
+                                total: (res as any).total || res.data.length,
+                                path: pathObj.path,
+                                pathName: pathObj.name
+                            } as SourceSection;
+                        }
+                        return null;
+                    });
+
+                    const results = await Promise.all(pathPromises);
+                    allSections.push(...results.filter((s): s is SourceSection => s !== null));
+                } else {
+                    // 情况 B：没有下级目录，保持原有的按源聚合逻辑
+                    let url = `/netdisk/media?sourceId=${source.id}&limit=${SOURCE_PREVIEW_COUNT}&sort=${activeFilters.sort || 'latest'}`;
+                    if (activeFilters.genres) url += `&genres=${encodeURIComponent(activeFilters.genres)}`;
+                    if (activeFilters.year) url += `&year=${activeFilters.year}`;
+                    if (activeFilters.area) url += `&area=${encodeURIComponent(activeFilters.area)}`;
+                    if (activeFilters.actor) url += `&actor=${encodeURIComponent(activeFilters.actor)}`;
+                    if (activeFilters.tags) url += `&tags=${encodeURIComponent(activeFilters.tags)}`;
+
+                    const res = await apiGet<MediaItem[]>(url);
+                    if (res.success && res.data && res.data.length > 0) {
+                        allSections.push({
+                            sourceId: source.id,
+                            sourceName: source.name,
+                            sourceType: source.type || 'alist',
+                            items: res.data,
+                            total: (res as any).total || res.data.length
+                        });
+                    }
+                }
+            }
+
+            setSourceSections(allSections);
         } catch (err) {
             console.error('Failed to load all sources sections:', err);
         } finally {
@@ -898,16 +943,39 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             <p className="text-sm mt-2">请先在后台扫描媒体库</p>
                         </div>
                     ) : (
-                        sourceSections.map(section => (
-                            <section key={section.sourceId}>
+                        sourceSections.map((section, idx) => (
+                            <section key={`${section.sourceId}-${section.path || idx}`}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-                                        <i className={`fas ${section.sourceType === 'local' ? 'fa-hdd text-green-400' : section.sourceType === 'webdav' ? 'fa-server text-orange-400' : 'fa-cloud text-blue-400'}`}></i>
-                                        {section.sourceName}
+                                    <h2
+                                        className="text-lg font-bold text-primary flex items-center gap-2 cursor-pointer hover:text-blue-400 transition-colors group"
+                                        onClick={() => {
+                                            if (section.path) {
+                                                navigateToDirectory(section.sourceId, section.path);
+                                            } else {
+                                                navigateToSource(section.sourceId);
+                                            }
+                                        }}
+                                    >
+                                        <i className={`fas ${section.sourceType === 'local' ? 'fa-hdd text-green-400' : section.sourceType === 'webdav' ? 'fa-server text-orange-400' : 'fa-cloud text-blue-400'} group-hover:scale-110 transition-transform`}></i>
+                                        {section.pathName ? (
+                                            <>
+                                                最新
+                                                {section.pathName}
+                                            </>
+                                        ) : (
+                                            <>最新{section.sourceName}</>
+                                        )}
                                         <span className="text-sm font-normal text-secondary">({section.total})</span>
+                                        <i className="fas fa-chevron-right text-xs opacity-0 group-hover:opacity-100 transition-opacity ml-1"></i>
                                     </h2>
                                     <button
-                                        onClick={() => navigateToSource(section.sourceId)}
+                                        onClick={() => {
+                                            if (section.path) {
+                                                navigateToDirectory(section.sourceId, section.path);
+                                            } else {
+                                                navigateToSource(section.sourceId);
+                                            }
+                                        }}
                                         className="text-sm text-secondary hover:text-primary transition-colors flex items-center gap-1"
                                     >
                                         更多
