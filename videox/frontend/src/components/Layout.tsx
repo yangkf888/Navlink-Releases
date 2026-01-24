@@ -15,6 +15,7 @@ interface NavParams {
     platform?: string;
     liveSourceId?: number;
     netdiskSourceId?: number; // For Netdisk
+    mediaServerId?: number; // For Media Server
 }
 
 interface LayoutProps {
@@ -48,6 +49,11 @@ interface LayoutProps {
         onToggleTheme: () => void;
         liveStatuses?: Record<number, any>;
         isAdminPasswordEnabled?: boolean;
+
+        // Media Server Props
+        mediaServers?: any[];
+        selectedMediaServerId?: number | null;
+        onMediaServerChange?: (id: number) => void;
     };
 }
 

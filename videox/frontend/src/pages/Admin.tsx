@@ -5,6 +5,7 @@ import { HomeManager } from '../components/HomeManager';
 import { TvSourceManager } from '../components/TvSourceManager';
 import { LiveSourceManager } from '../components/LiveSourceManager';
 import { NetdiskSourceManager } from '../components/NetdiskSourceManager';
+import { MediaServerManager } from '../components/MediaServerManager';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoSource } from '../types';
 import { apiGet } from '../utils/api';
@@ -14,7 +15,7 @@ interface AdminProps {
     onSourcesChange?: () => void;
 }
 
-type TabType = 'home' | 'sources' | 'tv_sources' | 'live_sources' | 'netdisk_sources' | 'settings';
+type TabType = 'home' | 'sources' | 'tv_sources' | 'live_sources' | 'netdisk_sources' | 'media_servers' | 'settings';
 
 export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) {
     const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -168,6 +169,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                     { id: 'tv_sources', label: '电视直播', icon: 'fa-tv' },
                     { id: 'live_sources', label: '热门直播', icon: 'fa-broadcast-tower' },
                     { id: 'netdisk_sources', label: '私有媒体', icon: 'fa-cloud' },
+                    { id: 'media_servers', label: '影视库', icon: 'fa-film' },
                     { id: 'settings', label: '系统设置', icon: 'fa-cog' }
                 ].map((tab) => (
                     <button
@@ -209,6 +211,11 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             {/* 网盘源管理 */}
             {activeTab === 'netdisk_sources' && (
                 <NetdiskSourceManager onSourceChange={() => { onSourcesChange?.(); }} />
+            )}
+
+            {/* 影视库管理 */}
+            {activeTab === 'media_servers' && (
+                <MediaServerManager onServersChange={onSourcesChange} />
             )}
 
             {/* 系统设置 - 使用独立组件 */}

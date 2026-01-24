@@ -246,6 +246,23 @@ function initSchema(db) {
             fail_count INTEGER DEFAULT 0,
             last_fail_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- 影视库服务器配置 (Emby/Jellyfin)
+        CREATE TABLE IF NOT EXISTS media_servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            type TEXT DEFAULT 'emby', -- emby, jellyfin
+            api_key TEXT,
+            user_id TEXT,
+            enabled INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            remark TEXT,
+            last_sync_at DATETIME,
+            hidden INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `, (err) => {
         if (err) {
             console.error('[Database] Failed to initialize schema:', err);
@@ -468,6 +485,36 @@ function migrateSchema(db) {
         }
     } catch (err) {
         console.log(`[Database] Migration error for netdisk_media: ${err.message}`);
+    }
+
+    // media_servers 表初始化 (迁移场景)
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS media_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                type TEXT DEFAULT 'emby',
+                api_key TEXT,
+                user_id TEXT,
+                enabled INTEGER DEFAULT 1,
+                sort_order INTEGER DEFAULT 0,
+                remark TEXT,
+                last_sync_at DATETIME,
+                hidden INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 检查并添加 hidden 列 (针对已存在表的情况)
+        const serverTableInfo = db.all('PRAGMA table_info(media_servers)');
+        if (!serverTableInfo.some(col => col.name === 'hidden')) {
+            db.run('ALTER TABLE media_servers ADD COLUMN hidden INTEGER DEFAULT 0');
+            console.log('[Database] Migration: Added column hidden to media_servers');
+        }
+    } catch (err) {
+        console.log(`[Database] Migration error for media_servers: ${err.message}`);
     }
 }
 

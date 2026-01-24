@@ -60,6 +60,7 @@ app.use('/api/tv', require('./routes/tv'));
 app.use('/api/live', require('./routes/live'));
 app.use('/api/netdisk', require('./routes/netdisk'));
 app.use('/api/transcode', require('./routes/transcode'));
+app.use('/api/media-servers', require('./routes/media-servers'));
 
 // =============================================================================
 // SPA Fallback - 所有非 API 请求返回 index.html

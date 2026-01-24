@@ -57,6 +57,14 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
                 sourceId: fav.source_id,
                 mediaId: parseInt(fav.vod_id)
             });
+        } else if (fav.source_type === 'media_server') {
+            onNavigate('media_server_play', {
+                mediaServerId: fav.source_id,
+                vodId: fav.vod_id,
+                title: fav.title,
+                url: '', // 转由组件重新请求播放地址 (Safe)
+                cover: fav.cover
+            });
         } else {
             onNavigate('play', {
                 sourceId: fav.source_id,
