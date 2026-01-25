@@ -160,11 +160,18 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                 ragContext = await fetchRAGContext(userMessage.content);
             }
 
-            const baseUrl = provider.baseUrl || 'https://api.openai.com/v1';
-            const apiUrl = `${baseUrl}/chat/completions`;
+            // ⚠️ 生产环境安全适配：请求转发至后端代理，不再前端直连三方 API
+            const apiUrl = '/api/ai/chat';
+            const token = localStorage.getItem('auth_token');
+
+            if (!token) {
+                throw new Error('鉴权信息缺失（请先登录管理员账号或重新登录后重试）');
+            }
 
             let modelName = provider.model;
+            // 保持原有的模型降级逻辑
             if (!modelName) {
+                const baseUrl = provider.baseUrl || '';
                 if (baseUrl.includes('deepseek')) {
                     modelName = 'deepseek-chat';
                 } else {
@@ -178,12 +185,7 @@ export function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             if (ragContext) {
                 apiMessages.push({
                     role: 'system',
-                    content: `你是一个智能助手。请根据以下知识库内容来回答用户的问题。如果知识库内容与问题相关，请优先使用这些信息。如果知识库内容不足以回答问题，可以结合你的知识进行补充说明。
-
-【知识库参考】
-${ragContext.context}
-
-请在回答中适当引用以上来源。`
+                    content: `你是一个智能助手。请根据以下知识库内容来回答用户的问题。如果知识库内容与问题相关，请优先使用这些信息。如果知识库内容不足以回答问题，可以结合你的知识进行补充说明。\n\n【知识库参考】\n${ragContext.context}\n\n请在回答中适当引用以上来源。`
                 });
             }
 
@@ -203,21 +205,23 @@ ${ragContext.context}
                 messages: apiMessages,
                 temperature: 0.7,
                 max_tokens: 2000,
-                stream: true  // 🔥 启用流式输出
+                stream: true,
+                providerId: provider.id // 传给后端以识别使用哪个 provider 配置
             };
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${provider.apiKey}`
+                    'Authorization': `Bearer ${token}` // 使用系统 Token 过后端的鉴权中间件
                 },
                 body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error?.message || `API 请求失败: ${response.status}`);
+                console.error('[AIChatModal] Request failed:', response.status, errorData);
+                throw new Error(errorData.error || `请求失败 (${response.status})`);
             }
 
             // 🔥 流式读取响应
@@ -271,7 +275,7 @@ ${ragContext.context}
                                 ));
                             }
                         } catch {
-                            // 解析失败则跳过（可能是不完整的 JSON）
+                            // 忽略解析错误
                         }
                     }
                 }
@@ -290,12 +294,7 @@ ${ragContext.context}
             console.error('AI 请求错误:', error);
             const errorMessage: Message = {
                 role: 'assistant',
-                content: `❗ 请求失败: ${error instanceof Error ? error.message : '未知错误'}
-
-请检查：
-1. API Key 是否正确
-2. Base URL 是否正确
-3. 网络连接是否正常`,
+                content: `❗ 请求失败: ${error instanceof Error ? error.message : '未知错误'}\n\n提示：请检查系统服务是否正常，并确保已在后台正确配置 AI 提供商。`,
                 timestamp: Date.now()
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -339,7 +338,7 @@ ${ragContext.context}
                 {/* 头部 */}
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
-                        <Icon icon="fa-solid fa-sparkles" className="text-2xl" />
+                        <Icon icon="fa-solid fa-sparkles" className="text-2xl" style={{ color: '#ffffff' }} />
                         <div>
                             <h3 className="font-bold text-lg">AI 助手</h3>
                             {currentProvider && (
@@ -356,7 +355,7 @@ ${ragContext.context}
                                     className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
                                     title="切换 AI 服务"
                                 >
-                                    <Icon icon="fa-solid fa-sliders" />
+                                    <Icon icon="fa-solid fa-sliders" style={{ color: '#ffffff' }} />
                                 </button>
 
                                 {showProviderMenu && (
@@ -376,10 +375,10 @@ ${ragContext.context}
                                                 <div className="flex items-center justify-between">
                                                     <span>{provider.name}</span>
                                                     {(config.aiConfig?.defaultProvider === provider.id && !selectedProviderId) && (
-                                                        <Icon icon="fa-solid fa-check" className="text-blue-600" />
+                                                        <Icon icon="fa-solid fa-check" className="text-blue-600" style={{ color: '#2563eb' }} />
                                                     )}
                                                     {selectedProviderId === provider.id && (
-                                                        <Icon icon="fa-solid fa-check" className="text-blue-600" />
+                                                        <Icon icon="fa-solid fa-check" className="text-blue-600" style={{ color: '#2563eb' }} />
                                                     )}
                                                 </div>
                                                 {provider.model && (
@@ -396,7 +395,7 @@ ${ragContext.context}
                             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
                             title="关闭"
                         >
-                            <Icon icon="fa-solid fa-times" className="text-xl" />
+                            <Icon icon="fa-solid fa-times" className="text-xl" style={{ color: '#ffffff' }} />
                         </button>
                     </div>
                 </div>
@@ -405,12 +404,12 @@ ${ragContext.context}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 custom-scrollbar">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                            <Icon icon="fa-solid fa-sparkles" className="text-6xl mb-4 text-purple-300" />
+                            <Icon icon="fa-solid fa-sparkles" className="text-6xl mb-4 text-purple-300" style={{ color: '#d8b4fe' }} />
                             <p className="text-lg font-medium text-gray-600">开始与 AI 对话</p>
                             <p className="text-sm mt-2">问我任何问题，我会尽力帮助您</p>
                             {ragEnabled && (
                                 <p className="text-xs mt-4 text-blue-500 flex items-center gap-1">
-                                    <Icon icon="fa-solid fa-book" />
+                                    <Icon icon="fa-solid fa-book" style={{ color: '#3b82f6' }} />
                                     知识库检索已开启，AI 会参考您保存的知识
                                 </p>
                             )}
@@ -438,9 +437,9 @@ ${ragContext.context}
                                                     onClick={() => setShowSources(showSources === `${index}` ? null : `${index}`)}
                                                     className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
                                                 >
-                                                    <Icon icon="fa-solid fa-book-open" />
+                                                    <Icon icon="fa-solid fa-book-open" style={{ color: '#3b82f6' }} />
                                                     参考了 {msg.sources.length} 个知识来源
-                                                    <Icon icon={showSources === `${index}` ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} />
+                                                    <Icon icon={showSources === `${index}` ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} style={{ color: '#3b82f6' }} />
                                                 </button>
 
                                                 {showSources === `${index}` && (
@@ -499,7 +498,7 @@ ${ragContext.context}
                                     }`}
                                 title={ragEnabled ? '知识库检索已开启（点击关闭）' : '知识库检索已关闭（点击开启）'}
                             >
-                                <Icon icon="fa-solid fa-book" />
+                                <Icon icon="fa-solid fa-book" style={{ color: ragEnabled ? '#2563eb' : '#9ca3af' }} />
                             </button>
                             <textarea
                                 value={inputMessage}
@@ -522,7 +521,7 @@ ${ragContext.context}
                             className="h-[60px] px-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shrink-0"
                             title="发送"
                         >
-                            <Icon icon="fa-solid fa-paper-plane" />
+                            <Icon icon="fa-solid fa-paper-plane" style={{ color: '#ffffff' }} />
                         </button>
                         {messages.length > 0 && (
                             <button
@@ -530,7 +529,7 @@ ${ragContext.context}
                                 className="h-[60px] px-4 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors shrink-0"
                                 title="清空记录"
                             >
-                                <Icon icon="fa-solid fa-trash" />
+                                <Icon icon="fa-solid fa-trash" style={{ color: '#4b5563' }} />
                             </button>
                         )}
                     </div>
