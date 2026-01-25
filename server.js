@@ -37,6 +37,7 @@ import { cacheMiddleware, tenantCacheMiddleware, invalidateCacheMiddleware } fro
 import { Server } from 'socket.io';
 import statsService from './server/services/StatsService.js';
 import syncService from './server/services/SyncService.js';
+import aiRouter from './server/routes/ai.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -399,6 +400,8 @@ app.get('/api/registry/stats', authenticateToken, requireAdmin, (req, res) => {
     res.json(stats);
 });
 
+
+
 // --- 统一插件路由 (新增) ---
 // 格式: /plugin/{pluginId}/*
 app.use('/plugin', authenticateToken, createPluginRouter(serviceRegistry));
@@ -530,8 +533,8 @@ import siteConfigDAO from './server/database/dao/SiteConfigDAO.js';
  *             schema:
  *               type: object
  */
-// 获取配置 - 添加缓存
-app.get('/api/config', cacheMiddleware({ ttl: 300, keyPrefix: 'config:' }), async (req, res) => {
+// 获取配置 - 添加缓存 (缩短为 60s 以提高同步灵敏度)
+app.get('/api/config', cacheMiddleware({ ttl: 60, keyPrefix: 'config:' }), async (req, res) => {
     try {
         const configData = await siteConfigDAO.getConfig();
         res.json(configData || {});
@@ -1051,6 +1054,9 @@ app.use('/api', navlinkRoutes);
 // 系统升级路由 - 部分接口需要管理员权限，在路由内部处理
 app.use('/api/system', systemRoutes);
 
+// --- AI Proxy Route ---
+app.use('/api/ai', aiRouter);
+
 // Serve Uploads
 app.use('/uploads', express.static(UPLOAD_DIR));
 
@@ -1335,7 +1341,7 @@ app.get('*', async (req, res, next) => {
     serverLogger.info('Config database initialized');
 
     // 运行数据库迁移
-    runMigrations();
+    await runMigrations();
 
     // 🚀 引导逻辑：如果配置为空，初始化默认配置
     try {

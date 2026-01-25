@@ -63,15 +63,16 @@ export const EmbeddingConfig: React.FC = () => {
         setModelsError(null);
 
         try {
+            // 💡 修复点：确保使用 apiPost 发往后端代理接口，而不是直接 fetch 公网域名
             const response = await apiPost<{ success: boolean; data: Model[]; error?: string }>(
                 'config/embedding/models',
                 { baseUrl, apiKey }
             );
 
-            if (response.success && response.data.length > 0) {
+            if (response.success && response.data && response.data.length > 0) {
                 setModels(response.data);
-                // 如果当前选择的模型不在列表中，选择第一个
-                if (!response.data.find(m => m.id === config.model)) {
+                // 如果当前选择的模型不在列表中，且没有选择模型，则选择第一个
+                if (!config.model || !response.data.find(m => m.id === config.model)) {
                     setConfig(prev => ({ ...prev, model: response.data[0].id }));
                 }
             } else {

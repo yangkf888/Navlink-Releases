@@ -22,11 +22,13 @@ router.get('/', (req, res) => {
             SELECT h.*, 
                    CASE 
                        WHEN h.source_type = 'netdisk' THEN ns.name 
+                       WHEN h.source_type = 'media_server' THEN ms.name
                        ELSE vs.name 
                    END as source_name
             FROM play_history h
             LEFT JOIN video_sources vs ON h.source_id = vs.id AND (h.source_type = 'cms' OR h.source_type IS NULL)
             LEFT JOIN netdisk_sources ns ON h.source_id = ns.id AND h.source_type = 'netdisk'
+            LEFT JOIN media_servers ms ON h.source_id = ms.id AND h.source_type = 'media_server'
             WHERE h.user_id = ?
             ORDER BY h.updated_at DESC
             LIMIT ?

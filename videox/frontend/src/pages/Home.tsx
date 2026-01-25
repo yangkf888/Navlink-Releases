@@ -290,7 +290,7 @@ export function Home() {
                 {[...Array(3)].map((_, i) => (
                     <div key={i}>
                         <div className="h-6 w-32 bg-secondary rounded mb-4"></div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                             {[...Array(6)].map((__, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
@@ -335,8 +335,8 @@ export function Home() {
                         <i className={`fas fa-sync-alt ${refreshingSection === 'hot' ? 'fa-spin' : ''}`}></i>
                     </button>
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-                    {data.hot?.slice(0, 12).map(video => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
+                    {data.hot?.slice(0, 16).map(video => (
                         <VideoCard
                             key={`hot-${video.source_id}-${video.vod_id}`}
                             video={video}
@@ -395,8 +395,8 @@ export function Home() {
 
                         {/* 视频网格 */}
                         {videos.length > 0 ? (
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 min-h-[200px]">
-                                {videos.slice(0, 12).map((video: Video) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5 min-h-[200px]">
+                                {videos.slice(0, 16).map((video: Video) => (
                                     <VideoCard
                                         key={`${section.id}-${currentTab}-${video.source_id}-${video.vod_id}`}
                                         video={video}

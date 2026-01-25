@@ -223,8 +223,8 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
                         <div className="h-6 bg-secondary rounded w-32"></div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {[...Array(6)].map((_, j) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                            {[...Array(8)].map((_, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
@@ -278,8 +278,8 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                                     <i className="fas fa-chevron-right text-xs"></i>
                                 </button>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                {section.videos.slice(0, 6).map(video => (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                                {section.videos.slice(0, 8).map(video => (
                                     <VideoCard
                                         key={`${video.source_id}-${video.vod_id}`}
                                         video={video}

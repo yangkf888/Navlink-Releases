@@ -125,14 +125,19 @@ export const AIConfigSettings: React.FC = () => {
 
         setLoadingModels(true);
         try {
-            const baseUrl = editingProvider.baseUrl;
-            const apiUrl = `${baseUrl}/models`;
+            const apiUrl = '/api/ai/models'; // 🔥 使用后端代理
 
+            const token = localStorage.getItem('auth_token');
             const response = await fetch(apiUrl, {
-                method: 'GET',
+                method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${editingProvider.apiKey}`
-                }
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    baseUrl: editingProvider.baseUrl,
+                    apiKey: editingProvider.apiKey
+                })
             });
 
             if (!response.ok) {

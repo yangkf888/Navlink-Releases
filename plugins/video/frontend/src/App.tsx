@@ -15,6 +15,8 @@ import { Search } from './pages/Search';
 import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
 import { History } from './pages/History';
+import { MediaServer } from './pages/MediaServer';
+import { MediaServerPlay } from './pages/MediaServerPlay';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { useAuth } from './contexts/AuthContext';
 
@@ -62,10 +64,10 @@ async function syncBranding() {
 syncBranding();
 
 // 视图类型
-type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin';
+type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin' | 'media_server' | 'media_server_play';
 
 // 模块类型（顶部导航）
-export type AppModule = 'home' | 'sources' | 'tv' | 'live' | 'netdisk';
+export type AppModule = 'home' | 'sources' | 'tv' | 'live' | 'netdisk' | 'media_server';
 
 // 导航参数
 interface NavParams {
@@ -83,6 +85,10 @@ interface NavParams {
     videoIndex?: number; // For Netdisk
     netdiskSourceId?: number; // For Netdisk source selection
     netdiskPath?: string; // For Netdisk search
+    mediaServerId?: number; // For Media Server
+    title?: string;
+    url?: string;
+    cover?: string;
     _t?: number; // 🚀 刷新时间戳，强制重新搜索
 }
 
@@ -157,6 +163,10 @@ function VideoApp() {
     const [netdiskSources, setNetdiskSources] = useState<NetdiskSource[]>([]);
     const [selectedNetdiskSourceId, setSelectedNetdiskSourceId] = useState<number | null>(null);
 
+    // 影视库服务器
+    const [mediaServers, setMediaServers] = useState<any[]>([]);
+    const [selectedMediaServerId, setSelectedMediaServerId] = useState<number | null>(null);
+
     // 安全设置状态
     const [isAdminPasswordEnabled, setIsAdminPasswordEnabled] = useState<boolean>(false);
 
@@ -229,6 +239,17 @@ function VideoApp() {
             setActiveView('netdisk');
             setNavParams({});
             setSelectedNetdiskSourceId(null);  // 清空选中的网盘源，显示全部网盘视图
+        } else if (module === 'media_server') {
+            // 影视库模块
+            const firstServer = mediaServers.find(s => s.enabled);
+            if (firstServer && !selectedMediaServerId) {
+                setSelectedMediaServerId(firstServer.id);
+                setActiveView('media_server');
+                setNavParams({ mediaServerId: firstServer.id });
+            } else {
+                setActiveView('media_server');
+                setNavParams({ mediaServerId: selectedMediaServerId || undefined });
+            }
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
@@ -259,11 +280,12 @@ function VideoApp() {
     const loadSourcesAndCategories = async () => {
         try {
             // 1. 并发加载基础源数据
-            const [sourcesRes, tvRes, liveRes, netdiskRes, settingsRes] = await Promise.all([
+            const [sourcesRes, tvRes, liveRes, netdiskRes, mediaServersRes, settingsRes] = await Promise.all([
                 apiGet<VideoSource[]>('/sources'),
                 apiGet<TvSource[]>('/tv/sources'),
                 apiGet<LiveSource[]>('/live/sources'),
                 apiGet<NetdiskSource[]>('/netdisk/sources'),
+                apiGet<any[]>('/media-servers'),
                 apiGet<any>('/settings')
             ]);
 
@@ -335,6 +357,16 @@ function VideoApp() {
                 }
             }
 
+            // 处理影视库服务器
+            if (mediaServersRes && mediaServersRes.success && mediaServersRes.data) {
+                const enabledServers = mediaServersRes.data.filter((s: any) => s.enabled);
+                setMediaServers(enabledServers);
+
+                if (selectedMediaServerId && !enabledServers.some((s: any) => s.id === selectedMediaServerId)) {
+                    setSelectedMediaServerId(null);
+                }
+            }
+
         } catch (error) {
             console.error('[App] Failed to load sources:', error);
         } finally {
@@ -394,6 +426,14 @@ function VideoApp() {
         setActiveView('tv_play');
         setNavParams({ tvSourceId: id });
         setActiveModule('tv');
+    };
+
+    // 切换影视库服务器
+    const handleMediaServerChange = (id: number) => {
+        setSelectedMediaServerId(id);
+        setActiveView('media_server');
+        setNavParams({ mediaServerId: id });
+        setActiveModule('media_server');
     };
 
     // 主题管理
@@ -516,6 +556,11 @@ function VideoApp() {
                     navParams,
                     activeModule,
                     onModuleChange: handleModuleChange,
+
+                    mediaServers,
+                    selectedMediaServerId,
+                    onMediaServerChange: handleMediaServerChange,
+
                     theme,
                     onToggleTheme: toggleTheme,
                     isAdminPasswordEnabled  // 传递安全设置状态
@@ -601,6 +646,23 @@ function VideoApp() {
                         netdiskPath={navParams.netdiskPath}
                         sources={sources}
                         onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'media_server' && (
+                    <MediaServer
+                        serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
+                        categoryId={navParams.categoryId}
+                        onNavigate={navigate}
+                    />
+                )}
+                {activeView === 'media_server_play' && navParams.mediaServerId && navParams.vodId && (
+                    <MediaServerPlay
+                        mediaServerId={navParams.mediaServerId}
+                        vodId={navParams.vodId}
+                        title={navParams.title || ''}
+                        streamUrl={navParams.url || ''}
+                        cover={navParams.cover || ''}
+                        onGoBack={goBack}
                     />
                 )}
                 {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (

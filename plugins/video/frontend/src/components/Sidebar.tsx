@@ -11,6 +11,7 @@ interface NavParams {
     keyword?: string;
     platform?: string;
     liveSourceId?: number;
+    mediaServerId?: number;
 }
 
 interface SidebarProps {
@@ -47,6 +48,12 @@ interface SidebarProps {
     theme?: 'light' | 'dark';
     onToggleTheme?: () => void;
     liveStatuses?: Record<number, any>;
+    isAdminPasswordEnabled?: boolean;
+
+    // Media Server Props
+    mediaServers?: any[];
+    selectedMediaServerId?: number | null;
+    onMediaServerChange?: (id: number) => void;
 }
 
 export function Sidebar({
@@ -78,7 +85,11 @@ export function Sidebar({
     activeModule,
     onModuleChange,
     theme = 'dark',
-    liveStatuses = {}
+    liveStatuses = {},
+
+    mediaServers = [],
+    selectedMediaServerId,
+    onMediaServerChange
 }: SidebarProps) {
     const [isSourcesOpen, setIsSourcesOpen] = useState(true);
 
@@ -88,12 +99,38 @@ export function Sidebar({
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [tvSearch, setTvSearch] = useState('');
 
+    // Media Server State
+    const [mediaServerCategories, setMediaServerCategories] = useState<Record<number, any[]>>({});
+
     // 加载电视频道
     useEffect(() => {
         if (activeModule === 'tv' && selectedTvSourceId) {
             loadTvChannels(selectedTvSourceId);
         }
     }, [activeModule, selectedTvSourceId, tvRefreshKey]);
+
+    useEffect(() => {
+        if (activeModule === 'media_server' && mediaServers.length > 0) {
+            loadMediaServerCategories();
+        }
+    }, [activeModule, mediaServers]);
+
+    const loadMediaServerCategories = async () => {
+        try {
+            const newCategories: Record<number, any[]> = {};
+            await Promise.all(mediaServers.map(async (server) => {
+                if (server.enabled) {
+                    const res = await apiGet<any[]>(`/media-servers/${server.id}/libraries`);
+                    if (res.success && res.data) {
+                        newCategories[server.id] = res.data;
+                    }
+                }
+            }));
+            setMediaServerCategories(newCategories);
+        } catch (e) {
+            console.error('Failed to load media server categories', e);
+        }
+    };
 
     const loadTvChannels = async (sourceId: number) => {
         try {
@@ -327,6 +364,74 @@ export function Sidebar({
         </div>
     );
 
+    const renderMediaServerSidebar = () => (
+        <div className="w-full space-y-0.5 mt-2">
+            {!isMobile && (
+                <SidebarItem
+                    icon="fas fa-film"
+                    label="全部影视库"
+                    isActive={activeModule === 'media_server' && !selectedMediaServerId}
+                    onClick={() => {
+                        onMediaServerChange?.(0);
+                        onNavigate('media_server', { mediaServerId: undefined });
+                    }}
+                    collapsed={collapsed}
+                />
+            )}
+            {mediaServers
+                .filter(s => s.enabled)
+                .map(server => {
+                    const categories = mediaServerCategories[server.id] || [];
+                    const isExpanded = expandedGroups[`media-server-${server.id}`] !== false;
+                    return (
+                        <div key={server.id} className="w-full">
+                            <SidebarItem
+                                icon={server.type === 'emby' ? 'fas fa-play-circle' : 'fas fa-server'}
+                                label={server.name}
+                                isActive={selectedMediaServerId === server.id && !navParams.categoryId}
+                                onClick={() => {
+                                    if (!collapsed && categories.length > 0) {
+                                        // 如果当前没展开，或者点击的是新服务器，确保展开列表
+                                        if (!isExpanded || selectedMediaServerId !== server.id) {
+                                            setExpandedGroups(prev => ({ ...prev, [`media-server-${server.id}`]: true }));
+                                        }
+                                    }
+                                    onMediaServerChange?.(server.id);
+                                    // 🔑 显式设置 categoryId 为 undefined，触发 MediaServer 组件显示首页聚合视图
+                                    onNavigate('media_server', { mediaServerId: server.id, categoryId: undefined });
+                                }}
+                                collapsed={collapsed}
+                                hasChildren={categories.length > 0}
+                                isExpanded={isExpanded}
+                            />
+                            {!collapsed && isExpanded && categories.length > 0 && (
+                                <div className="space-y-0.5">
+                                    {categories.map((lib) => (
+                                        <SidebarItem
+                                            key={lib.Id}
+                                            icon="fas fa-folder"
+                                            label={lib.Name}
+                                            isActive={selectedMediaServerId === server.id && navParams.categoryId === lib.Id}
+                                            onClick={() => {
+                                                onMediaServerChange?.(server.id);
+                                                onNavigate('media_server', {
+                                                    mediaServerId: server.id,
+                                                    categoryId: lib.Id,
+                                                    categoryName: lib.Name
+                                                });
+                                                if (isMobile && onCloseMobile) onCloseMobile();
+                                            }}
+                                            level={1}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+        </div>
+    );
+
     const renderVideoSidebar = () => (
         <div className="w-full space-y-0.5">
             {/* 首页 (桌面端) */}
@@ -516,6 +621,7 @@ export function Sidebar({
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
                             { key: 'tv', label: '电视', icon: 'fa-tv' },
                             { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
+                            { key: 'media_server', label: '影视库', icon: 'fa-film' },
                             { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
                         ].map(item => (
                             <SidebarItem
@@ -538,7 +644,9 @@ export function Sidebar({
                         ? renderLiveSidebar()
                         : (activeModule === 'netdisk'
                             ? renderNetdiskSidebar()
-                            : renderVideoSidebar()))}
+                            : (activeModule === 'media_server'
+                                ? renderMediaServerSidebar()
+                                : renderVideoSidebar())))}
             </div>
 
             {/* 底部功能按钮 */}

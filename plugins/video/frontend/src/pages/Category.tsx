@@ -22,15 +22,14 @@ interface SubCategorySection {
     loading: boolean;
 }
 
-// 每行显示的视频数量（6列布局）
-const VIDEOS_PER_ROW = 6;
-// 初始显示行数（3行，但最后一个位置留给"加载更多"）
-// 初始显示行数（3行，18个位置，17个视频+1个加载更多）
+// 每行显示的视频数量（8列布局）
+const VIDEOS_PER_ROW = 8;
+// 初始显示行数（3行，24个位置，23个视频+1个加载更多）
 const INITIAL_ROWS = 3;
-// 初始显示数量：3行 * 6 - 1 = 17
+// 初始显示数量：3行 * 8 - 1 = 23
 const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
-// 每次加载更多的数量：一页（12个）
-const LOAD_MORE_COUNT = 12;
+// 每次加载更多的数量
+const LOAD_MORE_COUNT = 16;
 
 export function Category({ sourceId, categoryId, categoryName, subCategories, onNavigate }: CategoryProps) {
     const [videos, setVideos] = useState<Video[]>([]);
@@ -243,7 +242,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                         [...Array(3)].map((_, i) => (
                             <div key={i} className="space-y-4">
                                 <div className="h-6 bg-secondary rounded w-32"></div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                                     {[...Array(INITIAL_COUNT + 1)].map((_, j) => (
                                         <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                                     ))}
@@ -252,8 +251,8 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                         ))
                     ) : (
                         // 列表模式骨架
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {[...Array(18)].map((_, i) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                            {[...Array(24)].map((_, i) => (
                                 <div key={i} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
@@ -293,7 +292,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                                             </span>
                                         </h2>
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                                         {section.videos.map(video => (
                                             <VideoCard
                                                 key={`${video.source_id} -${video.vod_id} `}
@@ -355,7 +354,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                     {/* 视频网格 */}
                     {videos.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                                 {videos.map(video => (
                                     <VideoCard
                                         key={`${video.source_id} -${video.vod_id} `}

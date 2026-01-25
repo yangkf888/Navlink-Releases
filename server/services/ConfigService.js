@@ -44,6 +44,15 @@ export class ConfigService {
                     };
                 }
 
+                // AI 配置初始化防崩
+                if (!jsonConfig.aiConfig) {
+                    jsonConfig.aiConfig = {
+                        providers: [],
+                        defaultProvider: undefined,
+                        chatShortcut: 'Ctrl+Shift+A'
+                    };
+                }
+
                 console.log('[ConfigService] ✅ Successfully loaded canonical config from JSON');
                 return jsonConfig;
             }

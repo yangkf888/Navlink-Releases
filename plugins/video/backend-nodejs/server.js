@@ -55,6 +55,7 @@ module.exports = {
             router.use('/api/live', require('./routes/live'));
             router.use('/api/netdisk', require('./routes/netdisk'));
             router.use('/api/transcode', require('./routes/transcode'));
+            router.use('/api/media-servers', require('./routes/media-servers'));
 
             console.log('[video] In-process plugin initialized successfully');
             return router;

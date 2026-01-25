@@ -78,6 +78,27 @@ router.post('/download-icon', authenticateToken, async (req, res) => {
     try {
         await ensureUploadDir();
 
+        // 🛡️ [SSRF Defense] 核心修复
+        // 解析 URL 并拦截内网 IP 访问
+        try {
+            const parsedUrl = new URL(iconUrl);
+            const hostname = parsedUrl.hostname;
+
+            // 拦截常见的本地和内网地址
+            const isPrivateIP = (host) => {
+                if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') return true;
+                // 简单的内网网段正则判断 (10.x, 172.16-31.x, 192.168.x)
+                return /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)/.test(host);
+            };
+
+            if (isPrivateIP(hostname)) {
+                console.warn(`[Security] Blocked potential SSRF attempt to internal host: ${hostname}`);
+                return res.status(403).json({ error: 'Access to internal network is prohibited' });
+            }
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid icon URL' });
+        }
+
         let targetIconUrl = iconUrl;
 
         // 🚀 核心优化：如果 iconUrl 看起来像是一个网站首页（而非图片文件）

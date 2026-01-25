@@ -540,10 +540,10 @@ export function GlobalSearchBar({ sources, netdiskSources, onSearch, onNavigate,
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
+                            { key: 'media_server', label: '影视库', icon: 'fa-film' },
+                            { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
                             { key: 'tv', label: '电视', icon: 'fa-tv' },
                             { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
-                            { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
-                            { key: 'media_server', label: '影视库', icon: 'fa-film' },
                         ].map(item => (
                             <button
                                 key={item.key}

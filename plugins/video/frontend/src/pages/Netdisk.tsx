@@ -76,16 +76,16 @@ interface NetdiskProps {
     onPlay?: (mediaId: number, sourceId: number, videoIndex?: number) => void;
 }
 
-// 每行显示的视频数量（6列布局）
-const VIDEOS_PER_ROW = 6;
-// 初始显示行数（4行，23个位置，22个视频+1个加载更多）
+// 每行显示的视频数量（8列布局）
+const VIDEOS_PER_ROW = 8;
+// 初始显示行数（4行，31个位置，30个视频+1个加载更多）
 const INITIAL_ROWS = 4;
-// 初始显示数量：4行 * 6 - 1 = 23（实际显示22个视频+1个加载更多卡片）
+// 初始显示数量：4行 * 8 - 1 = 31（实际显示30个视频+1个加载更多卡片）
 const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
 // 每次加载更多的数量
-const LOAD_MORE_COUNT = 12;
+const LOAD_MORE_COUNT = 16;
 // 全部网盘视图每个网盘源显示的数量
-const SOURCE_PREVIEW_COUNT = 6;
+const SOURCE_PREVIEW_COUNT = 8;
 
 // 视图层级
 type ViewLevel = 'all' | 'source' | 'directory';
@@ -109,7 +109,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(1);
-    const PAGE_SIZE = 20;
+    const PAGE_SIZE = 24;
 
     // 当前视图层级
     const [currentLevel, setCurrentLevel] = useState<ViewLevel>('all');

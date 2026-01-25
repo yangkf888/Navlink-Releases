@@ -76,16 +76,16 @@ interface NetdiskProps {
     onPlay?: (mediaId: number, sourceId: number, videoIndex?: number) => void;
 }
 
-// 每行显示的视频数量（6列布局）
-const VIDEOS_PER_ROW = 6;
-// 初始显示行数（4行，23个位置，22个视频+1个加载更多）
+// 每行显示的视频数量（对齐大屏 8 列布局）
+const VIDEOS_PER_ROW = 8;
+// 初始显示行数
 const INITIAL_ROWS = 4;
-// 初始显示数量：4行 * 6 - 1 = 23（实际显示22个视频+1个加载更多卡片）
+// 初始显示数量：4行 * 8 - 1 = 31（实际显示30个视频+1个加载更多卡片）
 const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
 // 每次加载更多的数量
 const LOAD_MORE_COUNT = 12;
-// 全部网盘视图每个网盘源显示的数量
-const SOURCE_PREVIEW_COUNT = 6;
+// 全部网盘视图每个网盘源显示的数量（对准 8 列布局）
+const SOURCE_PREVIEW_COUNT = 8;
 
 // 视图层级
 type ViewLevel = 'all' | 'source' | 'directory';
@@ -930,7 +930,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             <p>未发现以此维度聚合的内容</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 lg:gap-10">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
                             {groupedData.map(group => renderCollectionCard(group))}
                         </div>
                     )
@@ -982,7 +982,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                         <i className="fas fa-chevron-right text-xs"></i>
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                                     {section.items.slice(0, SOURCE_PREVIEW_COUNT).map(item => renderMediaCard(item))}
                                 </div>
                             </section>
@@ -1028,7 +1028,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                                         {section.items.map(item => renderMediaCard(item))}
                                         {/* "加载更多"卡片 - 始终显示在最后位置 */}
                                         {section.hasMore && renderLoadMoreCard(section.path, section.loading)}
@@ -1072,7 +1072,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     style={{ height: 'calc(100vh - 200px)' }}
                                     totalCount={media.length}
                                     overscan={200}
-                                    listClassName="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5"
+                                    listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
                                     itemContent={(index) => renderMediaCard(media[index])}
                                     endReached={() => {
                                         if (hasMore && !loadingMore) {

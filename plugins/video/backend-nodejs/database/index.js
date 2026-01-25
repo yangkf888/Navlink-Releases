@@ -36,6 +36,25 @@ function initDatabase() {
     // 🔧 修复：确保迁移总是在初始化后执行（不依赖回调）
     // 这解决了升级场景下旧数据库缺少新列的问题
     try {
+        // 🚀 强力注入：确保 media_servers 表存在
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS media_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                url TEXT NOT NULL,
+                api_key TEXT,
+                user_id TEXT,
+                username TEXT,
+                password TEXT,
+                enabled INTEGER DEFAULT 1,
+                hidden INTEGER DEFAULT 0,
+                sort_order INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         migrateSchema(db);
         insertDefaultSettings(db);
         insertDefaultSources(db);
@@ -246,6 +265,23 @@ function initSchema(db) {
             url TEXT PRIMARY KEY,
             fail_count INTEGER DEFAULT 0,
             last_fail_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 影视库服务器 (Media Servers)
+        CREATE TABLE IF NOT EXISTS media_servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            type TEXT DEFAULT 'emby', -- emby, jellyfin
+            api_key TEXT,
+            user_id TEXT,
+            enabled INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            remark TEXT,
+            last_sync_at DATETIME,
+            hidden INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     `, (err) => {
         if (err) {
@@ -469,6 +505,48 @@ function migrateSchema(db) {
         }
     } catch (err) {
         console.log(`[Database] Migration error for netdisk_media: ${err.message}`);
+    }
+
+    // media_servers 表初始化 (迁移场景)
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS media_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                type TEXT DEFAULT 'emby',
+                api_key TEXT,
+                user_id TEXT,
+                enabled INTEGER DEFAULT 1,
+                sort_order INTEGER DEFAULT 0,
+                remark TEXT,
+                last_sync_at DATETIME,
+                hidden INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 检查并添加各列
+        const serverTableInfo = db.all('PRAGMA table_info(media_servers)');
+        const serverColsToAdd = [
+            { name: 'hidden', type: 'INTEGER DEFAULT 0' },
+            { name: 'sort_order', type: 'INTEGER DEFAULT 0' },
+            { name: 'remark', type: 'TEXT' },
+            { name: 'last_sync_at', type: 'DATETIME' },
+            { name: 'type', type: 'TEXT DEFAULT \'emby\'' },
+            { name: 'created_at', type: 'DATETIME DEFAULT CURRENT_TIMESTAMP' },
+            { name: 'updated_at', type: 'DATETIME DEFAULT CURRENT_TIMESTAMP' }
+        ];
+
+        for (const col of serverColsToAdd) {
+            if (!serverTableInfo.some(c => c.name === col.name)) {
+                db.run(`ALTER TABLE media_servers ADD COLUMN ${col.name} ${col.type}`);
+                console.log(`[Database] Migration: Added column ${col.name} to media_servers`);
+            }
+        }
+    } catch (err) {
+        console.log(`[Database] Migration error for media_servers: ${err.message}`);
     }
 }
 

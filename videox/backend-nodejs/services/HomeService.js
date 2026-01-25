@@ -218,7 +218,7 @@ class HomeService {
         });
 
         // 去重并排序
-        const finalVideos = this.deduplicateAndSort(allVideos, 12);
+        const finalVideos = this.deduplicateAndSort(allVideos, 16);
 
         // 存入缓存
         this.saveCache(db, this.cacheKeys.HOT, finalVideos);
@@ -237,7 +237,7 @@ class HomeService {
         let defaultExcludes = config.excludes || [];
 
         // 1. 刷新该板块的“最新” (LATEST)
-        const latest = await this.refreshCategory(sources, db, `home_${sectionKey}_latest`, [...config.base], 12, defaultExcludes);
+        const latest = await this.refreshCategory(sources, db, `home_${sectionKey}_latest`, [...config.base], 16, defaultExcludes);
         if (onUpdate) onUpdate(sectionKey, 'latest', latest);
 
         // 2. 刷新所有子分类
@@ -249,7 +249,7 @@ class HomeService {
                 currentExcludes = currentExcludes.filter(e => e !== '动画');
             }
 
-            const subData = await this.refreshCategory(sources, db, `home_${sectionKey}_${subKey}`, keywords, 12, currentExcludes);
+            const subData = await this.refreshCategory(sources, db, `home_${sectionKey}_${subKey}`, keywords, 16, currentExcludes);
             if (onUpdate) onUpdate(sectionKey, subKey, subData);
         }
     }
@@ -294,7 +294,7 @@ class HomeService {
                 const catTasks = targetCatIds.map((tid) => async () => {
                     const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
                     const parser = new CmsApiParser(source.url, agent);
-                    const res = await parser.getVideos({ categoryId: tid, page: 1, limit: 12 });
+                    const res = await parser.getVideos({ categoryId: tid, page: 1, limit: 16 });
                     if (res.list) {
                         return res.list.map(v => ({ ...v, source_id: source.id, source_name: source.name }));
                     }

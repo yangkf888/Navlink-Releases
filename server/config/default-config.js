@@ -210,5 +210,10 @@ export const DEFAULT_CONFIG = {
         copyright: 'Copyright © 2024 Navlink',
         links: [],
         extraText: 'Powered by Navlink'
+    },
+    aiConfig: {
+        providers: [],
+        defaultProvider: undefined,
+        chatShortcut: 'Ctrl+Shift+A'
     }
 };

@@ -144,27 +144,17 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 console.log('[ConfigContext] ℹ️ Config ready from:', hasServerInject ? 'server-inject' : 'localStorage');
                 setIsLoaded(true);
 
-                // 如果是从 LocalStorage 加载的，后台异步验证是否最新
-                if (!hasServerInject && hasCachedConfig) {
+                // 后台异步验证是否最新 (放宽限制，即使有 serverInject 也验证)
+                if (hasCachedConfig) {
                     (async () => {
                         try {
                             const freshConfig = await api.getConfig();
+                            if (!freshConfig) return;
 
-                            // 空值检查
-                            if (!freshConfig) {
-                                console.warn('[ConfigContext] ⚠️ API returned null config');
-                                return;
-                            }
-
-                            const cachedStr = JSON.stringify(config);
-                            const freshStr = JSON.stringify(freshConfig);
-
-                            if (cachedStr !== freshStr) {
-                                console.log('[ConfigContext] ℹ️ Config updated, refreshing...');
+                            if (JSON.stringify(config) !== JSON.stringify(freshConfig)) {
+                                console.log('[ConfigContext] ℹ️ Config updated in background, refreshing...');
                                 setConfigState(freshConfig);
-                                localStorage.setItem(CONFIG_STORAGE_KEY, freshStr);
-                            } else {
-                                console.log('[ConfigContext] ✅ Cached config is up-to-date');
+                                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(freshConfig));
                             }
                         } catch (e) {
                             console.warn('[ConfigContext] ⚠️ Background config refresh failed:', e);
@@ -180,11 +170,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         const mergedConfig = {
                             ...DEFAULT_CONFIG,
                             ...serverData,
-                            // 确保 categories 始终是数组
                             categories: Array.isArray(serverData.categories) ? serverData.categories : DEFAULT_CONFIG.categories,
-                            // 确保 promo 始终是数组
                             promo: Array.isArray(serverData.promo) ? serverData.promo : DEFAULT_CONFIG.promo,
-                            // 确保 topNav 始终是数组
                             topNav: Array.isArray(serverData.topNav) ? serverData.topNav : DEFAULT_CONFIG.topNav,
                             theme: { ...DEFAULT_CONFIG.theme, ...(serverData.theme || {}) },
                             rightSidebar: {
@@ -197,14 +184,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         } as SiteConfig;
 
                         setConfigState(mergedConfig);
-
-                        // 缓存到 LocalStorage
-                        try {
-                            localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(mergedConfig));
-                            console.log('[ConfigContext] ✅ Config loaded and cached');
-                        } catch (e) {
-                            console.warn('[ConfigContext] ⚠️ Failed to cache config:', e);
-                        }
+                        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(mergedConfig));
                     }
                 } catch (err) {
                     console.error('[ConfigContext] ❌ Failed to load config:', err);
@@ -224,9 +204,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setIsAuthenticated(true);
             setToast({ message: `欢迎回来, ${user.username}!`, type: 'success' });
         } catch (err) {
-            if (err instanceof ApiError) {
-                throw new Error(err.message);
-            }
+            if (err instanceof ApiError) throw new Error(err.message);
             throw err;
         }
     };
@@ -235,49 +213,22 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         localStorage.removeItem('auth_token');
         setIsAuthenticated(false);
         setToast({ message: '已退出登录', type: 'success' });
-        // 延迟刷新页面，让Toast显示出来
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 500);
+        setTimeout(() => { window.location.href = '/'; }, 500);
     };
 
     const saveConfig = async (newConfig: SiteConfig) => {
         try {
-            console.log('[ConfigContext] 📤 开始保存配置到服务器...');
             await api.saveConfig(newConfig);
-            console.log('[ConfigContext] ✅ 配置保存成功');
-
-            // 🔑 同步更新 LocalStorage（下次刷新立即生效）
-            try {
-                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
-                console.log('[ConfigContext] ✅ Config saved and synced to localStorage');
-            } catch (e) {
-                console.warn('[ConfigContext] ⚠️ Failed to sync config to localStorage:', e);
-            }
-
-            // 兼容旧的 key（逐步迁移）
-            try {
-                localStorage.setItem('nav_site_config', JSON.stringify(newConfig));
-            } catch (e) {
-                // 静默失败
-            }
-
-            // Dispatch local event for other components in same window
+            localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
             window.dispatchEvent(new CustomEvent('nav-config-updated', { detail: newConfig }));
-
-            // 显示成功提示（已禁用，避免打扰用户）
-            // setToast({ message: '✅ 配置已保存', type: 'success' });
         } catch (err) {
             console.error('[ConfigContext] ❌ 保存配置失败:', err);
-
             if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-                console.warn('[ConfigContext] ⚠️ 认证失败，自动退出登录');
                 localStorage.removeItem('auth_token');
                 setIsAuthenticated(false);
                 setToast({ message: '❌ 登录已过期，请重新登录', type: 'error' });
             } else {
-                const errorMsg = err instanceof ApiError ? err.message : '网络错误';
-                setToast({ message: `❌ 保存失败: ${errorMsg}`, type: 'error' });
+                setToast({ message: '❌ 保存失败', type: 'error' });
             }
             throw err;
         }
@@ -285,25 +236,15 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const setConfig = (newConfig: SiteConfig | ((prev: SiteConfig) => SiteConfig)) => {
         const finalConfig = typeof newConfig === 'function' ? newConfig(config) : newConfig;
-        console.log('[ConfigContext] 配置已更新(本地),等待1秒后自动保存...');
         setConfigState(finalConfig);
-        // Optimistic update to local storage
-        localStorage.setItem('nav_site_config', JSON.stringify(finalConfig));
-        // Dispatch local event for other components in same window
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(finalConfig));
         window.dispatchEvent(new CustomEvent('nav-config-updated', { detail: finalConfig }));
     };
 
-    // Sync with other tabs/windows via storage event
-    // Note: We removed the local 'nav-config-updated' event listener because:
-    // 1. React Context state changes automatically propagate to all consumers
-    // 2. The event was causing self-listening loops when setConfig dispatched events
-    //    that were then consumed by the same component, triggering additional updates
     useEffect(() => {
         const handleStorageChange = (e: StorageEvent) => {
-            // Only sync from OTHER tabs (not the same window)
-            if (e.key === 'nav_site_config' && e.newValue) {
+            if (e.key === CONFIG_STORAGE_KEY && e.newValue) {
                 try {
-                    console.log('[ConfigContext] Detected config change from another tab, syncing...');
                     const newConfig = JSON.parse(e.newValue);
                     setConfigState(newConfig);
                 } catch (err) {
@@ -311,49 +252,27 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 }
             }
         };
-
         window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-    // Auto-save to server
     const suppressSave = React.useRef(true);
 
     useEffect(() => {
-        if (!isLoaded) {
-            console.log('[ConfigContext] 配置未加载完成,跳过自动保存');
-            return;
-        }
-
-        // Prevent save on initial load
+        if (!isLoaded) return;
         if (suppressSave.current) {
-            console.log('[ConfigContext] 首次加载,跳过自动保存');
             suppressSave.current = false;
             return;
         }
+        if (!isAuthenticated) return;
 
-        if (!isAuthenticated) {
-            console.warn('[ConfigContext] ⚠️ 未登录,无法自动保存配置!');
-            setToast({ message: '⚠️ 请先登录才能保存配置', type: 'error' });
-            return;
-        }
-
-        console.log('[ConfigContext] 配置变化检测到,1秒后自动保存...');
         const timer = setTimeout(() => {
-            console.log('[ConfigContext] 触发自动保存...');
-            saveConfig(config).catch((err) => {
-                console.error('[ConfigContext] 自动保存失败:', err);
-                // Error is already handled in saveConfig (toast)
-            });
+            saveConfig(config).catch(() => { });
         }, 1000);
 
         return () => clearTimeout(timer);
     }, [config, isLoaded, isAuthenticated]);
 
-    // Prevent rendering default config before loading is complete to avoid UI flickering
     if (!isLoaded) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -375,8 +294,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 export const useConfig = () => {
     const context = useContext(ConfigContext);
-    if (!context) {
-        throw new Error('useConfig must be used within a ConfigProvider');
-    }
+    if (!context) throw new Error('useConfig must be used within a ConfigProvider');
     return context;
 };

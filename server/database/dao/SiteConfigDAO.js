@@ -81,6 +81,15 @@ export class SiteConfigDAO {
                 if (!config.rightSidebar || typeof config.rightSidebar !== 'object') {
                     config.rightSidebar = { profile: { logoText: 'NL', title: 'Navlink', description: '', socials: [] }, hotTopics: [], githubTrending: {} };
                 }
+
+                // 🔑 增强 AI 配置防御
+                if (!config.aiConfig || typeof config.aiConfig !== 'object') {
+                    config.aiConfig = {
+                        providers: [],
+                        defaultProvider: undefined,
+                        chatShortcut: 'Ctrl+Shift+A'
+                    };
+                }
                 // 🔑 增强 rightSidebar 内部属性的防御
                 config.rightSidebar.profile = config.rightSidebar.profile || { logoText: 'NL', title: 'Navlink', description: '', socials: [] };
 

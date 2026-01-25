@@ -460,7 +460,32 @@ export class PluginMarketService {
      */
     async extractZip(zipPath, destination) {
         const zip = new AdmZip(zipPath);
-        zip.extractAllTo(destination, true);
+        const zipEntries = zip.getEntries();
+
+        // 规范化目标目录路径，用于后续比较
+        const resolvedDest = path.resolve(destination);
+
+        for (const entry of zipEntries) {
+            // 🛡️ [Zip Slip Defense] 核心修复
+            // 确保解压后的绝对路径依然在目标目录内
+            const entryPath = entry.entryName;
+            const targetPath = path.resolve(resolvedDest, entryPath);
+
+            if (!targetPath.startsWith(resolvedDest)) {
+                console.error(`[Security] Blocked potential Zip Slip attack: ${entryPath}`);
+                throw new Error(`Security error: Illegal file path in plugin package (${entryPath})`);
+            }
+
+            // 如果是目录，确保目录存在
+            if (entry.isDirectory) {
+                await fs.mkdir(targetPath, { recursive: true });
+            } else {
+                // 如果是文件，确保其父目录已创建
+                await fs.mkdir(path.dirname(targetPath), { recursive: true });
+                // 使用 AdmZip 的内部数据写入，避免直接 extractAllTo
+                zip.extractEntryTo(entry.entryName, path.dirname(targetPath), false, true);
+            }
+        }
     }
 
     /**

@@ -146,6 +146,19 @@ export interface AIProvider {
   enabled: boolean;
 }
 
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  sources?: { title: string; url?: string }[];
+}
+
+export interface RAGResponse {
+  context: string;
+  count: number;
+  sources: { title: string; url?: string }[];
+}
+
 export interface AIConfig {
   providers: AIProvider[];
   defaultProvider?: string;
