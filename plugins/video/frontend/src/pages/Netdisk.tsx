@@ -600,13 +600,13 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             }}
             className="group relative cursor-pointer"
         >
-            <div className="relative aspect-[2/3] transition-transform duration-300 group-hover:-translate-y-2">
+            <div className={`relative aspect-[2/3] transition-transform duration-300 group-hover:-translate-y-2 rounded-2xl overflow-hidden bg-secondary border border-border-color shadow-md`}>
                 {/* 叠层效果背景 2 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-2 -translate-y-2 border border-border-color shadow-sm"></div>
+                <div className="absolute inset-0 bg-secondary rounded-2xl translate-x-2 -translate-y-2 border border-border-color shadow-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {/* 叠层效果背景 1 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-1 -translate-y-1 border border-border-color shadow-sm"></div>
+                <div className="absolute inset-0 bg-secondary rounded-2xl translate-x-1 -translate-y-1 border border-border-color shadow-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {/* 主封面 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg overflow-hidden border border-border-color shadow-md">
+                <div className="absolute inset-0 bg-secondary overflow-hidden">
                     {group.covers && group.covers.length > 0 ? (
                         group.count > 2 && group.covers.length >= 4 ? (
                             // 多封面 2x2 网格布局
@@ -658,11 +658,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 e.preventDefault();
                 setContextMenu({ x: e.clientX, y: e.clientY, item });
             }}
-            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group relative"
+            className="video-card group relative cursor-pointer"
         >
             {/* 封面部分 */}
-            <div className="relative">
-                <div className="aspect-[2/3] overflow-hidden bg-secondary">
+            <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-secondary border border-border-color group-hover:border-blue-500/50 transition-all shadow-md">
+                <div className="w-full h-full bg-secondary">
                     {item.poster_url ? (
                         <img
                             src={(() => {
@@ -743,7 +743,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             </div>
 
             {/* 信息部分 (底部) */}
-            <div className="p-3">
+            <div className="mt-2 px-1">
                 <h3 className="text-primary text-sm font-medium truncate" title={item.title}>
                     {item.title}
                 </h3>
@@ -808,7 +808,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
                         <div className="h-6 bg-secondary rounded w-32"></div>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                             {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 6)].map((_, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
@@ -930,7 +930,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             <p>未发现以此维度聚合的内容</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 lg:gap-10">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
                             {groupedData.map(group => renderCollectionCard(group))}
                         </div>
                     )
@@ -982,7 +982,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                         <i className="fas fa-chevron-right text-xs"></i>
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                                     {section.items.slice(0, SOURCE_PREVIEW_COUNT).map(item => renderMediaCard(item))}
                                 </div>
                             </section>
@@ -1028,7 +1028,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
                                         {section.items.map(item => renderMediaCard(item))}
                                         {/* "加载更多"卡片 - 始终显示在最后位置 */}
                                         {section.hasMore && renderLoadMoreCard(section.path, section.loading)}
@@ -1072,7 +1072,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     style={{ height: 'calc(100vh - 200px)' }}
                                     totalCount={media.length}
                                     overscan={200}
-                                    listClassName="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5"
+                                    listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
                                     itemContent={(index) => renderMediaCard(media[index])}
                                     endReached={() => {
                                         if (hasMore && !loadingMore) {
