@@ -65,8 +65,11 @@ class MediaServerService {
             sortBy = 'SortName',
             sortOrder = 'Ascending',
             includeItemTypes = 'Movie,Series,MusicVideo,Video',
-            fields = 'PrimaryImageAspectRatio,ProductionYear,Overview,Genres,CommunityRating,RunTimeTicks,UserData',
-            filters = ''
+            fields = 'PrimaryImageAspectRatio,ProductionYear,Overview,Genres,CommunityRating,RunTimeTicks,UserData,ImageTags',
+            filters = '',
+            genreIds,
+            tagIds,
+            recursive = true
         } = options;
 
         try {
@@ -77,7 +80,7 @@ class MediaServerService {
             const params = {
                 ParentId: parentId,
                 UserId: effectiveUserId,
-                Recursive: true,
+                Recursive: recursive,
                 IncludeItemTypes: includeItemTypes,
                 Fields: fields,
                 Filters: filters,
@@ -85,6 +88,8 @@ class MediaServerService {
                 SortOrder: sortOrder,
                 StartIndex: startIndex,
                 Limit: limit,
+                GenreIds: genreIds,
+                TagIds: tagIds,
                 api_key: api_key
             };
 
@@ -103,6 +108,9 @@ class MediaServerService {
             });
 
             const items = response.data.Items || [];
+            if (items.length > 0) {
+                console.log(`[MediaServerService] First item debug: Id=${items[0].Id}, Name=${items[0].Name}, ImageTags=${JSON.stringify(items[0].ImageTags)}`);
+            }
             console.log(`[MediaServerService] SUCCESS: Found ${items.length} items`);
 
             return {
@@ -334,23 +342,54 @@ class MediaServerService {
     /**
      * 获取“继续观看”内容
      */
-    static async getResumeItems(server) {
+    static async getResumeItems(server, parentId = null) {
         const { url, api_key, type, user_id } = server;
         try {
             const effectiveUserId = user_id || await this.getPublicUserId(server);
             const endpoint = `${type === 'emby' ? '/emby' : ''}/Users/${effectiveUserId}/Items/Resume`;
-            const response = await axios.get(`${url}${endpoint}`, {
-                params: {
-                    api_key,
-                    Limit: 12,
-                    Fields: 'PrimaryImageAspectRatio,ProductionYear,Overview',
-                    ImageTypeLimit: 1,
-                    MediaTypes: 'Video'
-                }
-            });
-            return { success: true, data: response.data.Items || [] };
+
+            const params = {
+                api_key,
+                Limit: 12,
+                Fields: 'PrimaryImageAspectRatio,ProductionYear,Overview',
+                ImageTypeLimit: 1,
+                MediaTypes: 'Video'
+            };
+            if (parentId) {
+                params.ParentId = parentId;
+            }
+
+            console.log(`[Emby/API] getResumeItems checking: ${url}${endpoint} | ParentId: ${parentId}`);
+            const response = await axios.get(`${url}${endpoint}`, { params });
+            const items = response.data.Items || [];
+            console.log(`[Emby/API] getResumeItems found ${items.length} items`);
+            return { success: true, data: items };
         } catch (error) {
             console.error('[Emby/API] getResumeItems failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 获取库的推荐内容 (Resume + Latest)
+     */
+    static async getLibrarySuggestions(server, parentId) {
+        try {
+            console.log(`[Emby/API] getLibrarySuggestions for ParentId: ${parentId}`);
+            const [resumeRes, latestRes] = await Promise.all([
+                this.getResumeItems(server, parentId),
+                this.getLatestItemsByParent(server, parentId, 18)
+            ]);
+
+            return {
+                success: true,
+                data: {
+                    resume: resumeRes.success ? resumeRes.data : [],
+                    latest: latestRes.success ? latestRes.data : []
+                }
+            };
+        } catch (error) {
+            console.error('[Emby/API] getLibrarySuggestions failed:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -465,6 +504,96 @@ class MediaServerService {
         const { url, api_key } = server;
         if (!tag) return null;
         return `${url}/emby/Items/${itemId}/Images/${type}?maxWidth=${maxWidth}&tag=${tag}&api_key=${api_key}`;
+    }
+    /**
+     * 获取所有 Genre (类型)
+     */
+    static async getGenres(server, parentId) {
+        const { url, api_key, type, user_id } = server;
+        try {
+            const effectiveUserId = user_id || await this.getPublicUserId(server);
+            const endpoint = `${type === 'emby' ? '/emby' : ''}/Genres`;
+
+            console.log(`[Emby/API] getGenres requesting for ParentId: ${parentId} | URL: ${url}${endpoint}`);
+
+            const fetchGenres = async (pid) => {
+                const res = await axios.get(`${url}${endpoint}`, {
+                    params: {
+                        api_key,
+                        UserId: effectiveUserId,
+                        ParentId: pid,
+                        Recursive: true,
+                        SortBy: 'SortName',
+                        SortOrder: 'Ascending',
+                        Fields: 'PrimaryImageAspectRatio,ImageTags'
+                    }
+                });
+                return res.data.Items || [];
+            };
+
+            // 1. 尝试获取该库下的类型
+            let items = await fetchGenres(parentId);
+
+            // 2. 如果为空，尝试获取全局类型 (Fallback)
+            if (items.length === 0 && parentId) {
+                console.log('[Emby/API] getGenres returned empty for library. Falling back to global genres.');
+                items = await fetchGenres(null);
+            }
+
+            console.log(`[Emby/API] getGenres final count: ${items.length}`);
+            return { success: true, data: items };
+        } catch (error) {
+            console.error('[Emby/API] getGenres failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 获取所有 Tags (标签)
+     */
+    static async getTags(server, parentId) {
+        const { url, api_key, type, user_id } = server;
+        try {
+            const effectiveUserId = user_id || await this.getPublicUserId(server);
+            // Use /Items endpoint instead of /Tags to get ImageTags populated correctly
+            const endpoint = `${type === 'emby' ? '/emby' : ''}/Users/${effectiveUserId}/Items`;
+
+            console.log(`[Emby/API] getTags requesting for ParentId: ${parentId} | URL: ${url}${endpoint}`);
+
+            const fetchTags = async (pid) => {
+                const res = await axios.get(`${url}${endpoint}`, {
+                    params: {
+                        api_key,
+                        ParentId: pid,
+                        Recursive: true,
+                        IncludeItemTypes: 'Tag',
+                        SortBy: 'SortName',
+                        SortOrder: 'Ascending',
+                        Fields: 'PrimaryImageAspectRatio,ImageTags'
+                    }
+                });
+                const items = res.data.Items || [];
+                if (items.length > 0) {
+                    console.log(`[MediaServerService] getTags first item: Name=${items[0].Name}, ImageTags=${JSON.stringify(items[0].ImageTags)}`);
+                }
+                return items;
+            };
+
+            // 1. 尝试获取该库下的标签
+            let items = await fetchTags(parentId);
+
+            // 2. 如果为空，尝试获取全局标签 (Fallback)
+            if (items.length === 0 && parentId) {
+                console.log('[Emby/API] getTags returned empty for library. Falling back to global tags.');
+                items = await fetchTags(null);
+            }
+
+            console.log(`[Emby/API] getTags final count: ${items.length}`);
+            return { success: true, data: items };
+        } catch (error) {
+            console.error('[Emby/API] getTags failed:', error.message);
+            return { success: false, error: error.message };
+        }
     }
 }
 

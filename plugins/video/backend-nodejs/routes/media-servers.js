@@ -307,4 +307,58 @@ router.get('/:id/latest', async (req, res) => {
     }
 });
 
+/**
+ * 获取库的推荐视图 (Resume + Latest)
+ */
+router.get('/:id/suggestions', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.getLibrarySuggestions(server, parentId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取分类 (Genres)
+ */
+router.get('/:id/genres', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.getGenres(server, parentId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取标签 (Tags)
+ */
+router.get('/:id/tags', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.getTags(server, parentId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;

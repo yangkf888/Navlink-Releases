@@ -219,6 +219,17 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
     const [viewType, setViewType] = useState<'poster' | 'list'>('poster');
     const [showSortMenu, setShowSortMenu] = useState(false);
 
+    // 📑 视图标签页
+    const [activeTab, setActiveTab] = useState('items');
+
+    // 二级视图状态
+    const [subView, setSubView] = useState<{ type: 'genre' | 'tag' | 'boxset' | 'folder', id: string, name: string } | null>(null);
+
+    // 当切换主 Tab 或库时，重置二级视图
+    useEffect(() => {
+        setSubView(null);
+    }, [categoryId, activeTab]);
+
     useEffect(() => {
         if (serverId) {
             loadServerData();
@@ -231,7 +242,7 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
         } else {
             setItems([]);
         }
-    }, [serverId, categoryId, sortBy, sortOrder]); // 监听排序变化
+    }, [serverId, categoryId, sortBy, sortOrder, activeTab, subView]); // 监听 subView 变化
 
     const loadServerData = async () => {
         try {
@@ -248,23 +259,122 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
     const loadItems = async (libraryId: string) => {
         try {
             setLoading(true);
-            console.log(`[MediaServer] Loading items with SortBy: ${sortBy}, SortOrder: ${sortOrder}`);
-            const res = await apiGet<any>(`/media-servers/${serverId}/items`, {
+
+            // 如果处于二级视图 (点击了某个合集/类型/标签)
+            if (subView) {
+                console.log(`[MediaServer] Loading sub-view: ${subView.type} - ${subView.name}`);
+                let url = `/media-servers/${serverId}/items`;
+                let params: any = {
+                    parentId: libraryId, // 保持在当前库范围内筛选
+                    sortBy,
+                    sortOrder,
+                    recursive: true
+                };
+
+                // 根据不同类型构建查询
+                if (subView.type === 'boxset' || subView.type === 'folder') {
+                    // 合集/文件夹：ParentId 应该是合集 ID。
+                    // 注意：Emby 中合集也是 Items，获取合集内容通常是 GetItems(ParentId=BoxSetId)
+                    params.parentId = subView.id;
+                } else if (subView.type === 'genre') {
+                    // 类型：在当前库中筛选 GenreIds
+                    params.genreIds = subView.id;
+                } else if (subView.type === 'tag') {
+                    // 标签：在当前库中筛选 TagIds
+                    params.tagIds = subView.id;
+                }
+
+                // 执行查询
+                const res = await apiGet<any>(url, params);
+                setItems(res.success ? (res.data.Items || []) : []);
+                setLoading(false);
+                return;
+            }
+
+            // ... (Conventional Tab Loading Logic) ...
+            console.log(`[MediaServer] Loading items for ${activeTab}...`);
+            let url = `/media-servers/${serverId}/items`;
+            let params: any = {
                 parentId: libraryId,
                 sortBy,
                 sortOrder
-            });
+            };
+
+            // 根据标签页调整查询参数
+            switch (activeTab) {
+                case 'collections':
+                    params.includeItemTypes = 'BoxSet';
+                    params.recursive = true;
+                    break;
+                case 'favorites':
+                    params.filters = 'IsFavorite';
+                    params.recursive = true;
+                    break;
+                case 'genres':
+                    url = `/media-servers/${serverId}/genres`;
+                    break;
+                case 'tags':
+                    url = `/media-servers/${serverId}/tags`;
+                    break;
+                case 'items':
+                default:
+                    // 默认显示主要内容 (Movie, Series)
+                    // 后端默认已处理
+                    params.recursive = true;
+                    break;
+            }
+
+            // ... (Execute) ...
+            const res = await apiGet<any>(url, params);
             if (res.success && res.data) {
-                setItems(res.data.Items || []);
+                let dataItems = [];
+                if (Array.isArray(res.data)) {
+                    dataItems = res.data;
+                } else if (res.data.Items) {
+                    dataItems = res.data.Items;
+                }
+                setItems(dataItems);
+            } else {
+                setItems([]);
             }
         } catch (error) {
             console.error('Failed to load items:', error);
+            setItems([]);
         } finally {
             setLoading(false);
         }
     };
 
     const handlePlay = async (item: MediaItem) => {
+        // 点击处理逻辑更新
+
+        // 1. 合集 (BoxSet) -> 进入二级视图
+        if (item.Type === 'BoxSet') {
+            setSubView({ type: 'boxset', id: item.Id, name: item.Name });
+            return;
+        }
+
+        // 2. 类型 (Genre) -> 进入二级视图
+        if (activeTab === 'genres' || item.Type === 'Genre') {
+            setSubView({ type: 'genre', id: item.Id, name: item.Name }); // Or item.Id? Genre items usually have Id.
+            // Note: For some APIs, Genre "Id" might be the name or an ID. Emby returns IDs for Genres.
+            return;
+        }
+
+        // 3. 标签 (Tag) -> 进入二级视图
+        if (activeTab === 'tags' || item.Type === 'Tag') {
+            setSubView({ type: 'tag', id: item.Id, name: item.Name });
+            return;
+        }
+
+        // 4. 文件夹 (Folder)
+        if (item.Type === 'Folder') {
+            // 文件夹暂时也视为一种容器，类似 BoxSet
+            setSubView({ type: 'folder', id: item.Id, name: item.Name });
+            return;
+        }
+
+        // 5. 媒体文件 -> 播放
         try {
             const res = await apiGet<any>(`/media-servers/${serverId}/playback/${item.Id}`);
             if (res.success && res.data.streamUrl) {
@@ -324,213 +434,236 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
         { label: '比特率', value: 'TotalBitrate,SortName' },
     ];
 
+    const tabs = [
+        { id: 'items', label: '影片', icon: 'fa-film' },
+        { id: 'collections', label: '合集', icon: 'fa-layer-group' },
+        { id: 'genres', label: '类型', icon: 'fa-tags' },
+        { id: 'tags', label: '标签', icon: 'fa-hashtag' },
+        { id: 'favorites', label: '收藏', icon: 'fa-heart' },
+    ];
+
+
+
+
+
+
+    const renderEmptyState = () => (
+        <div className="py-32 text-center glass-effect rounded-[40px] border border-dashed border-border-color">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i className="fas fa-inbox text-4xl opacity-10"></i>
+            </div>
+            <h3 className="text-xl font-bold text-primary mb-2">空空如也</h3>
+            <p className="text-sm text-secondary opacity-40 max-w-xs mx-auto">此视图下暂无内容</p>
+        </div>
+    );
+
+    const renderPosterCard = (item: MediaItem) => (
+        <div key={item.Id} className="group relative cursor-pointer" onClick={() => handlePlay(item)}>
+            <div className={`aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/5 group-hover:border-blue-500/50 transition-all active:scale-95 ${theme === 'dark' ? 'shadow-xl' : 'shadow-md border-gray-100'}`}>
+                {/* 处理不同类型的内容展示 */}
+                {(activeTab === 'genres' || activeTab === 'tags') && !subView && !item.ImageTags?.Primary ? (
+                    // 标签/类型卡片
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-500/20 group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-colors p-4 text-center">
+                        <i className={`fas ${activeTab === 'genres' ? 'fa-tags' : 'fa-hashtag'} text-3xl mb-2 text-white/50 group-hover:text-white transition-colors`}></i>
+                        <span className="text-sm font-bold text-white line-clamp-2">{item.Name}</span>
+                    </div>
+                ) : item.ImageTags?.Primary ? (
+                    <img src={getPosterUrl(item)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-secondary opacity-20">
+                        <i className="fas fa-image text-4xl"></i>
+                    </div>
+                )}
+
+                {/* 评分角标 */}
+                {item.CommunityRating && (
+                    <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-yellow-500 text-black text-[10px] font-black flex items-center gap-1 shadow-lg">
+                        <i className="fas fa-star text-[8px]"></i>
+                        {item.CommunityRating.toFixed(1)}
+                    </div>
+                )}
+            </div>
+            <div className="mt-3">
+                <p className="text-sm font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-secondary opacity-50 font-mono italic">{item.ProductionYear || ''}</span>
+                    {item.Type === 'Series' && <span className="text-[9px] px-1 bg-blue-500/10 text-blue-500 rounded font-bold uppercase scale-90 origin-left">剧集</span>}
+                    {item.Type === 'BoxSet' && <span className="text-[9px] px-1 bg-purple-500/10 text-purple-500 rounded font-bold uppercase scale-90 origin-left">合集</span>}
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderListItem = (item: MediaItem) => (
+        <div
+            key={item.Id}
+            className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-white/5"
+            onClick={() => handlePlay(item)}
+        >
+            <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden flex-shrink-0 shadow-lg">
+                {(activeTab === 'genres' || activeTab === 'tags') && !subView && !item.ImageTags?.Primary ? (
+                    <div className="w-full h-full flex items-center justify-center bg-white/5">
+                        <i className={`fas ${activeTab === 'genres' ? 'fa-tags' : 'fa-hashtag'} text-secondary opacity-50`}></i>
+                    </div>
+                ) : (
+                    <img src={getPosterUrl(item)} className="w-full h-full object-cover" />
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</h3>
+                <div className="flex items-center gap-3 mt-1 text-xs text-secondary opacity-60">
+                    <span className="font-mono">{item.ProductionYear || ''}</span>
+                    <span>•</span>
+                    <span>{item.Type === 'Series' ? '剧集' : (item.Type === 'BoxSet' ? '合集' : '电影')}</span>
+                    {item.RunTimeTicks && (
+                        <>
+                            <span>•</span>
+                            <span>{formatRuntime(item.RunTimeTicks)}</span>
+                        </>
+                    )}
+                </div>
+                <p className="text-xs text-secondary mt-2 line-clamp-1 opacity-40">{item.Overview || ''}</p>
+            </div>
+
+        </div>
+    );
+
+    const renderContent = () => {
+        if (loading) {
+            return (
+                <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm text-secondary animate-pulse font-medium">
+                        {subView ? `正在加载${subView.name}...` : '正在同步 Emby 数据...'}
+                    </p>
+                </div>
+            );
+        }
+
+        if (items.length === 0) return renderEmptyState();
+
+        return viewType === 'poster' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-x-4 gap-y-6">
+                {items.map(item => renderPosterCard(item))}
+            </div>
+        ) : (
+            <div className="space-y-2">
+                {items.map(item => renderListItem(item))}
+            </div>
+        );
+    };
+
     return (
         <div className="p-6 space-y-6">
             {!categoryId ? (
                 <MediaServerHomeView server={server} onPlay={handlePlay} onNavigate={onNavigate} />
             ) : (
                 <>
-                    {/* 🛠 顶部增强工具栏 */}
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
-                        <div className="flex items-center gap-4">
+                    {/* 🛠 顶部增强工具栏 (单行布局) */}
+                    <div className="flex items-center h-14 border-b border-white/5 mb-4 gap-4">
+                        {/* 1. 左侧：返回 & 标题 */}
+                        <div className="flex items-center gap-4 flex-shrink-0">
                             <button
                                 onClick={() => onNavigate('media_server', { serverId })}
-                                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-secondary hover:bg-white/10 hover:text-primary transition-all group"
+                                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-secondary hover:bg-white/10 hover:text-primary transition-all group"
                                 title="返回首页"
                             >
-                                <i className="fas fa-chevron-left text-sm group-hover:-translate-x-0.5 transition-transform"></i>
+                                <i className="fas fa-chevron-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
                             </button>
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-xl font-bold text-primary truncate tracking-tight">
-                                    {categoryName || server?.name || '影视库'}
-                                </h2>
-                            </div>
+                            <h2 className="text-lg font-bold text-primary truncate tracking-tight max-w-[200px]">
+                                {categoryName || server?.name || '影视库'}
+                            </h2>
                         </div>
 
-                        <div className="flex items-center gap-2 self-end">
-                            {/* 🏆 高级排序菜单 (Emby 原生级复刻，响应式设计) */}
-                            <div className="relative">
+                        {/* 2. 中间：Tabs (改为胶囊样式跟随标题) */}
+                        <div className="flex-1 flex items-center gap-1 overflow-x-auto hide-scrollbar">
+                            {tabs.map(tab => (
                                 <button
-                                    onClick={() => setShowSortMenu(!showSortMenu)}
-                                    className={`h-10 px-4 rounded-xl flex items-center gap-2 text-sm text-secondary transition-all shadow-md active:scale-95 ${theme === 'dark' ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-gray-100 hover:bg-gray-50'}`}
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`
+                                        px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap
+                                        ${activeTab === tab.id
+                                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                            : 'text-secondary hover:text-primary hover:bg-white/5'
+                                        }
+                                    `}
                                 >
-                                    <i className="fas fa-filter text-blue-500 text-xs"></i>
-                                    <span className="max-w-[80px] truncate font-medium">{sortOptions.find(o => o.value === sortBy)?.label || '排序'}</span>
-                                    <i className={`fas fa-chevron-down text-[10px] opacity-40 transition-transform ${showSortMenu ? 'rotate-180' : ''}`}></i>
+                                    {tab.label}
                                 </button>
+                            ))}
+                        </div>
 
-                                {showSortMenu && (
-                                    <>
-                                        {/* 背景遮罩 - 仅在移动端显示 */}
-                                        <div className={`fixed inset-0 z-40 md:hidden transition-opacity duration-300 ${theme === 'dark' ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/20'}`} onClick={() => setShowSortMenu(false)}></div>
-                                        {/* 桌面端透明点击层 */}
-                                        <div className="fixed inset-0 z-40 hidden md:block" onClick={() => setShowSortMenu(false)}></div>
+                        {/* 3. 右侧：排序 & 视图 (条件显示) */}
+                        {(subView || ['items', 'collections', 'favorites'].includes(activeTab)) && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                {/* 排序菜单 */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowSortMenu(!showSortMenu)}
+                                        className={`h-8 px-3 rounded-lg flex items-center gap-2 text-xs text-secondary transition-all shadow-sm active:scale-95 ${theme === 'dark' ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-gray-100 hover:bg-gray-50'}`}
+                                    >
+                                        <i className="fas fa-filter text-blue-500 text-[10px]"></i>
+                                        <span className="max-w-[60px] truncate font-bold">{sortOptions.find(o => o.value === sortBy)?.label || '排序'}</span>
+                                        <i className={`fas fa-chevron-down text-[8px] opacity-40 transition-transform ${showSortMenu ? 'rotate-180' : ''}`}></i>
+                                    </button>
 
-                                        {/* 桌面端下拉 & 移动端抽屉 */}
-                                        <div className={`
-                                            fixed md:absolute z-50 overflow-hidden shadow-2xl transition-all duration-300
-                                            left-0 right-0 bottom-0 top-auto rounded-t-3xl md:h-auto max-h-[85vh]
-                                            md:left-auto md:right-0 md:bottom-auto md:top-full md:mt-2 md:w-56 md:rounded-2xl md:translate-y-0
-                                            flex flex-col
-                                            ${theme === 'dark' ? 'bg-secondary border-t md:border border-white/10' : 'bg-white border-t md:border border-gray-100'}
-                                            ${showSortMenu ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 md:opacity-100'}
+                                    {showSortMenu && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)}></div>
+                                            <div className={`
+                                            absolute z-50 right-0 top-full mt-2 w-48 rounded-xl shadow-2xl overflow-hidden
+                                            ${theme === 'dark' ? 'bg-[#1a1a1a] border border-white/10' : 'bg-white border border-gray-100'}
                                         `}>
-                                            {/* 移动端顶部把手 */}
-                                            <div className="md:hidden flex justify-center py-3">
-                                                <div className="w-12 h-1.5 bg-secondary/20 rounded-full"></div>
-                                            </div>
-
-                                            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-                                                <div className="px-4 py-3 text-[10px] font-black text-secondary tracking-widest uppercase opacity-40 flex items-center justify-between">
-                                                    <span>排序字段</span>
-                                                    <span className="md:hidden text-[9px] font-normal italic">选择一个维度以刷新</span>
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-1">
+                                                <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
                                                     {sortOptions.map(opt => (
                                                         <button
                                                             key={opt.value}
-                                                            className={`w-full text-left px-4 py-3 md:py-2.5 text-sm rounded-xl transition-all flex items-center justify-between group/opt ${sortBy === opt.value ? 'active-brand-item shadow-blue-500/20' : `text-secondary hover:text-primary ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}`}
+                                                            className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all flex items-center justify-between group ${sortBy === opt.value ? 'bg-blue-500/10 text-blue-500' : 'text-secondary hover:bg-white/5'}`}
                                                             onClick={() => {
                                                                 setSortBy(opt.value);
                                                                 setShowSortMenu(false);
                                                             }}
                                                         >
-                                                            <span className="truncate">{opt.label}</span>
-                                                            {sortBy === opt.value ? (
-                                                                <i className="fas fa-check text-[10px]"></i>
-                                                            ) : (
-                                                                <i className="fas fa-chevron-right text-[10px] opacity-0 group-hover/opt:opacity-40 -translate-x-2 group-hover/opt:translate-x-0 transition-all"></i>
-                                                            )}
+                                                            <span>{opt.label}</span>
+                                                            {sortBy === opt.value && <i className="fas fa-check text-[10px]"></i>}
                                                         </button>
                                                     ))}
                                                 </div>
+                                                <div className="p-2 border-t border-white/5">
+                                                    <button
+                                                        className="w-full h-8 flex items-center justify-center gap-2 text-xs rounded-lg hover:bg-white/5 text-secondary"
+                                                        onClick={() => setSortOrder(sortOrder === 'Ascending' ? 'Descending' : 'Ascending')}
+                                                    >
+                                                        <i className={`fas ${sortOrder === 'Ascending' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up'}`}></i>
+                                                        {sortOrder === 'Ascending' ? '升序' : '降序'}
+                                                    </button>
+                                                </div>
                                             </div>
+                                        </>
+                                    )}
+                                </div>
 
-                                            <div className={`p-3 md:p-2 border-t ${theme === 'dark' ? 'border-white/5 bg-white/5' : 'border-gray-50 bg-gray-50/50'}`}>
-                                                <button
-                                                    className={`w-full h-12 md:h-10 px-4 rounded-xl text-xs text-secondary hover:text-primary transition-all flex items-center justify-between ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-white'}`}
-                                                    onClick={() => setSortOrder(sortOrder === 'Ascending' ? 'Descending' : 'Ascending')}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 md:w-7 md:h-7 rounded-lg flex items-center justify-center transition-transform active:scale-90 ${sortOrder === 'Ascending' ? 'bg-green-500/20 text-green-500' : 'bg-orange-500/20 text-orange-500'}`}>
-                                                            <i className={`fas ${sortOrder === 'Ascending' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up'} text-sm md:text-xs`}></i>
-                                                        </div>
-                                                        <span className="font-bold">{sortOrder === 'Ascending' ? '升序 (A-Z)' : '降序 (Z-A)'}</span>
-                                                    </div>
-                                                    <i className="fas fa-exchange-alt opacity-20 text-[10px] transform rotate-90 md:rotate-0"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
+                                {/* 视图切换 */}
+                                <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
+                                    <button
+                                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${viewType === 'poster' ? 'bg-blue-500 text-white' : 'text-secondary hover:text-primary'}`}
+                                        onClick={() => setViewType('poster')}
+                                    >
+                                        <i className="fas fa-th-large text-[10px]"></i>
+                                    </button>
+                                    <button
+                                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${viewType === 'list' ? 'bg-blue-500 text-white' : 'text-secondary hover:text-primary'}`}
+                                        onClick={() => setViewType('list')}
+                                    >
+                                        <i className="fas fa-list text-[10px]"></i>
+                                    </button>
+                                </div>
                             </div>
-
-                            {/* 视图切换 */}
-                            <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10">
-                                <button
-                                    className={`w-9 h-8 flex items-center justify-center rounded-lg transition-all ${viewType === 'poster' ? 'bg-blue-500 text-white' : 'text-secondary hover:text-primary'}`}
-                                    onClick={() => setViewType('poster')}
-                                    title="海报模式"
-                                >
-                                    <i className="fas fa-th-large text-sm"></i>
-                                </button>
-                                <button
-                                    className={`w-9 h-8 flex items-center justify-center rounded-lg transition-all ${viewType === 'list' ? 'bg-blue-500 text-white' : 'text-secondary hover:text-primary'}`}
-                                    onClick={() => setViewType('list')}
-                                    title="列表模式"
-                                >
-                                    <i className="fas fa-list text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
-                            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-sm text-secondary animate-pulse font-medium">正在深度同步 Emby 数据...</p>
-                        </div>
-                    ) : viewType === 'poster' ? (
-                        /* 🖼 海报网格视图 */
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-x-4 gap-y-6">
-                            {items.map(item => (
-                                <div key={item.Id} className="group relative cursor-pointer" onClick={() => handlePlay(item)}>
-                                    <div className={`aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/5 group-hover:border-blue-500/50 transition-all active:scale-95 ${theme === 'dark' ? 'shadow-xl' : 'shadow-md border-gray-100'}`}>
-                                        {item.ImageTags?.Primary ? (
-                                            <img src={getPosterUrl(item)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-secondary opacity-20">
-                                                <i className="fas fa-image text-4xl"></i>
-                                            </div>
-                                        )}
-                                        {/* 评分角标 */}
-                                        {item.CommunityRating && (
-                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-yellow-500 text-black text-[10px] font-black flex items-center gap-1 shadow-lg">
-                                                <i className="fas fa-star text-[8px]"></i>
-                                                {item.CommunityRating.toFixed(1)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="mt-3">
-                                        <p className="text-sm font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] text-secondary opacity-50 font-mono italic">{item.ProductionYear || 'N/A'}</span>
-                                            {item.Type === 'Series' && <span className="text-[9px] px-1 bg-blue-500/10 text-blue-500 rounded font-bold uppercase scale-90 origin-left">剧集</span>}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        /* 📋 列表详细视图 */
-                        <div className="space-y-2">
-                            {items.map(item => (
-                                <div
-                                    key={item.Id}
-                                    className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-white/5"
-                                    onClick={() => handlePlay(item)}
-                                >
-                                    <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden flex-shrink-0 shadow-lg">
-                                        <img src={getPosterUrl(item)} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-base font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</h3>
-                                        <div className="flex items-center gap-3 mt-1 text-xs text-secondary opacity-60">
-                                            <span className="font-mono">{item.ProductionYear || '未知年份'}</span>
-                                            <span>•</span>
-                                            <span>{item.Type === 'Series' ? '剧集' : '电影'}</span>
-                                            {item.RunTimeTicks && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span>{formatRuntime(item.RunTimeTicks)}</span>
-                                                </>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-secondary mt-2 line-clamp-1 opacity-40">{item.Overview || '暂无简介'}</p>
-                                    </div>
-                                    {item.CommunityRating && (
-                                        <div className="px-3 py-1 bg-yellow-500/10 text-yellow-500 rounded-full text-xs font-bold flex items-center gap-1.5">
-                                            <i className="fas fa-star text-[10px]"></i>
-                                            {item.CommunityRating.toFixed(1)}
-                                        </div>
-                                    )}
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-secondary opacity-0 group-hover:opacity-100 group-hover:bg-blue-500 group-hover:text-white transition-all">
-                                        <i className="fas fa-play text-xs ml-0.5"></i>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {!loading && items.length === 0 && (
-                        <div className="py-32 text-center glass-effect rounded-[40px] border border-dashed border-border-color">
-                            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <i className="fas fa-inbox text-4xl opacity-10"></i>
-                            </div>
-                            <h3 className="text-xl font-bold text-primary mb-2">空空如也</h3>
-                            <p className="text-sm text-secondary opacity-40 max-w-xs mx-auto">Emby 此分类下暂无内容，或者同步出现了一点小问题</p>
-                        </div>
-                    )}
+                    {renderContent()}
                 </>
             )}
         </div>
@@ -538,3 +671,4 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
 }
 
 export default MediaServer;
+
