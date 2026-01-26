@@ -240,16 +240,8 @@ function VideoApp() {
             setNavParams({});
             setSelectedNetdiskSourceId(null);  // 清空选中的网盘源，显示全部网盘视图
         } else if (module === 'media_server') {
-            // 影视库模块
-            const firstServer = mediaServers.find(s => s.enabled);
-            if (firstServer && !selectedMediaServerId) {
-                setSelectedMediaServerId(firstServer.id);
-                setActiveView('media_server');
-                setNavParams({ mediaServerId: firstServer.id });
-            } else {
-                setActiveView('media_server');
-                setNavParams({ mediaServerId: selectedMediaServerId || undefined });
-            }
+            // 影视库模块：由 Effect 统一处理自动跳转
+            setActiveView('media_server');
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
@@ -458,6 +450,19 @@ function VideoApp() {
         setTheme(prev => prev === 'light' ? 'dark' : 'light');
     };
 
+    // 🚀 核心补丁：当处于影视库模块且数据加载完成时，如果没有选中的库，自动选择第一个
+    useEffect(() => {
+        if (isLoaded && activeModule === 'media_server' && !navParams.mediaServerId) {
+            const firstServer = mediaServers.find(s => s.enabled);
+            const targetId = selectedMediaServerId || firstServer?.id;
+            if (targetId) {
+                console.log('[AutoNav] Redirecting to first media server:', targetId);
+                if (!selectedMediaServerId) setSelectedMediaServerId(targetId);
+                setNavParams(prev => ({ ...prev, mediaServerId: targetId }));
+            }
+        }
+    }, [isLoaded, activeModule, mediaServers, selectedMediaServerId, navParams.mediaServerId]);
+
     // 发送最小化侧边栏配置到主应用
     useEffect(() => {
         const isInIframe = window.parent !== window;
@@ -652,6 +657,7 @@ function VideoApp() {
                     <MediaServer
                         serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
                         categoryId={navParams.categoryId}
+                        categoryName={navParams.categoryName}
                         onNavigate={navigate}
                     />
                 )}

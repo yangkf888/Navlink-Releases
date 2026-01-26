@@ -55,22 +55,36 @@ class MediaServerService {
 
     /**
      * 获取库内的项目 (Items)
+     * 支持排序、过滤和分页
      */
     static async getItems(server, parentId, options = {}) {
         const { url, api_key, type, user_id } = server;
+        const {
+            limit,
+            startIndex = 0,
+            sortBy = 'SortName',
+            sortOrder = 'Ascending',
+            includeItemTypes = 'Movie,Series,MusicVideo,Video',
+            fields = 'PrimaryImageAspectRatio,ProductionYear,Overview,Genres,CommunityRating,RunTimeTicks,UserData',
+            filters = ''
+        } = options;
+
         try {
             const effectiveUserId = user_id || await this.getPublicUserId(server);
             if (!effectiveUserId) throw new Error('User context missing');
 
-            // 构造标准 PascalCase 参数
+            // 构造标准 PascalCase 参数，透传给 Emby/Jellyfin
             const params = {
                 ParentId: parentId,
                 UserId: effectiveUserId,
                 Recursive: true,
-                IncludeItemTypes: 'Movie,Series,MusicVideo,Video',
-                Fields: 'PrimaryImageAspectRatio,ProductionYear,Overview,Genres',
-                StartIndex: 0,
-                Limit: 500, // 增加到 500
+                IncludeItemTypes: includeItemTypes,
+                Fields: fields,
+                Filters: filters,
+                SortBy: sortBy,
+                SortOrder: sortOrder,
+                StartIndex: startIndex,
+                Limit: limit,
                 api_key: api_key
             };
 
@@ -78,7 +92,7 @@ class MediaServerService {
                 ? `/emby/Users/${effectiveUserId}/Items`
                 : `/Users/${effectiveUserId}/Items`;
 
-            console.log(`[MediaServerService] Fetching items for Category: ${parentId} | URL: ${url}${endpoint}`);
+            console.log(`[MediaServerService] Fetching items for Category: ${parentId} | SortBy: ${sortBy} | URL: ${url}${endpoint}`);
 
             const response = await axios.get(`${url}${endpoint}`, {
                 params,

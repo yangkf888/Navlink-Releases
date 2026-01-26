@@ -134,13 +134,13 @@ router.get('/:id/libraries', async (req, res) => {
 router.get('/:id/items', async (req, res) => {
     try {
         const { id } = req.params;
-        const { parentId, limit, startIndex } = req.query;
+        const { parentId, ...options } = req.query;
         const db = getDatabase();
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
-        const result = await MediaServerService.getItems(server, parentId, { limit, startIndex });
+        const result = await MediaServerService.getItems(server, parentId, options);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

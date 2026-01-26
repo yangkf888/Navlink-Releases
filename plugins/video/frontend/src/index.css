@@ -91,10 +91,16 @@ body {
 }
 
 /* 隐藏滚动条 */
-.sidebar-scrollbar::-webkit-scrollbar {
-    display: none;
+.sidebar-scrollbar,
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
 }
 
-.sidebar-scrollbar {
-    scrollbar-width: none;
+.sidebar-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
 }

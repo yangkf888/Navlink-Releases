@@ -366,18 +366,6 @@ export function Sidebar({
 
     const renderMediaServerSidebar = () => (
         <div className="w-full space-y-0.5 mt-2">
-            {!isMobile && (
-                <SidebarItem
-                    icon="fas fa-film"
-                    label="全部影视库"
-                    isActive={activeModule === 'media_server' && !selectedMediaServerId}
-                    onClick={() => {
-                        onMediaServerChange?.(0);
-                        onNavigate('media_server', { mediaServerId: undefined });
-                    }}
-                    collapsed={collapsed}
-                />
-            )}
             {mediaServers
                 .filter(s => s.enabled)
                 .map(server => {

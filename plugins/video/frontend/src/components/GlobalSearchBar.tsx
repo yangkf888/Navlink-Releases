@@ -136,10 +136,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
                 if (!isMounted) return;
 
-                console.log('[GlobalSearchBar] RAW DATA:', res);
-                // 🚀 强力注入：挂载到 window 方便调试
-                (window as any)._netdiskData = res;
-
                 if (res.success && res.data) {
                     let finalData = res.data;
                     // 如果后端由于某种原因返回了 JSON 字符串（有时候 sqlite 会这样）
@@ -150,7 +146,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                     }
 
                     if (Array.isArray(finalData)) {
-                        console.log('[GlobalSearchBar] SUCCESS: Setting sources', finalData.length);
                         setNetdiskSources(finalData);
                     } else {
                         console.error('[GlobalSearchBar] ERROR: Data is not an array', finalData);
@@ -187,12 +182,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
     const submitSearch = (kw: string) => {
         const trimmedKw = kw.trim();
-        console.log('[SearchDebug] submitSearch called with:', {
-            kw: trimmedKw,
-            sourceType: selectedSource.type,
-            sourceId: selectedSource.id,
-            path: selectedSource.path
-        });
 
         // 如果是聚合或普通源，且没有关键字，则不提交
         if (!trimmedKw && selectedSource.type !== 'netdisk') {
@@ -209,7 +198,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     };
 
     const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-        console.log('[SearchDebug] handleSubmit triggered!', { eventType: e?.type });
         if (e) {
             e.preventDefault();
             e.stopPropagation();
