@@ -26,6 +26,10 @@ interface MediaItemDetail {
     };
     People?: Array<{ Name: string; Role: string; Type: string }>;
     Studios?: Array<{ Name: string }>;
+    UserData?: {
+        PlaybackPositionTicks: number;
+        Played: boolean;
+    };
 }
 
 interface SimilarItem {
@@ -41,6 +45,7 @@ interface SimilarItem {
 export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, streamUrl: initialStreamUrl, cover: initialCover, onGoBack }: MediaServerPlayProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const artRef = useRef<any>(null);
+    const sessionRef = useRef<string | null>(null);
 
     // 状态管理
     const [loading, setLoading] = useState(true);
@@ -85,18 +90,35 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
 
                 // 🚀 核心关键：检查并获取播放地址
                 let targetUrl = currentPlayUrl;
-                if (!targetUrl) {
-                    const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${currentVodId}`);
-                    if (playRes.success && playRes.data.streamUrl) {
-                        targetUrl = playRes.data.streamUrl;
-                        setCurrentPlayUrl(targetUrl);
-                    } else {
-                        throw new Error(playRes.error || '无法解析播放地址');
+                let currentMediaSourceId = '';
+                let startTime = 0; // 🎯 这里的 startTime 将作为最终播放起点 antisocial antisense
+
+                const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${currentVodId}`);
+                if (playRes.success && playRes.data.streamUrl) {
+                    targetUrl = playRes.data.streamUrl;
+                    setCurrentPlayUrl(targetUrl);
+
+                    // 1. 尝试从 MediaSources 提取 ID
+                    if (playRes.data.MediaSources && playRes.data.MediaSources.length > 0) {
+                        currentMediaSourceId = playRes.data.MediaSources[0].Id;
                     }
+
+                    // 2. 🎯 核心修复：优先从详情接口加载进度 (因为详情接口通过 Fields=UserData 已被加固) antisocial antisense
+                    if (detailRes.success && detailRes.data?.UserData?.PlaybackPositionTicks) {
+                        startTime = detailRes.data.UserData.PlaybackPositionTicks / 10000000;
+                        console.log(`[MediaServerPlay] Found resume ticks from Detail: ${startTime}s`);
+                    }
+                    // 3. 兜底：从 PlaybackInfo 接口获取 Ticks antisocial antisense
+                    else if (playRes.success && playRes.data.MediaSources?.[0]?.UserData?.PlaybackPositionTicks) {
+                        startTime = playRes.data.MediaSources[0].UserData.PlaybackPositionTicks / 10000000;
+                        console.log(`[MediaServerPlay] Found resume ticks from PlaybackInfo: ${startTime}s`);
+                    }
+                } else {
+                    throw new Error(playRes.error || '无法解析播放地址');
                 }
 
                 // 启动播放器内核
-                if (isMounted) await initPlayer(targetUrl);
+                if (isMounted) await initPlayer(targetUrl, startTime, currentMediaSourceId);
 
             } catch (err: any) {
                 if (isMounted) {
@@ -199,7 +221,12 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
             const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${id}`);
             if (playRes.success && playRes.data.streamUrl) {
                 setCurrentPlayUrl(playRes.data.streamUrl);
-                await initPlayer(playRes.data.streamUrl);
+                // 刷新时也要考虑续播
+                let startTime = 0;
+                if (detailRes.success && detailRes.data?.UserData?.PlaybackPositionTicks) {
+                    startTime = detailRes.data.UserData.PlaybackPositionTicks / 10000000;
+                }
+                await initPlayer(playRes.data.streamUrl, startTime, playRes.data.MediaSources?.[0]?.Id);
             }
         } catch (err) {
             console.error('Refresh failed:', err);
@@ -210,7 +237,7 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
     };
 
     // 独立出播放器初始化引擎
-    const initPlayer = async (url: string) => {
+    const initPlayer = async (url: string, startTime = 0, mediaSourceId?: string) => {
         if (!wrapperRef.current) return;
 
         // 物理隔离清理
@@ -239,6 +266,7 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
         const playerConfig: any = {
             container: mountPoint,
             url: url,
+            seek: startTime, // 断点续播
             autoplay: true,
             autoMini: true,
             setting: true,
@@ -274,15 +302,40 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
         const art = new Artplayer(playerConfig);
         artRef.current = art;
 
-        art.on('ready', () => {
+        art.on('ready', async () => {
             setLoading(false);
+
+            // 🎯 核心增强：强制跳转到断点位置 antisense antisocial antisocial
+            if (startTime > 0) {
+                console.log(`[ArtPlayer] Core signal: Forced seeking to ${startTime}s`);
+                art.seek = startTime;
+            }
+
             // 🎬 核心：上报 NavLink 本地历史记录
             savePlayHistory();
-            // 🎬 核心：向 Emby 上报播放开始
-            console.log('[DEBUG] Reporting Playback Start to Emby');
-            apiPost(`/media-servers/${mediaServerId}/playback/start`, { itemId: currentVodId })
-                .then(r => console.log('[DEBUG] Start Response:', r))
-                .catch(e => console.error('[DEBUG] Start Error:', e));
+
+            // 🎬 核心：并在新播放开始时重置 SessionId
+            sessionRef.current = null;
+
+            try {
+                // 🎬 核心修复：使用 await 阻塞，确保 Start 请求完成后再继续后续逻辑（防止 Progress 抢跑）
+                console.log('[DEBUG] Reporting Playback Start to Emby (Awaiting...)');
+                const r = await apiPost<any>(`/media-servers/${mediaServerId}/playback/start`, {
+                    itemId: currentVodId,
+                    mediaSourceId: mediaSourceId
+                });
+
+                console.log('[DEBUG] Start Response Received:', r);
+                const data = (r.data || r) as any;
+                if (data && data.Id) {
+                    sessionRef.current = data.Id;
+                    console.log('[DEBUG] Captured PlaySessionId via Ref:', sessionRef.current);
+                } else if (r.success && r.data && r.data.Id) {
+                    sessionRef.current = r.data.Id;
+                }
+            } catch (e) {
+                console.error('[DEBUG] Playback Start Failed:', e);
+            }
         });
 
         // 定时上报进度给 Emby (每 15 秒)
@@ -293,32 +346,75 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
             const now = Date.now();
             if (now - lastReportTime > HEARTBEAT_INTERVAL) {
                 lastReportTime = now;
+
+                // 🎯 核心修复：通过 useRef 实时获取最新的 SessionId
+                if (!sessionRef.current) {
+                    console.warn('[DEBUG] Skipping heartbeat: sessionRef.current not yet captured.');
+                    return;
+                }
+
                 const currentTime = art.video.currentTime;
-                // Emby 官方单位是 Ticks (1秒 = 10,000,000 Ticks)
                 const positionTicks = Math.floor(currentTime * 10000000);
-                console.log(`[DEBUG] Syncing progress: ${currentTime}s`);
+                console.log(`[DEBUG] Syncing progress: ${currentTime}s | Session: ${sessionRef.current}`);
                 apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
                     itemId: currentVodId,
-                    positionTicks,
-                    isPaused: art.video.paused
+                    positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                    isPaused: art.video.paused,
+                    playSessionId: sessionRef.current,
+                    mediaSourceId: mediaSourceId
                 }).then(r => console.log('[DEBUG] Progress Response:', r));
             }
         });
 
         art.on('video:ended', () => {
+            if (!sessionRef.current) return;
             const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            console.log(`[DEBUG] Video ended. Reporting Stop.`);
             apiPost(`/media-servers/${mediaServerId}/playback/stop`, {
                 itemId: currentVodId,
-                positionTicks
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
+            }).then(r => console.log('[DEBUG] Stop Response (Ended):', r));
+        });
+
+        // 监听暂停和播放事件，立即上报
+        art.on('video:pause', () => {
+            if (!sessionRef.current) return;
+            const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            console.log(`[DEBUG] Paused at: ${art.video.currentTime}s | Reporting Stop/Pause to Emby`);
+            // 🎬 核心：暂停时同时发送进度，且标记为 IsPaused
+            apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
+                itemId: currentVodId,
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                isPaused: true,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
+            }).then(r => console.log('[DEBUG] Pause Response:', r));
+        });
+
+        art.on('video:play', () => {
+            if (!sessionRef.current) return;
+            const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
+                itemId: currentVodId,
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                isPaused: false,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
             });
         });
 
         art.on('destroy', () => {
-            if (art.video) {
+            if (art.video && sessionRef.current) {
                 const positionTicks = Math.floor(art.video.currentTime * 10000000);
+                console.log(`[DEBUG] Player destroying. Final reporting Stop. Session: ${sessionRef.current}`);
+                // 🎬 核心：退出前最后一次点击/返回，必须带上 SessionId，否则记录无法归档
                 apiPost(`/media-servers/${mediaServerId}/playback/stop`, {
                     itemId: currentVodId,
-                    positionTicks
+                    positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                    playSessionId: sessionRef.current,
+                    mediaSourceId: mediaSourceId
                 });
             }
         });

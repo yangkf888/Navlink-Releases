@@ -534,7 +534,7 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                 <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
                     <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-sm text-secondary animate-pulse font-medium">
-                        {subView ? `正在加载${subView.name}...` : '正在同步 Emby 数据...'}
+                        {subView ? `正在加载${subView.name}...` : '正在加载媒体列表...'}
                     </p>
                 </div>
             );

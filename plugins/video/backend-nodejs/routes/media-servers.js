@@ -207,12 +207,12 @@ router.get('/:id/playback/:itemId', async (req, res) => {
 router.post('/:id/playback/start', async (req, res) => {
     try {
         const { id } = req.params;
-        const { itemId } = req.body;
+        const { itemId, mediaSourceId } = req.body;
         const db = getDatabase();
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
-        const result = await MediaServerService.reportPlaybackStart(server, itemId);
+        const result = await MediaServerService.reportPlaybackStart(server, itemId, mediaSourceId);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -225,12 +225,12 @@ router.post('/:id/playback/start', async (req, res) => {
 router.post('/:id/playback/progress', async (req, res) => {
     try {
         const { id } = req.params;
-        const { itemId, positionTicks, isPaused } = req.body;
+        const { itemId, positionTicks, isPaused, playSessionId, mediaSourceId } = req.body;
         const db = getDatabase();
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
-        const result = await MediaServerService.reportPlaybackProgress(server, itemId, positionTicks, isPaused);
+        const result = await MediaServerService.reportPlaybackProgress(server, itemId, positionTicks, isPaused, playSessionId, mediaSourceId);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -243,12 +243,12 @@ router.post('/:id/playback/progress', async (req, res) => {
 router.post('/:id/playback/stop', async (req, res) => {
     try {
         const { id } = req.params;
-        const { itemId, positionTicks } = req.body;
+        const { itemId, positionTicks, playSessionId, mediaSourceId } = req.body;
         const db = getDatabase();
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
-        const result = await MediaServerService.reportPlaybackStopped(server, itemId, positionTicks);
+        const result = await MediaServerService.reportPlaybackStopped(server, itemId, positionTicks, playSessionId, mediaSourceId);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
