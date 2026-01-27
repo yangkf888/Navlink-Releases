@@ -70,8 +70,8 @@ export function Layout({ children, sidebarProps }: LayoutProps) {
     }, [isCollapsed]);
 
     // 处理全局搜索
-    const handleGlobalSearch = (keyword: string, sourceId: number | null, netdiskPath?: string) => {
-        sidebarProps.onNavigate('search', { keyword, sourceId, netdiskPath, _t: Date.now() });
+    const handleGlobalSearch = (keyword: string, sourceId: number | null, netdiskPath?: string, isMediaServer: boolean = false) => {
+        sidebarProps.onNavigate('search', { keyword, sourceId, netdiskPath, isMediaServer, _t: Date.now() });
     };
 
     return (

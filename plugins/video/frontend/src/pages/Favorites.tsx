@@ -77,8 +77,8 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
         return (
             <div className="p-6 animate-pulse">
                 <div className="h-8 bg-secondary rounded w-32 mb-6"></div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[...Array(12)].map((_, i) => (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+                    {[...Array(16)].map((_, i) => (
                         <div key={i} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                     ))}
                 </div>
@@ -110,7 +110,7 @@ export function Favorites({ onNavigate, sources, netdiskSources }: FavoritesProp
             <h1 className="text-2xl font-bold text-primary">我的收藏</h1>
 
             {filteredFavorites.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
                     {filteredFavorites.map(fav => (
                         <div
                             key={fav.id}

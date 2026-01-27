@@ -6,12 +6,13 @@ interface SearchProps {
     initialKeyword?: string;
     sourceId?: number | null;
     netdiskPath?: string;
+    isMediaServer?: boolean;
     _t?: number; // 接收强制刷新时间戳
     sources?: VideoSource[];
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
 }
 
-export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = [], onNavigate }: SearchProps) {
+export function Search({ initialKeyword, sourceId, netdiskPath, isMediaServer, _t, sources = [], onNavigate }: SearchProps) {
     const [results, setResults] = useState<Video[]>([]);
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
@@ -20,7 +21,7 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
     const [isFinished, setIsFinished] = useState(false);
 
     // 核心搜索函数
-    const doSearch = async (kw: string, srcId: number | null, ndPath?: string) => {
+    const doSearch = async (kw: string, srcId: number | null, ndPath?: string, isMediaServer: boolean = false) => {
         if (!kw.trim()) return;
 
         setLoading(true);
@@ -77,12 +78,15 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
         };
 
         // 🛠️ 辅助搜索：资源站 (SSE)
-        const runCmsSearch = async () => {
+        const runCmsSearch = async (forceMediaServer?: boolean) => {
             const url = new URL(`${window.location.origin}/api/plugins/video/api/videos/search`);
             url.searchParams.append('keyword', kw.trim());
             url.searchParams.append('stream', 'true');
             if (srcId !== null && srcId !== undefined) {
                 url.searchParams.append('source_id', String(srcId));
+            }
+            if (isMediaServer || forceMediaServer) {
+                url.searchParams.append('is_media_server', 'true');
             }
 
             try {
@@ -137,9 +141,12 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
             if (ndPath) {
                 // 仅搜媒体库
                 setSearchingSource('正在搜索媒体库...');
-                // 🚫 移除 onModuleChange('netdisk')，不应该跳走，保持在搜索结果页显示内容
                 const results = await runNetdiskSearch(ndPath);
                 setResults(results);
+            } else if (isMediaServer) {
+                // 仅搜影视库 (Emby/Jellyfin)
+                setSearchingSource('正在搜索影视库...');
+                await runCmsSearch(true);
             } else if (srcId) {
                 // 仅搜指定资源站
                 await runCmsSearch();
@@ -168,9 +175,9 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
 
     useEffect(() => {
         if (initialKeyword) {
-            doSearch(initialKeyword, sourceId ?? null, netdiskPath);
+            doSearch(initialKeyword, sourceId ?? null, netdiskPath, isMediaServer);
         }
-    }, [initialKeyword, sourceId, netdiskPath, _t]); // 🚀 监听 _t，确保即便关键词不变也能重新搜索
+    }, [initialKeyword, sourceId, netdiskPath, isMediaServer, _t]); // 🚀 监听 _t，确保即便关键词不变也能重新搜索
 
     const handleVideoClick = (video: Video) => {
         if ((video as any).is_netdisk) {
@@ -178,6 +185,14 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
                 mediaId: parseInt(video.vod_id),
                 sourceId: video.source_id,
                 videoIndex: 0
+            });
+        } else if ((video as any).is_media_server) {
+            onNavigate('media_server_play', {
+                mediaServerId: video.source_id,
+                vodId: video.vod_id,
+                title: video.vod_name,
+                url: '',
+                cover: video.vod_pic
             });
         } else {
             onNavigate('play', {
@@ -239,7 +254,7 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
 
             {/* 结果显示 */}
             {loading && results.length === 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
                     {[...Array(12)].map((_, i) => (
                         <div key={i} className="aspect-[2/3] bg-secondary/20 rounded-2xl border border-border-color animate-pulse"></div>
                     ))}
@@ -248,14 +263,14 @@ export function Search({ initialKeyword, sourceId, netdiskPath, _t, sources = []
                 results.length > 0 ? (
                     <div className="space-y-4">
                         <p className="text-secondary">找到 <span className="text-primary font-medium">{results.length}</span> 个相关结果</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
                             {results.map((video, idx) => (
                                 <VideoCard
                                     key={`${video.source_id || 'nd'}-${video.vod_id}-${idx}`}
                                     video={video}
                                     onClick={() => handleVideoClick(video)}
                                     showSource={true}
-                                    sourceName={video.is_netdisk ? '媒体库' : getSourceName(video.source_id!)}
+                                    sourceName={video.is_netdisk ? '媒体库' : (video.is_media_server ? (video.source_name || '影视库') : getSourceName(video.source_id!))}
                                 />
                             ))}
                         </div>

@@ -157,6 +157,7 @@ export interface Video {
     source_id?: number;
     source_name?: string;
     is_netdisk?: boolean;
+    is_media_server?: boolean;
 }
 
 /**

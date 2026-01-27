@@ -13,7 +13,7 @@ import { apiRequest } from '../utils/api';
 
 interface GlobalSearchBarProps {
     sources: VideoSource[];
-    onSearch: (keyword: string, sourceId: number | null, netdiskPath?: string) => void;
+    onSearch: (keyword: string, sourceId: number | null, netdiskPath?: string, isMediaServer?: boolean) => void;
     onNavigate: (view: string, params?: Record<string, unknown>) => void;
     activeView: string;
     activeModule: AppModule;
@@ -113,12 +113,14 @@ const THEME_KEY = 'video_theme';
 
 export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, activeModule, onModuleChange, onToggleSidebar, theme, onToggleTheme, isAdminPasswordEnabled }: GlobalSearchBarProps) {
     const [keyword, setKeyword] = useState('');
-    const [selectedSource, setSelectedSource] = useState<{ type: 'all' | 'video' | 'netdisk'; id: number | null; name: string; path?: string }>({ type: 'all', id: null, name: '全部源' });
+    const [selectedSource, setSelectedSource] = useState<{ type: 'all' | 'video' | 'netdisk' | 'media_server'; id: number | null; name: string; path?: string }>({ type: 'all', id: null, name: '全部源' });
     const [netdiskSources, setNetdiskSources] = useState<NetdiskSource[]>([]);
+    const [mediaServers, setMediaServers] = useState<any[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false); // 移动端搜索弹出层
-    const [isVideoSourcesExpanded, setIsVideoSourcesExpanded] = useState(true);
-    const [isNetdiskExpanded, setIsNetdiskExpanded] = useState(true);
+
+    // 🚀 新增：分级菜单激活分类
+    const [activeCategory, setActiveCategory] = useState<'video' | 'netdisk' | 'media_server'>('video');
 
     // 认证状态
     const { isAuthenticated, login, logout, password } = useAuth();
@@ -130,34 +132,30 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
         let isMounted = true;
         const fetchNetdiskSources = async () => {
             try {
-                const res = await apiRequest<{ success: boolean; data: any }>(
-                    'netdisk/sources'
-                );
-
-                if (!isMounted) return;
-
-                if (res.success && res.data) {
-                    let finalData = res.data;
-                    // 如果后端由于某种原因返回了 JSON 字符串（有时候 sqlite 会这样）
-                    if (typeof finalData === 'string') {
-                        try {
-                            finalData = JSON.parse(finalData);
-                        } catch (e) { /* ignore */ }
-                    }
-
-                    if (Array.isArray(finalData)) {
-                        setNetdiskSources(finalData);
-                    } else {
-                        console.error('[GlobalSearchBar] ERROR: Data is not an array', finalData);
-                    }
+                const res = await apiRequest<{ success: boolean; data: any }>('netdisk/sources');
+                if (isMounted && res.success && Array.isArray(res.data)) {
+                    setNetdiskSources(res.data);
                 }
             } catch (err) {
                 console.error('[GlobalSearchBar] Failed to fetch netdisk sources:', err);
             }
         };
 
-        // 延迟一下再取，确保登录状态已经写回数据库或本地
-        const timer = setTimeout(fetchNetdiskSources, 300);
+        const fetchMediaServers = async () => {
+            try {
+                const res = await apiRequest<{ success: boolean; data: any }>('media-servers');
+                if (isMounted && res.success && Array.isArray(res.data)) {
+                    setMediaServers(res.data.filter((s: any) => s.enabled));
+                }
+            } catch (err) {
+                console.error('[GlobalSearchBar] Failed to fetch media servers:', err);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            fetchNetdiskSources();
+            fetchMediaServers();
+        }, 300);
         return () => {
             isMounted = false;
             clearTimeout(timer);
@@ -183,14 +181,15 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
     const submitSearch = (kw: string) => {
         const trimmedKw = kw.trim();
 
-        // 如果是聚合或普通源，且没有关键字，则不提交
-        if (!trimmedKw && selectedSource.type !== 'netdisk') {
-            console.warn('[SearchDebug] Empty keyword for non-netdisk source, skipping.');
+        // 🚀 对齐逻辑：媒体库和影视库允许空关键词（即查看全部）
+        if (!trimmedKw && selectedSource.type !== 'netdisk' && selectedSource.type !== 'media_server') {
             return;
         }
 
         if (selectedSource.type === 'netdisk') {
             onSearch(trimmedKw, null, selectedSource.path || '/');
+        } else if (selectedSource.type === 'media_server') {
+            onSearch(trimmedKw, selectedSource.id, undefined, true);
         } else {
             onSearch(trimmedKw, selectedSource.id, undefined);
         }
@@ -361,19 +360,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             >
                                 <i className="fas fa-arrow-left"></i>
                             </button>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    submitSearch(keyword);
-                                    setIsMobileSearchOpen(false);
-                                }}
-                                className={`absolute left-0 top-0 bottom-0 px-3 flex items-center justify-center transition-colors group z-10`}
-                                title="点击搜索"
-                            >
-                                <i className={`fas fa-search text-sm
-                                        ${theme === 'dark' ? 'text-secondary group-hover:text-blue-400' : 'text-secondary group-hover:text-blue-600'}`}></i>
-                            </button>
                             <input
                                 type="text"
                                 value={keyword}
@@ -386,7 +372,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 }}
                                 placeholder="搜索电影、电视剧、动漫..."
                                 autoFocus
-                                className={`w-full px-4 py-2.5 pl-10 rounded-lg border focus:outline-none transition-colors text-sm
+                                className={`w-full px-4 py-2.5 rounded-lg border focus:outline-none transition-colors text-sm
                                         ${theme === 'dark'
                                         ? 'bg-secondary text-primary border-border-color focus:border-red-500 placeholder-gray-500'
                                         : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-red-500 placeholder-gray-400'
@@ -400,8 +386,8 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                     setIsMobileSearchOpen(false);
                                 }}
                                 className={`px-4 py-2.5 rounded-lg transition-colors text-sm font-bold
-                                    ${selectedSource.type === 'netdisk' || keyword.trim()
-                                        ? 'bg-red-500 text-primary hover:bg-red-600'
+                                    ${selectedSource.type === 'netdisk' || selectedSource.type === 'media_server' || keyword.trim()
+                                        ? 'bg-red-500 text-white hover:bg-red-600'
                                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     }`}
                             >
@@ -411,7 +397,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
 
                         {/* 搜索提示 */}
                         <div className="flex-1 p-4">
-                            <p className={`text-sm ${theme === 'dark' ? 'text-secondary' : 'text-secondary'}`}>
+                            <p className="text-sm text-secondary">
                                 <i className="fas fa-lightbulb mr-2 text-yellow-500"></i>
                                 输入关键词后点击搜索或按回车键
                             </p>
@@ -420,7 +406,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                 </div>
             )}
 
-            {/* 桌面端导航栏 (原有布局) */}
+            {/* 桌面端导航栏 */}
             <div className={`hidden lg:block sticky top-0 z-[50] border-b px-4 py-3 h-16 transition-colors
                 ${theme === 'dark'
                     ? 'bg-secondary/80 border-border-color backdrop-blur-lg'
@@ -429,8 +415,8 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
             >
                 <div className="flex items-center gap-2">
                     {/* 左侧：视频源选择器 + 搜索框 */}
-                    <div className="flex items-center gap-2 flex-1 max-w-3xl">
-                        {/* 视频源选择器 */}
+                    <div className="flex items-center gap-2 flex-1 max-w-[280px] xl:max-w-md 2xl:max-w-xl min-w-0">
+                        {/* 视频源选择器 (分级菜单重构版) */}
                         <div className="relative">
                             <button
                                 type="button"
@@ -452,148 +438,230 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                         className="fixed inset-0 z-10"
                                         onClick={() => setIsDropdownOpen(false)}
                                     ></div>
-                                    <div className={`absolute top-full left-0 mt-1 w-56 border rounded-lg shadow-xl z-20 py-1 max-h-96 overflow-y-auto
+                                    <div className={`absolute top-full left-0 mt-2 w-[420px] border rounded-xl shadow-2xl z-20 flex overflow-hidden min-h-[350px] max-h-[500px] animate-in fade-in zoom-in duration-200
                                     ${theme === 'dark'
-                                            ? 'bg-secondary border-border-color shadow-black/80'
-                                            : 'bg-white border-gray-200 shadow-slate-200'
+                                            ? 'bg-[#1a1c1e] border-white/10 shadow-black/80'
+                                            : 'bg-white border-gray-100 shadow-slate-200'
                                         }`}
                                     >
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedSource({ type: 'all', id: null, name: '全部源' });
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2
-                                            ${selectedSource.type === 'all'
-                                                    ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
-                                                    : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            <i className="fas fa-globe text-xs opacity-70"></i>
-                                            <span className="font-bold">全部源 (聚合搜索)</span>
-                                        </button>
+                                        {/* 左侧：分类导航 (一级分类) */}
+                                        <div className={`w-36 flex-shrink-0 border-r py-3 flex flex-col gap-1.5
+                                            ${theme === 'dark' ? 'bg-[#111315]/50 border-white/5' : 'bg-gray-50 border-gray-100'}
+                                        `}>
+                                            <div className="px-4 py-2 mb-1">
+                                                <span className="text-[10px] font-black uppercase text-secondary/30 tracking-widest">筛选分类</span>
+                                            </div>
 
-                                        {/* 资源站分类 */}
-                                        <div className="flex items-center justify-between mt-1 px-3 py-2 border-b border-border-color/30">
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    setSelectedSource({ type: 'video', id: null, name: '全站视频' });
+                                                    setSelectedSource({ type: 'all', id: null, name: '全部源' });
                                                     setIsDropdownOpen(false);
                                                 }}
-                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
-                                                    ${selectedSource.type === 'video' && !selectedSource.id
-                                                        ? 'text-blue-500'
-                                                        : theme === 'dark' ? 'text-secondary hover:text-blue-400' : 'text-gray-900 hover:text-blue-600'
+                                                className={`mx-2 px-3 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 relative group
+                                                    ${selectedSource.type === 'all'
+                                                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                                        : theme === 'dark' ? 'text-secondary hover:bg-white/5 hover:text-primary' : 'text-gray-500 hover:bg-black/5 hover:text-gray-900'
                                                     }`}
                                             >
-                                                <i className="fas fa-film text-xs"></i>
-                                                资源站 (全站视频)
+                                                <i className="fas fa-globe text-sm"></i>
+                                                全部源
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsVideoSourcesExpanded(!isVideoSourcesExpanded);
-                                                }}
-                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
-                                            >
-                                                <i className={`fas fa-chevron-${isVideoSourcesExpanded ? 'down' : 'right'} text-[10px]`}></i>
-                                            </button>
+
+                                            <div className="mx-4 my-2 border-t border-border-color/10"></div>
+
+                                            {[
+                                                { id: 'video', name: '资源站', icon: 'fa-film', color: 'blue' },
+                                                { id: 'netdisk', name: '媒体库', icon: 'fa-database', color: 'green' },
+                                                { id: 'media_server', name: '影视库', icon: 'fa-server', color: 'orange' }
+                                            ].map(cat => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => setActiveCategory(cat.id as any)}
+                                                    className={`mx-2 px-3 py-3.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 relative group
+                                                        ${activeCategory === cat.id
+                                                            ? theme === 'dark' ? 'bg-white/10 text-primary' : 'bg-black/5 text-gray-900'
+                                                            : 'text-secondary opacity-60 hover:opacity-100 hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    <i className={`fas ${cat.icon} text-lg transition-transform group-hover:scale-110 ${activeCategory === cat.id ? 'scale-110' : ''}`}></i>
+                                                    {cat.name}
+                                                    {activeCategory === cat.id && (
+                                                        <div className={`w-1 h-6 rounded-full absolute left-0 bg-${cat.id === 'video' ? 'blue' : (cat.id === 'netdisk' ? 'green' : 'orange')}-500 shadow-lg shadow-current`}></div>
+                                                    )}
+                                                </button>
+                                            ))}
                                         </div>
 
-                                        {isVideoSourcesExpanded && sources.map(source => (
-                                            <button
-                                                key={`video-${source.id}`}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedSource({ type: 'video', id: source.id, name: source.name });
-                                                    setIsDropdownOpen(false);
-                                                }}
-                                                className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
-                                                    ${selectedSource.type === 'video' && selectedSource.id === source.id
-                                                        ? theme === 'dark' ? 'text-blue-400 bg-blue-500/10' : 'text-blue-600 bg-blue-50'
-                                                        : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
-                                                    }`}
-                                            >
-                                                <i className="fas fa-layer-group text-[10px] opacity-40 shrink-0"></i>
-                                                <span className="truncate">{source.name}</span>
-                                            </button>
-                                        ))}
-
-                                        {/* 媒体库分类 */}
-                                        <div className="flex items-center justify-between mt-3 px-3 py-2 border-t border-b border-border-color/30 pt-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedSource({ type: 'netdisk', id: null, name: '全部媒体库', path: '/' });
-                                                    setIsDropdownOpen(false);
-                                                }}
-                                                className={`text-sm font-bold tracking-wider uppercase transition-colors flex items-center gap-2
-                                                    ${selectedSource.type === 'netdisk' && !selectedSource.id
-                                                        ? 'text-green-500'
-                                                        : theme === 'dark' ? 'text-secondary hover:text-green-400' : 'text-gray-900 hover:text-green-600'
-                                                    }`}
-                                            >
-                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                                媒体库 [全局搜索]
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsNetdiskExpanded(!isNetdiskExpanded);
-                                                }}
-                                                className="p-1.5 hover:bg-gray-500/10 rounded-md transition-colors text-secondary"
-                                            >
-                                                <i className={`fas fa-chevron-${isNetdiskExpanded ? 'down' : 'right'} text-[10px]`}></i>
-                                            </button>
-                                        </div>
-
-                                        {isNetdiskExpanded && netdiskSources.map(source => {
-                                            // 🚀 前端信任后端发来的 Array
-                                            const scanPaths = Array.isArray(source.scan_paths) ? source.scan_paths : [];
-
-                                            // 打印调试信息
-                                            if (scanPaths.length > 0) {
-                                                console.log(`[GlobalSearchBar] Rendering ${scanPaths.length} paths for ${source.name}`);
-                                            }
-
-                                            // 🛡️ 兜底：如果确实没路径，显示一个默认项
-                                            const itemsToRender = scanPaths.length > 0 ? scanPaths : [{ name: '源根目录', path: '/' }];
-
-                                            return itemsToRender.map((sp: any) => {
-                                                const uniqueId = `${source.id}-${sp.path || 'root'}`;
-                                                return (
+                                        {/* 右侧：具体源列表 (二级选择) */}
+                                        <div className="flex-1 overflow-y-auto py-3 custom-scrollbar">
+                                            {activeCategory === 'video' && (
+                                                <div className="flex flex-col gap-1">
                                                     <button
-                                                        key={`netdisk-${uniqueId}`}
                                                         type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedSource({
-                                                                type: 'netdisk',
-                                                                id: source.id,
-                                                                name: sp.name || sp.path?.split('/').pop() || source.name,
-                                                                path: sp.path || '/'
-                                                            });
+                                                        onClick={() => {
+                                                            setSelectedSource({ type: 'video', id: null, name: '全站视频' });
                                                             setIsDropdownOpen(false);
                                                         }}
-                                                        className={`w-full text-left px-8 py-2 text-sm transition-colors flex items-center gap-2
-                                                        ${selectedSource.type === 'netdisk' && selectedSource.id === source.id && selectedSource.path === sp.path
-                                                                ? theme === 'dark' ? 'text-green-400 bg-green-500/10' : 'text-green-600 bg-green-50'
-                                                                : theme === 'dark' ? 'text-primary hover:bg-gray-750' : 'text-gray-700 hover:bg-gray-100'
+                                                        className={`mx-3 px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                            ${selectedSource.type === 'video' && !selectedSource.id
+                                                                ? theme === 'dark' ? 'bg-blue-500/10 text-blue-400 font-bold' : 'bg-blue-50 text-blue-600 font-bold'
+                                                                : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                             }`}
                                                     >
-                                                        <i className="fas fa-folder-open text-[10px] opacity-50 shrink-0"></i>
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-blue-100'}`}>
+                                                            <i className="fas fa-video text-blue-500 text-sm"></i>
+                                                        </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="truncate font-medium">{sp.name || sp.path?.split('/').pop() || '未知目录'}</span>
-                                                            <span className="text-[10px] opacity-40 truncate">来源: {source.name}</span>
+                                                            <span>资源站全搜索</span>
+                                                            <span className="text-[10px] opacity-40">聚合搜索所有资源站内容</span>
                                                         </div>
                                                     </button>
-                                                );
-                                            });
-                                        })}
+
+                                                    <div className="px-6 py-2 mt-2 flex items-center gap-3">
+                                                        <span className="text-[10px] font-black uppercase text-secondary/30 tracking-widest whitespace-nowrap">具体站点</span>
+                                                        <div className="h-[1px] flex-1 bg-border-color/10"></div>
+                                                    </div>
+
+                                                    {sources.map(source => (
+                                                        <button
+                                                            key={`video-${source.id}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedSource({ type: 'video', id: source.id, name: source.name });
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                                ${selectedSource.type === 'video' && selectedSource.id === source.id
+                                                                    ? theme === 'dark' ? 'bg-blue-500/10 text-blue-400 font-bold' : 'bg-blue-50 text-blue-600 font-bold'
+                                                                    : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
+                                                                }`}
+                                                        >
+                                                            <div className="w-10 h-10 rounded-xl bg-tertiary flex items-center justify-center border border-border-color/50 transition-transform group-hover:scale-110">
+                                                                <span className="font-black text-secondary uppercase text-xs">{source.name.substring(0, 1)}</span>
+                                                            </div>
+                                                            <span className="truncate">{source.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {activeCategory === 'netdisk' && (
+                                                <div className="flex flex-col gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedSource({ type: 'netdisk', id: null, name: '全部媒体库', path: '/' });
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        className={`mx-3 px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                            ${selectedSource.type === 'netdisk' && !selectedSource.id
+                                                                ? theme === 'dark' ? 'bg-green-500/10 text-green-400 font-bold' : 'bg-green-50 text-green-600 font-bold'
+                                                                : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-green-100'}`}>
+                                                            <i className="fas fa-search-plus text-green-500 text-sm"></i>
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span>媒体库全搜索</span>
+                                                            <span className="text-[10px] opacity-40">跨多源网盘全局搜索</span>
+                                                        </div>
+                                                    </button>
+
+                                                    <div className="px-6 py-2 mt-2 flex items-center gap-3">
+                                                        <span className="text-[10px] font-black uppercase text-secondary/30 tracking-widest whitespace-nowrap">存储位置</span>
+                                                        <div className="h-[1px] flex-1 bg-border-color/10"></div>
+                                                    </div>
+
+                                                    {netdiskSources.map(source => {
+                                                        const scanPaths = Array.isArray(source.scan_paths) ? source.scan_paths : [];
+                                                        const itemsToRender = scanPaths.length > 0 ? scanPaths : [{ name: '源根目录', path: '/' }];
+
+                                                        return itemsToRender.map((sp: any) => (
+                                                            <button
+                                                                key={`netdisk-${source.id}-${sp.path}`}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedSource({
+                                                                        type: 'netdisk',
+                                                                        id: source.id,
+                                                                        name: sp.name || sp.path?.split('/').pop() || source.name,
+                                                                        path: sp.path || '/'
+                                                                    });
+                                                                    setIsDropdownOpen(false);
+                                                                }}
+                                                                className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                                    ${selectedSource.type === 'netdisk' && selectedSource.id === source.id && selectedSource.path === sp.path
+                                                                        ? theme === 'dark' ? 'bg-green-500/10 text-green-400 font-bold' : 'bg-green-50 text-green-600 font-bold'
+                                                                        : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
+                                                                    }`}
+                                                            >
+                                                                <div className="w-10 h-10 rounded-xl bg-tertiary flex items-center justify-center border border-border-color/50 transition-transform group-hover:scale-110">
+                                                                    <i className="fas fa-folder text-secondary text-sm"></i>
+                                                                </div>
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="truncate">{sp.name || sp.path?.split('/').pop() || source.name}</span>
+                                                                    <span className="text-[10px] opacity-30 truncate">所属: {source.name}</span>
+                                                                </div>
+                                                            </button>
+                                                        ));
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {activeCategory === 'media_server' && (
+                                                <div className="flex flex-col gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedSource({ type: 'media_server', id: null, name: '全部影视库' });
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        className={`mx-3 px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                            ${selectedSource.type === 'media_server' && !selectedSource.id
+                                                                ? theme === 'dark' ? 'bg-orange-500/10 text-orange-400 font-bold' : 'bg-orange-50 text-orange-600 font-bold'
+                                                                : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'bg-orange-100'}`}>
+                                                            <i className="fas fa-globe-asia text-orange-500 text-sm"></i>
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span>影视库全搜索</span>
+                                                            <span className="text-[10px] opacity-40">跨服务器统一搜索</span>
+                                                        </div>
+                                                    </button>
+
+                                                    <div className="px-6 py-2 mt-2 flex items-center gap-3">
+                                                        <span className="text-[10px] font-black uppercase text-secondary/30 tracking-widest whitespace-nowrap">可用服务</span>
+                                                        <div className="h-[1px] flex-1 bg-border-color/10"></div>
+                                                    </div>
+
+                                                    {mediaServers.map(server => (
+                                                        <button
+                                                            key={`media-server-${server.id}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedSource({ type: 'media_server', id: server.id, name: server.name });
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
+                                                                ${selectedSource.type === 'media_server' && selectedSource.id === server.id
+                                                                    ? theme === 'dark' ? 'bg-orange-500/10 text-orange-400 font-bold' : 'bg-orange-50 text-orange-600 font-bold'
+                                                                    : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
+                                                                }`}
+                                                        >
+                                                            <div className="w-10 h-10 rounded-xl bg-tertiary flex items-center justify-center border border-border-color/50 transition-transform group-hover:scale-110">
+                                                                <i className="fas fa-hdd text-secondary text-sm"></i>
+                                                            </div>
+                                                            <span className="truncate">{server.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -639,7 +707,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             <button
                                 type="submit"
                                 className={`px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg text-sm font-medium
-                                      ${selectedSource.type === 'netdisk'
+                                      ${selectedSource.type === 'netdisk' || selectedSource.type === 'media_server'
                                         ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20 text-white font-bold'
                                         : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 text-white'
                                     } 
@@ -650,15 +718,15 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         </form>
                     </div>
 
-                    {/* 导航菜单 - 放在搜索框和右侧工具栏之间，靠右 */}
+                    {/* 导航菜单 */}
                     <div className="hidden md:flex items-center gap-1 flex-shrink-0 ml-auto">
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
-                            { key: 'tv', label: '电视', icon: 'fa-tv' },
-                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
                             { key: 'media_server', label: '影视库', icon: 'fa-film' },
                             { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
+                            { key: 'tv', label: '电视', icon: 'fa-tv' },
+                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
                         ].map(item => (
                             <button
                                 key={item.key}
@@ -687,7 +755,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             onClick={onToggleTheme}
                             title={theme === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'}
                         >
-                            {/* 滑块 */}
                             <div
                                 className={`absolute w-5 h-5 rounded-full shadow-md transition-all duration-300 flex items-center justify-center
                                 ${theme === 'dark'
@@ -699,7 +766,6 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             </div>
                         </div>
 
-                        {/* 分隔线 */}
                         <div className={`w-px h-6 mx-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
 
                         {/* 收藏按钮 */}
@@ -738,7 +804,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                             </button>
                         )}
 
-                        {/* 登录状态图标 - 始终显示以提供管理入口 */}
+                        {/* 登录状态图标 */}
                         <div className="relative">
                             <button
                                 type="button"
@@ -752,38 +818,32 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                 <i className={`fas ${isAuthenticated ? 'fa-user-check' : 'fa-user-lock'}`}></i>
                             </button>
 
-                            {/* 用户菜单 - 增加美化与层级控制 */}
                             {isUserMenuOpen && isAuthenticated && (
                                 <>
                                     <div
                                         className="fixed inset-0 z-[60]"
                                         onClick={() => setIsUserMenuOpen(false)}
                                     ></div>
-                                    <div className={`absolute right-0 top-full mt-2 w-56 py-3 rounded-2xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
+                                    <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl shadow-2xl z-[70] transform origin-top-right transition-all animate-in fade-in zoom-in duration-200
                                     ${theme === 'dark'
-                                            ? 'bg-[#1a1c1e] border border-white/10 shadow-black/60 backdrop-blur-xl'
-                                            : 'bg-white border border-slate-100 shadow-slate-200/80'
+                                            ? 'bg-secondary border border-border-color shadow-black/50'
+                                            : 'bg-white border border-gray-100 shadow-slate-200'
                                         }`}
                                     >
-                                        <div className="px-4 py-3 border-b border-border-color/50 mb-2 bg-gradient-to-r from-red-500/5 to-transparent">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                                                <p className="text-[10px] text-secondary uppercase font-black tracking-[0.2em]">当前用户</p>
-                                            </div>
-                                            <p className="text-sm font-extrabold text-primary">系统管理员</p>
+                                        <div className="px-4 py-2 border-b border-border-color mb-1">
+                                            <p className="text-[10px] text-secondary uppercase font-bold tracking-wider">当前身份</p>
+                                            <p className="text-sm font-bold text-primary">系统管理员</p>
                                         </div>
                                         <button
                                             onClick={handleLogout}
-                                            className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-all duration-300
+                                            className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
                                             ${theme === 'dark'
-                                                    ? 'text-red-400 hover:bg-red-500/20 hover:pl-5'
-                                                    : 'text-red-500 hover:bg-red-50 hover:pl-5'
+                                                    ? 'text-red-400 hover:bg-red-500/10'
+                                                    : 'text-red-500 hover:bg-red-50'
                                                 }`}
                                         >
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
-                                                <i className="fas fa-sign-out-alt"></i>
-                                            </div>
-                                            <span className="font-bold">全面退出登录</span>
+                                            <i className="fas fa-sign-out-alt"></i>
+                                            <span className="font-bold">安全退出登录</span>
                                         </button>
                                     </div>
                                 </>
@@ -791,10 +851,9 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            {/* 登录弹窗 */}
+            {/* 登录模态框 */}
             <PasswordModal
                 isOpen={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}

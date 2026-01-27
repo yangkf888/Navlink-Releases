@@ -85,6 +85,7 @@ interface NavParams {
     videoIndex?: number; // For Netdisk
     netdiskSourceId?: number; // For Netdisk source selection
     netdiskPath?: string; // For Netdisk search
+    isMediaServer?: boolean; // 🚀 增加此标识，用于搜索路由判定
     mediaServerId?: number; // For Media Server
     title?: string;
     url?: string;
@@ -290,6 +291,16 @@ function VideoApp() {
 
             // 处理视频源
             if (sourcesRes.success && sourcesRes.data) {
+                // 🚀 防卫逻辑：检查数据结构是否真为 VideoSource
+                // 如果发现数据中包含 vod_id（属于视频而非源），则说明后台数据冲突
+                const sample = sourcesRes.data[0];
+                if (sample && (sample as any).vod_id) {
+                    console.error('[App] CRITICAL: Invalid source data structure detected!', sample);
+                    // 标记加载完成并报错
+                    setIsLoaded(true);
+                    return;
+                }
+
                 // 如果开启了密码保护且未登录，则过滤掉隐藏源；否则显示全部启用源
                 const enabledSources = sourcesRes.data.filter(s =>
                     s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
@@ -527,6 +538,7 @@ function VideoApp() {
         return sources.some(s => s.id === id);
     };
 
+    // 辅助函数：网盘源可见性
     const isNetdiskVisible = (id?: number) => {
         if (!id) return true;
         return netdiskSources.some(s => s.id === id);
@@ -649,6 +661,8 @@ function VideoApp() {
                         initialKeyword={navParams.keyword}
                         sourceId={navParams.sourceId ?? null}
                         netdiskPath={navParams.netdiskPath}
+                        isMediaServer={navParams.isMediaServer}
+                        _t={navParams._t}
                         sources={sources}
                         onNavigate={navigate}
                     />

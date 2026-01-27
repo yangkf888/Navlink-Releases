@@ -78,7 +78,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                     limit: 20  // 回滚到20，避免500错误
                 });
 
-                if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
+                if (videoRes.success && Array.isArray(videoRes.data) && videoRes.data.length > 0) {
                     // 使用 pagination 判断是否有更多页
                     const hasMore = videoRes.pagination
                         ? videoRes.pagination.page < videoRes.pagination.pagecount
@@ -127,7 +127,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                 limit: LOAD_MORE_COUNT + 1  // 多请求1个来判断是否还有更多
             });
 
-            if (videoRes.success && videoRes.data) {
+            if (videoRes.success && Array.isArray(videoRes.data)) {
                 const hasMore = videoRes.data.length > LOAD_MORE_COUNT;
                 const newVideos = videoRes.data.slice(0, LOAD_MORE_COUNT).map(v => ({ ...v, source_id: sourceId }));
 
@@ -172,7 +172,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
 
             const res = await apiGet<Video[]>('/videos', params);
 
-            if (res.success && res.data) {
+            if (res.success && Array.isArray(res.data)) {
                 const newVideos = res.data.map(v => ({ ...v, source_id: srcId }));
                 if (reset) {
                     setVideos(newVideos);

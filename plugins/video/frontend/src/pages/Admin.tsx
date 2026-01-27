@@ -165,11 +165,11 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             <div className="flex flex-wrap gap-2.5 p-1.5 bg-secondary/30 backdrop-blur-md border border-border-color rounded-2xl w-fit">
                 {[
                     { id: 'home', label: '首页配置', icon: 'fa-home' },
-                    { id: 'sources', label: '视频站源', icon: 'fa-database' },
+                    { id: 'sources', label: '资源站', icon: 'fa-database' },
+                    { id: 'media_servers', label: '影视库', icon: 'fa-film' },
+                    { id: 'netdisk_sources', label: '媒体库', icon: 'fa-cloud' },
                     { id: 'tv_sources', label: '电视直播', icon: 'fa-tv' },
                     { id: 'live_sources', label: '热门直播', icon: 'fa-broadcast-tower' },
-                    { id: 'netdisk_sources', label: '私有媒体', icon: 'fa-cloud' },
-                    { id: 'media_servers', label: '影视库', icon: 'fa-film' },
                     { id: 'settings', label: '系统设置', icon: 'fa-cog' }
                 ].map((tab) => (
                     <button
