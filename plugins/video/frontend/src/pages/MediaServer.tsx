@@ -47,15 +47,25 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
     const [sections, setSections] = useState<HomeSection[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // 🎨 引用控制：用于横向滚动
+    // 🎨 引用与状态控制：用于横向滚动
     const resumeScrollRef = useRef<HTMLDivElement>(null);
     const sectionsScrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+    const [scrollStates, setScrollStates] = useState<{ [key: string]: number }>({ resume: 0 });
 
-    const handleScroll = (ref: React.RefObject<HTMLDivElement> | HTMLDivElement | null, direction: 'left' | 'right') => {
+    const handleScroll = (ref: React.RefObject<HTMLDivElement> | HTMLDivElement | null, direction: 'left' | 'right', key: string) => {
         const el = (ref && 'current' in ref) ? ref.current : ref;
         if (el) {
             el.scrollBy({ left: direction === 'right' ? 600 : -600, behavior: 'smooth' });
+            // 更新状态通过监听 scroll 事件，这里主动触发可能是多余的但为了即时性可以更新
+            setTimeout(() => {
+                setScrollStates(prev => ({ ...prev, [key]: el.scrollLeft }));
+            }, 300);
         }
+    };
+
+    const handleOnScroll = (e: React.UIEvent<HTMLDivElement>, key: string) => {
+        const target = e.currentTarget;
+        setScrollStates(prev => ({ ...prev, [key]: target.scrollLeft }));
     };
 
     useEffect(() => {
@@ -104,7 +114,11 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
                         继续观看
                     </h3>
                     <div className="relative group/scroll">
-                        <div ref={resumeScrollRef} className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                        <div
+                            ref={resumeScrollRef}
+                            className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar scroll-smooth"
+                            onScroll={(e) => handleOnScroll(e, 'resume')}
+                        >
                             {resumeItems.map(item => (
                                 <div key={item.Id} className="flex-shrink-0 w-[280px] group cursor-pointer" onClick={() => onPlay(item)}>
                                     <div className="aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/5 group-hover:border-blue-500/50 transition-all shadow-lg relative">
@@ -121,12 +135,28 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
                                 </div>
                             ))}
                         </div>
+                        {/* 向左引导按钮 - 只有滚动了才显示 */}
+                        {scrollStates['resume'] > 10 && (
+                            <>
+                                <div className="absolute top-0 left-0 bottom-4 w-24 bg-gradient-to-r from-black/80 to-transparent pointer-events-none z-10 opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"></div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleScroll(resumeScrollRef, 'left', 'resume');
+                                    }}
+                                    className="absolute top-1/2 left-4 -translate-y-1/2 w-12 h-12 rounded-full bg-blue-600/80 backdrop-blur-md hover:bg-blue-500 shadow-2xl shadow-blue-500/40 border border-white/20 flex items-center justify-center text-white z-20 opacity-0 group-hover/scroll:opacity-100 transition-all duration-300 scale-75 group-hover/scroll:scale-100 active:scale-90"
+                                >
+                                    <i className="fas fa-chevron-left text-lg"></i>
+                                </button>
+                            </>
+                        )}
+
                         {/* 向右引导按钮 - 功能化升级，修复点击穿透 */}
                         <div className="absolute top-0 right-0 bottom-4 w-24 bg-gradient-to-l from-black/80 to-transparent pointer-events-none z-10 opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"></div>
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleScroll(resumeScrollRef, 'right');
+                                handleScroll(resumeScrollRef, 'right', 'resume');
                             }}
                             className="absolute top-1/2 right-4 -translate-y-1/2 w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 shadow-2xl shadow-blue-500/40 border border-white/20 flex items-center justify-center text-white z-20 opacity-0 group-hover/scroll:opacity-100 transition-all duration-300 scale-75 group-hover/scroll:scale-100 active:scale-90"
                         >
@@ -155,6 +185,7 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
                         <div
                             ref={el => sectionsScrollRefs.current[section.id] = el}
                             className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar scroll-smooth"
+                            onScroll={(e) => handleOnScroll(e, section.id)}
                         >
                             {section.items.map(item => (
                                 <div
@@ -179,12 +210,28 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
                                 </div>
                             ))}
                         </div>
-                        {/* 向右引导按钮 - 功能化升级，修复点击穿透 */}
+                        {/* 向左引导按钮 - 只有滚动了才显示 */}
+                        {scrollStates[section.id] > 10 && (
+                            <>
+                                <div className="absolute top-0 left-0 bottom-4 w-24 bg-gradient-to-r from-black/80 to-transparent pointer-events-none z-10 opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"></div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleScroll(sectionsScrollRefs.current[section.id], 'left', section.id);
+                                    }}
+                                    className="absolute top-1/2 left-4 -translate-y-1/2 w-12 h-12 rounded-full bg-blue-600/80 backdrop-blur-md hover:bg-blue-500 shadow-2xl shadow-blue-500/40 border border-white/20 flex items-center justify-center text-white z-20 opacity-0 group-hover/scroll:opacity-100 transition-all duration-300 scale-75 group-hover/scroll:scale-100 active:scale-90"
+                                >
+                                    <i className="fas fa-chevron-left text-lg"></i>
+                                </button>
+                            </>
+                        )}
+
+                        {/* 向向右引导按钮 - 功能化升级，修复点击穿透 */}
                         <div className="absolute top-0 right-0 bottom-4 w-24 bg-gradient-to-l from-black/80 to-transparent pointer-events-none z-10 opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"></div>
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleScroll(sectionsScrollRefs.current[section.id], 'right');
+                                handleScroll(sectionsScrollRefs.current[section.id], 'right', section.id);
                             }}
                             className="absolute top-1/2 right-4 -translate-y-1/2 w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 shadow-2xl shadow-blue-500/40 border border-white/20 flex items-center justify-center text-white z-20 opacity-0 group-hover/scroll:opacity-100 transition-all duration-300 scale-75 group-hover/scroll:scale-100 active:scale-90"
                         >
