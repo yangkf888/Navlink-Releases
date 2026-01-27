@@ -34,6 +34,20 @@ router.get('/', (req, res) => {
             }
         }
 
+        // 🚀 防撞墙逻辑：验证数据真实性
+        // 如果返回的数组中存在 vod_id 字段，说明发生了极其罕见的内容交叉（数据库连接池/游标污染）
+        if (Array.isArray(sources) && sources.length > 0) {
+            const firstRow = sources[0];
+            if (firstRow.vod_id || !firstRow.url) {
+                console.error('[sources] CRITICAL ERROR: Database returned video data instead of sources!');
+                return res.status(500).json({
+                    success: false,
+                    error: '数据完整性异常，请刷新重试',
+                    _debug_data_corrupted: true
+                });
+            }
+        }
+
         res.json({ success: true, data: sources });
     } catch (error) {
         console.error('[sources] Failed to get sources:', error);

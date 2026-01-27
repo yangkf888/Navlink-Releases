@@ -696,6 +696,39 @@ class MediaServerService {
             return { success: false, error: error.message };
         }
     }
+    /**
+     * 搜索项目 (Global Search)
+     */
+    static async search(server, keyword, limit = 20) {
+        const { url, api_key, type, user_id } = server;
+        try {
+            const effectiveUserId = user_id || await this.getPublicUserId(server);
+            // Emby/Jellyfin 搜索接口：/Items 并带上 SearchTerm
+            const endpoint = type === 'emby'
+                ? `/emby/Users/${effectiveUserId}/Items`
+                : `/Users/${effectiveUserId}/Items`;
+
+            const response = await axios.get(`${url}${endpoint}`, {
+                params: {
+                    api_key,
+                    SearchTerm: keyword,
+                    Recursive: true,
+                    IncludeItemTypes: 'Movie,Series,MusicVideo,Video',
+                    Fields: 'PrimaryImageAspectRatio,ProductionYear,Overview',
+                    Limit: limit
+                },
+                headers: {
+                    'X-Emby-Token': api_key,
+                    'Accept': 'application/json'
+                }
+            });
+
+            return { success: true, data: response.data.Items || [] };
+        } catch (error) {
+            console.error(`[MediaServerService] Search failed for ${url}:`, error.message);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = MediaServerService;
