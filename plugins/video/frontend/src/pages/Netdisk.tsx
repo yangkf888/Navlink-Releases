@@ -718,7 +718,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {/* 年份/备注 (右下角) */}
                 {item.year && (
                     <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-500/90 
-                                   text-[10px] text-primary rounded font-medium">
+                                   text-[10px] text-white rounded font-medium">
                         {item.year}
                     </span>
                 )}

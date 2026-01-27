@@ -511,7 +511,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                 className="rounded"
                             />
                             <span className="text-primary font-medium flex-1 truncate">{source.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`} style={{ color: '#fff' }}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold text-white ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`}>
                                 {source.enabled ? '启用' : '禁用'}
                             </span>
                         </div>
@@ -918,14 +918,14 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => handleImportConfirm('append')}
-                                    className="flex-1 px-4 py-2 bg-blue-500 text-primary rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg 
                                          hover:bg-blue-600 transition-colors"
                                 >
                                     追加导入
                                 </button>
                                 <button
                                     onClick={() => handleImportConfirm('replace')}
-                                    className="flex-1 px-4 py-2 bg-orange-500 text-primary rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg 
                                          hover:bg-orange-600 transition-colors"
                                 >
                                     替换导入

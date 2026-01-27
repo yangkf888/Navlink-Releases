@@ -143,13 +143,13 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                     >
                         <i className="fas fa-level-up-alt rotate-[-90deg]"></i>
                     </button>
-                    <div className="flex-1 px-3 py-1.5 bg-black/40 border border-border-color rounded-lg text-sm text-blue-400 truncate font-mono shadow-inner shadow-black">
+                    <div className="flex-1 px-3 py-1.5 bg-black/60 border border-border-color rounded-lg text-sm text-blue-400 truncate font-mono shadow-inner shadow-black/40">
                         {currentPath || '/'}
                     </div>
                 </div>
 
                 {/* 目录列表 */}
-                <div className="flex-1 overflow-y-auto p-3 min-h-[300px] bg-black/20">
+                <div className="flex-1 overflow-y-auto p-3 min-h-[300px] bg-secondary/20">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-full text-secondary gap-4">
                             <i className="fas fa-spinner fa-spin text-3xl text-blue-500"></i>
@@ -208,7 +208,7 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                         </button>
                         <button
                             onClick={handleSelectCurrent}
-                            className="px-6 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-primary hover:from-blue-500 hover:to-blue-400 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            className="px-6 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
                             <i className="fas fa-check mr-2"></i> 确定选择
                         </button>

@@ -481,8 +481,8 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                     onClick={() => setActiveCategory(cat.id as any)}
                                                     className={`mx-2 px-3 py-3.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 relative group
                                                         ${activeCategory === cat.id
-                                                            ? theme === 'dark' ? 'bg-white/10 text-primary' : 'bg-black/5 text-gray-900'
-                                                            : 'text-secondary opacity-60 hover:opacity-100 hover:bg-white/5'
+                                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                            : theme === 'dark' ? 'text-secondary hover:bg-white/5 hover:text-primary' : 'text-gray-500 hover:bg-black/5 hover:text-gray-900'
                                                         }`}
                                                 >
                                                     <i className={`fas ${cat.icon} text-lg transition-transform group-hover:scale-110 ${activeCategory === cat.id ? 'scale-110' : ''}`}></i>
@@ -506,7 +506,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                         }}
                                                         className={`mx-3 px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-4 group
                                                             ${selectedSource.type === 'video' && !selectedSource.id
-                                                                ? theme === 'dark' ? 'bg-blue-500/10 text-blue-400 font-bold' : 'bg-blue-50 text-blue-600 font-bold'
+                                                                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20'
                                                                 : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                             }`}
                                                     >
@@ -534,7 +534,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                             }}
                                                             className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
                                                                 ${selectedSource.type === 'video' && selectedSource.id === source.id
-                                                                    ? theme === 'dark' ? 'bg-blue-500/10 text-blue-400 font-bold' : 'bg-blue-50 text-blue-600 font-bold'
+                                                                    ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20'
                                                                     : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                                 }`}
                                                         >
@@ -557,7 +557,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                         }}
                                                         className={`mx-3 px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-4 group
                                                             ${selectedSource.type === 'netdisk' && !selectedSource.id
-                                                                ? theme === 'dark' ? 'bg-green-500/10 text-green-400 font-bold' : 'bg-green-50 text-green-600 font-bold'
+                                                                ? 'bg-green-600 text-white font-bold shadow-lg shadow-green-500/20'
                                                                 : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                             }`}
                                                     >
@@ -594,7 +594,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                                 }}
                                                                 className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
                                                                     ${selectedSource.type === 'netdisk' && selectedSource.id === source.id && selectedSource.path === sp.path
-                                                                        ? theme === 'dark' ? 'bg-green-500/10 text-green-400 font-bold' : 'bg-green-50 text-green-600 font-bold'
+                                                                        ? 'bg-green-600 text-white font-bold shadow-lg shadow-green-500/20'
                                                                         : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                                     }`}
                                                             >
@@ -649,7 +649,7 @@ export function GlobalSearchBar({ sources, onSearch, onNavigate, activeView, act
                                                             }}
                                                             className={`mx-3 px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-4 group
                                                                 ${selectedSource.type === 'media_server' && selectedSource.id === server.id
-                                                                    ? theme === 'dark' ? 'bg-orange-500/10 text-orange-400 font-bold' : 'bg-orange-50 text-orange-600 font-bold'
+                                                                    ? 'bg-orange-500 text-white font-bold shadow-lg shadow-orange-500/20'
                                                                     : theme === 'dark' ? 'text-primary hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
                                                                 }`}
                                                         >

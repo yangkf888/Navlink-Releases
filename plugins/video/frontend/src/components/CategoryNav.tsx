@@ -213,7 +213,7 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
                                 className={`
                                     flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300
                                     ${isActive
-                                        ? 'active-brand-item shadow-lg shadow-blue-500/30 scale-105'
+                                        ? 'active-brand-item text-white shadow-lg shadow-blue-500/30 scale-105'
                                         : 'bg-secondary/40 text-secondary hover:bg-secondary/80 hover:text-primary'}
                                 `}
                             >
@@ -261,7 +261,7 @@ export function CategoryNav({ categories, sourceId, currentCategoryId, onNavigat
                                 className={`
                                     px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-300
                                     ${isSubActive
-                                        ? 'bg-tertiary text-primary shadow-sm ring-1 ring-white/10'
+                                        ? 'bg-blue-600 text-white shadow-sm ring-1 ring-white/10'
                                         : 'text-secondary hover:text-primary hover:bg-white/5'}
                                 `}
                             >

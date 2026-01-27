@@ -205,7 +205,7 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
                                     </div>
                                     <div className="mt-2">
                                         <p className="text-xs font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</p>
-                                        <p className="text-[10px] text-secondary opacity-50">{item.ProductionYear || ''}</p>
+                                        <p className="text-[10px] text-secondary opacity-60">{item.ProductionYear || ''}</p>
                                     </div>
                                 </div>
                             ))}
@@ -533,7 +533,7 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
             <div className="mt-3">
                 <p className="text-sm font-bold text-primary truncate group-hover:text-blue-500 transition-colors">{item.Name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-secondary opacity-50 font-mono italic">{item.ProductionYear || ''}</span>
+                    <span className="text-[10px] text-secondary opacity-60">{item.ProductionYear || ''}</span>
                     {item.Type === 'Series' && <span className="text-[9px] px-1 bg-blue-500/10 text-blue-500 rounded font-bold uppercase scale-90 origin-left">剧集</span>}
                     {item.Type === 'BoxSet' && <span className="text-[9px] px-1 bg-purple-500/10 text-purple-500 rounded font-bold uppercase scale-90 origin-left">合集</span>}
                 </div>

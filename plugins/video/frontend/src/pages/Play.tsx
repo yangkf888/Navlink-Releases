@@ -500,7 +500,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                 <button
                                     onClick={toggleFavorite}
                                     className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
-                                        ? 'bg-red-500 text-primary'
+                                        ? 'bg-red-500 text-white'
                                         : 'bg-secondary text-secondary hover:text-red-400'
                                         }`}
                                 >
@@ -537,7 +537,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                                 key={idx}
                                                 onClick={() => handleEpisodeClick(selectedSourceIndex, idx)}
                                                 className={`px-1 py-3 rounded-xl text-xs font-semibold transition-all duration-300 truncate shadow-sm ${selectedEpisodeIndex === idx
-                                                    ? 'bg-blue-600 text-primary shadow-blue-500/30 ring-1 ring-white/20'
+                                                    ? 'bg-blue-600 text-white shadow-blue-500/30 ring-1 ring-white/20'
                                                     : 'bg-white/5 text-secondary hover:bg-white/10 hover:text-primary border border-border-color'
                                                     }`}
                                                 title={ep.name}
@@ -568,11 +568,11 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                         setSelectedEpisodeIndex(0);
                                     }}
                                     className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 border ${selectedSourceIndex === idx
-                                        ? 'bg-blue-600 text-primary border-blue-500/50 shadow-lg shadow-blue-500/20'
+                                        ? 'bg-blue-600 text-white border-blue-500/50 shadow-lg shadow-blue-500/20'
                                         : 'bg-white/5 text-secondary border-border-color hover:bg-white/10 hover:text-primary'
                                         }`}
                                 >
-                                    <i className={`fas fa-play-circle mr-2 ${selectedSourceIndex === idx ? 'text-primary' : 'text-blue-400'}`}></i>
+                                    <i className={`fas fa-play-circle mr-2 ${selectedSourceIndex === idx ? 'text-white' : 'text-blue-400'}`}></i>
                                     {source.source}
                                 </button>
                             ))}
@@ -609,21 +609,21 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                 <div
                                     className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400"
                                 >
-                                    <div className="absolute -top-2 -right-2 bg-green-500 text-primary text-xs px-2 py-0.5 rounded-full z-10">
+                                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full z-10">
                                         当前
                                     </div>
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <div className="text-primary font-medium text-sm truncate flex-1">
+                                        <div className="text-white font-medium text-sm truncate flex-1">
                                             {video.source_name || `源 ${sourceId}`}
                                         </div>
                                         <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-primary/80 text-xs">
+                                        <span className="text-white/80 text-xs">
                                             {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
                                         </span>
                                         {video.vod_remarks && (
-                                            <span className="px-1.5 py-0.5 bg-white/10 text-primary text-[10px] rounded font-medium border border-white/10">
+                                            <span className="px-1.5 py-0.5 bg-white/10 text-white text-[10px] rounded font-medium border border-white/10">
                                                 {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
                                             </span>
                                         )}

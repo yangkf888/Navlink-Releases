@@ -302,7 +302,7 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                                 className="rounded"
                             />
                             <span className="text-primary font-medium flex-1 truncate">{source.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`} style={{ color: '#fff' }}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold text-white ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`}>
                                 {source.enabled ? '启用' : '禁用'}
                             </span>
                         </div>
@@ -314,7 +314,7 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
 
                         {/* 类型和排序 */}
                         <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${source.type === 'm3u' ? 'bg-purple-600' : 'bg-cyan-600'}`} style={{ color: '#fff' }}>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${source.type === 'm3u' ? 'bg-purple-600' : 'bg-cyan-600'}`}>
                                 {source.type.toUpperCase()}
                             </span>
                             <span className="text-secondary">排序: {source.sort_order}</span>
@@ -381,11 +381,10 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                                 </td>
                                 <td className="p-3">
                                     <span
-                                        className={`px-2 py-1 rounded text-xs font-medium ${source.enabled
+                                        className={`px-2 py-1 rounded text-xs font-semibold text-white ${source.enabled
                                             ? 'bg-green-600'
                                             : 'bg-gray-500'
                                             }`}
-                                        style={{ color: '#fff' }}
                                     >
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
@@ -397,8 +396,7 @@ export function TvSourceManager({ onSourcesChange }: TvSourceManagerProps) {
                                 </td>
                                 <td className="p-3">
                                     <span
-                                        className={`px-2 py-1 rounded text-xs font-medium ${source.type === 'm3u' ? 'bg-purple-600' : 'bg-cyan-600'}`}
-                                        style={{ color: '#fff' }}
+                                        className={`px-2 py-1 rounded text-xs font-bold text-white ${source.type === 'm3u' ? 'bg-purple-600' : 'bg-cyan-600'}`}
                                     >
                                         {source.type.toUpperCase()}
                                     </span>

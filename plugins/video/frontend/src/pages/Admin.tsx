@@ -178,7 +178,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                         className={`
                             flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300
                             ${activeTab === tab.id
-                                ? 'active-brand-item shadow-lg shadow-blue-500/40'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40'
                                 : 'text-secondary hover:bg-secondary/80 hover:text-primary'}
                         `}
                     >

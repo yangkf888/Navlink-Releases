@@ -383,7 +383,7 @@ export function Home() {
                                         onClick={() => handleTabChange(section.id, tab.key)}
                                         className={`px-3 py-1 text-sm rounded-full transition-all whitespace-nowrap
                                             ${currentTab === tab.key
-                                                ? `${colorClasses.activeTab} text-primary shadow-md`
+                                                ? `${colorClasses.activeTab} text-white shadow-md`
                                                 : `text-secondary hover:text-primary hover:bg-white/10`
                                             }`}
                                     >
