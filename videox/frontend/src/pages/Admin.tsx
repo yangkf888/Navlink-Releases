@@ -165,11 +165,11 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
             <div className="flex flex-wrap gap-2.5 p-1.5 bg-secondary/30 backdrop-blur-md border border-border-color rounded-2xl w-fit">
                 {[
                     { id: 'home', label: '首页配置', icon: 'fa-home' },
-                    { id: 'sources', label: '视频站源', icon: 'fa-database' },
+                    { id: 'sources', label: '资源站', icon: 'fa-database' },
+                    { id: 'media_servers', label: '影视库', icon: 'fa-film' },
+                    { id: 'netdisk_sources', label: '媒体库', icon: 'fa-cloud' },
                     { id: 'tv_sources', label: '电视直播', icon: 'fa-tv' },
                     { id: 'live_sources', label: '热门直播', icon: 'fa-broadcast-tower' },
-                    { id: 'netdisk_sources', label: '私有媒体', icon: 'fa-cloud' },
-                    { id: 'media_servers', label: '影视库', icon: 'fa-film' },
                     { id: 'settings', label: '系统设置', icon: 'fa-cog' }
                 ].map((tab) => (
                     <button
@@ -178,7 +178,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                         className={`
                             flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300
                             ${activeTab === tab.id
-                                ? 'active-brand-item shadow-lg shadow-blue-500/40'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40'
                                 : 'text-secondary hover:bg-secondary/80 hover:text-primary'}
                         `}
                     >
@@ -215,7 +215,7 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
 
             {/* 影视库管理 */}
             {activeTab === 'media_servers' && (
-                <MediaServerManager onServersChange={onSourcesChange} />
+                <MediaServerManager onServersChange={() => { onSourcesChange?.(); }} />
             )}
 
             {/* 系统设置 - 使用独立组件 */}

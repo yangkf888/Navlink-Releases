@@ -2,22 +2,20 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { apiPost, apiGet } from '../utils/api';
 
 // localStorage key
-const AUTH_KEY = 'videox_admin_auth';
+const AUTH_KEY = 'video_admin_auth';
 const AUTH_EXPIRY_HOURS = 24;
 
 interface AuthState {
-    isAuthenticated: boolean;      // 全站访问状态
-    isAdminAuthenticated: boolean; // 管理员访问状态
+    isAuthenticated: boolean;
     password: string | null;
     expiresAt: number | null;
 }
 
 interface AuthContextType {
     isAuthenticated: boolean;
-    isAdminAuthenticated: boolean;
     password: string | null;
-    login: (password: string, type?: 'site' | 'admin') => Promise<boolean>;
-    logout: (type?: 'all' | 'admin') => void;
+    login: (password: string) => Promise<boolean>;
+    logout: () => void;
     checkPasswordRequired: () => Promise<boolean>;
 }
 
@@ -38,38 +36,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
             // 忽略解析错误
         }
-        return { isAuthenticated: false, isAdminAuthenticated: false, password: null, expiresAt: null };
+        return { isAuthenticated: false, password: null, expiresAt: null };
     });
 
     // 保存到 localStorage
     useEffect(() => {
-        // 只要任何一种认证状态为真，就持久化
-        if (authState.isAuthenticated || authState.isAdminAuthenticated) {
+        if (authState.isAuthenticated) {
             localStorage.setItem(AUTH_KEY, JSON.stringify(authState));
         } else {
             localStorage.removeItem(AUTH_KEY);
         }
     }, [authState]);
 
-    const login = async (password: string, type: 'site' | 'admin' = 'admin'): Promise<boolean> => {
+    const login = async (password: string): Promise<boolean> => {
         try {
-            const res = await apiPost<{ valid: boolean; message: string }>('/settings/verify-password', {
-                password,
-                type
-            });
+            const res = await apiPost<{ valid: boolean; message: string }>('/settings/verify-password', { password });
             const response = res as unknown as { success: boolean; valid: boolean; message: string };
 
             if (response.success && response.valid) {
                 const expiresAt = Date.now() + AUTH_EXPIRY_HOURS * 60 * 60 * 1000;
-                setAuthState(prev => ({
-                    ...prev,
-                    // 仅更新对应的标志位，保留另一个
-                    isAuthenticated: type === 'site' ? true : prev.isAuthenticated,
-                    isAdminAuthenticated: type === 'admin' ? true : prev.isAdminAuthenticated,
-                    // 仅在管理员登录时记录管理密码，用于某些需要密码透传的场景
-                    password: type === 'admin' ? password : prev.password,
+                setAuthState({
+                    isAuthenticated: true,
+                    password,
                     expiresAt
-                }));
+                });
                 return true;
             }
             return false;
@@ -78,16 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = (type: 'all' | 'admin' = 'all') => {
-        if (type === 'admin') {
-            setAuthState(prev => ({
-                ...prev,
-                isAdminAuthenticated: false,
-                password: null
-            }));
-        } else {
-            setAuthState({ isAuthenticated: false, isAdminAuthenticated: false, password: null, expiresAt: null });
-        }
+    const logout = () => {
+        setAuthState({ isAuthenticated: false, password: null, expiresAt: null });
     };
 
     const checkPasswordRequired = async (): Promise<boolean> => {
@@ -106,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider value={{
             isAuthenticated: authState.isAuthenticated,
-            isAdminAuthenticated: authState.isAdminAuthenticated,
             password: authState.password,
             login,
             logout,

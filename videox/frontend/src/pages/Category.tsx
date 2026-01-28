@@ -22,14 +22,14 @@ interface SubCategorySection {
     loading: boolean;
 }
 
-// 每行显示的视频数量（对齐大屏 8 列布局）
+// 每行显示的视频数量（8列布局）
 const VIDEOS_PER_ROW = 8;
-// 初始显示行数（3行，最后一个位置留给"加载更多"）
+// 初始显示行数（3行，24个位置，23个视频+1个加载更多）
 const INITIAL_ROWS = 3;
 // 初始显示数量：3行 * 8 - 1 = 23
 const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
-// 每次加载更多的数量：一页（12个）
-const LOAD_MORE_COUNT = 12;
+// 每次加载更多的数量
+const LOAD_MORE_COUNT = 16;
 
 export function Category({ sourceId, categoryId, categoryName, subCategories, onNavigate }: CategoryProps) {
     const [videos, setVideos] = useState<Video[]>([]);
@@ -78,7 +78,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                     limit: 20  // 回滚到20，避免500错误
                 });
 
-                if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
+                if (videoRes.success && Array.isArray(videoRes.data) && videoRes.data.length > 0) {
                     // 使用 pagination 判断是否有更多页
                     const hasMore = videoRes.pagination
                         ? videoRes.pagination.page < videoRes.pagination.pagecount
@@ -127,7 +127,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                 limit: LOAD_MORE_COUNT + 1  // 多请求1个来判断是否还有更多
             });
 
-            if (videoRes.success && videoRes.data) {
+            if (videoRes.success && Array.isArray(videoRes.data)) {
                 const hasMore = videoRes.data.length > LOAD_MORE_COUNT;
                 const newVideos = videoRes.data.slice(0, LOAD_MORE_COUNT).map(v => ({ ...v, source_id: sourceId }));
 
@@ -172,7 +172,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
 
             const res = await apiGet<Video[]>('/videos', params);
 
-            if (res.success && res.data) {
+            if (res.success && Array.isArray(res.data)) {
                 const newVideos = res.data.map(v => ({ ...v, source_id: srcId }));
                 if (reset) {
                     setVideos(newVideos);
@@ -251,8 +251,8 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                         ))
                     ) : (
                         // 列表模式骨架
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {[...Array(18)].map((_, i) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                            {[...Array(24)].map((_, i) => (
                                 <div key={i} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
@@ -354,7 +354,7 @@ export function Category({ sourceId, categoryId, categoryName, subCategories, on
                     {/* 视频网格 */}
                     {videos.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                                 {videos.map(video => (
                                     <VideoCard
                                         key={`${video.source_id} -${video.vod_id} `}

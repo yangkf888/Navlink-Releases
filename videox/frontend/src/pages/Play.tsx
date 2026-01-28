@@ -450,7 +450,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                 <p className="text-secondary">{error || '视频不存在'}</p>
                 <button
                     onClick={() => onNavigate('home')}
-                    className="mt-4 px-6 py-2 bg-secondary text-white rounded-lg hover:bg-gray-700 font-medium"
+                    className="mt-4 px-6 py-2 bg-secondary text-primary rounded-lg hover:bg-gray-700"
                 >
                     返回首页
                 </button>
@@ -499,8 +499,8 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={toggleFavorite}
-                                    className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 font-medium ${isFavorite
-                                        ? 'bg-red-500 text-white shadow-md'
+                                    className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
+                                        ? 'bg-red-500 text-white'
                                         : 'bg-secondary text-secondary hover:text-red-400'
                                         }`}
                                 >
@@ -509,7 +509,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                 </button>
                                 <button
                                     onClick={loadVideoDetail}
-                                    className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border border-border-color"
+                                    className="flex-1 sm:flex-none px-4 py-2 sm:py-1.5 bg-secondary text-secondary hover:text-primary rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
                                 >
                                     <i className="fas fa-sync-alt"></i>
                                     刷新
@@ -572,7 +572,7 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                         : 'bg-white/5 text-secondary border-border-color hover:bg-white/10 hover:text-primary'
                                         }`}
                                 >
-                                    <i className={`fas fa-play-circle mr-2 ${selectedSourceIndex === idx ? 'text-primary' : 'text-blue-400'}`}></i>
+                                    <i className={`fas fa-play-circle mr-2 ${selectedSourceIndex === idx ? 'text-white' : 'text-blue-400'}`}></i>
                                     {source.source}
                                 </button>
                             ))}
@@ -607,9 +607,9 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                 {/* 当前播放的源 - 始终显示在第一位 */}
                                 <div
-                                    className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400 shadow-md"
+                                    className="bg-green-600 rounded-lg p-3 text-left relative ring-2 ring-green-400"
                                 >
-                                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
+                                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full z-10">
                                         当前
                                     </div>
                                     <div className="flex items-center gap-1.5 mb-1">
@@ -619,11 +619,11 @@ export function Play({ sourceId, vodId, onNavigate, onGoBack }: PlayProps) {
                                         <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-white/80 text-xs text-secondary-dim">
+                                        <span className="text-white/80 text-xs">
                                             {video.episodes.reduce((sum, ep) => sum + (ep.list?.length || 0), 0)}集
                                         </span>
                                         {video.vod_remarks && (
-                                            <span className="px-1.5 py-0.5 bg-white/20 text-white text-[10px] rounded font-bold border border-white/20">
+                                            <span className="px-1.5 py-0.5 bg-white/10 text-white text-[10px] rounded font-medium border border-white/10">
                                                 {video.vod_remarks.length > 8 ? video.vod_remarks.substring(0, 8) + '...' : video.vod_remarks}
                                             </span>
                                         )}

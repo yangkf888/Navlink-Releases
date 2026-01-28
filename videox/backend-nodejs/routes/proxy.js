@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
 
         const fetchOptions = {
             method,
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VideoX/1.0)', ...headers }
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NavLink/1.0)', ...headers }
         };
 
         if (body && method !== 'GET') {

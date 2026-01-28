@@ -68,15 +68,26 @@ router.get('/search', async (req, res) => {
 
         const db = getDatabase();
         let sources = [];
+        let isSpecificMediaServer = false;
+        let isAllMediaServers = (req.query.is_media_server === 'true');
 
+        // 🎯 逻辑增强：如果指定了 source_id，需要判断该 ID 是资源站还是影视库
         if (source_id) {
-            const source = db.get('SELECT * FROM video_sources WHERE id = ? AND enabled = 1', [source_id]);
-            if (source) sources.push(source);
-        } else {
+            const isMS = await db.get('SELECT id FROM media_servers WHERE id = ?', [source_id]);
+            if (isMS) {
+                isSpecificMediaServer = true;
+            } else {
+                // 如果不是影视库，则尝试作为资源站源
+                const source = db.get('SELECT * FROM video_sources WHERE id = ? AND enabled = 1', [source_id]);
+                if (source) sources.push(source);
+            }
+        } else if (!isAllMediaServers) {
+            // 只有在非全影视库搜索模式下，才加载所有资源站
             sources = db.all('SELECT * FROM video_sources WHERE enabled = 1 ORDER BY sort_order');
         }
 
-        if (sources.length === 0) {
+        // 如果既没搜到资源站，也不是影视库模式，才返回空
+        if (sources.length === 0 && !isSpecificMediaServer && !isAllMediaServers) {
             return res.json({ success: true, data: [], message: 'No enabled sources' });
         }
 
@@ -85,70 +96,121 @@ router.get('/search', async (req, res) => {
             // 如果使用了 compression 中间件，立即刷新响应头
             if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
-            // 🚀 注入本地媒体库搜索 (作为第一个 chunk)
-            try {
-                const { MediaScanService } = require('../services/MediaScanService');
-                const adminPassword = req.headers['x-admin-password'];
-                const mediaResults = await MediaScanService.getMedia({
-                    keyword,
-                    limit: 20,
-                    adminPassword // 传递密码用于权限过滤
-                });
+            // 1. 媒体库搜索 (DB) - 仅在未指定 source_id 时显示（全局搜索模式）
+            if (!source_id) {
+                try {
+                    const { MediaScanService } = require('../services/MediaScanService');
+                    const adminPassword = req.headers['x-admin-password'];
+                    const mediaResults = await MediaScanService.getMedia({
+                        keyword,
+                        limit: 20,
+                        adminPassword // 传递密码用于权限过滤
+                    });
 
-                if (mediaResults && mediaResults.length > 0) {
-                    const mappedMedia = mediaResults.map(item => ({
-                        vod_id: item.id.toString(),
-                        vod_name: item.title,
-                        vod_pic: item.poster_url || '',
-                        vod_remarks: item.year ? `${item.year}` : '',
-                        type_name: item.media_type === 'movie' ? '电影' : '剧集',
-                        source_id: item.source_id,
-                        is_netdisk: true
-                    }));
-                    res.write(`data: ${JSON.stringify({ type: 'results', source: '本地媒体库', data: mappedMedia })}\n\n`);
-                    if (typeof res.flush === 'function') res.flush();
-                }
-            } catch (err) {
-                console.error('[videos] DB Search failed:', err);
-            }
-
-            const { CmsApiParser } = require('../services/CmsApiParser');
-            const concurrencyLimit = 10;
-            const sourceChunks = [];
-            for (let i = 0; i < sources.length; i += concurrencyLimit) {
-                sourceChunks.push(sources.slice(i, i + concurrencyLimit));
-            }
-
-            for (const chunk of sourceChunks) {
-                const chunkPromises = chunk.map(async (source) => {
-                    try {
-                        const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
-                        const parser = new CmsApiParser(source.url, agent);
-                        const result = await parser.search(keyword, parseInt(page), parseInt(limit));
-
-                        const list = (result.list || []).map(item => ({
-                            ...item,
-                            source_id: source.id,
-                            source_name: source.name,
-                            vod_pic: item.vod_pic || item.pic || '' // 兼容性字段
+                    if (mediaResults && mediaResults.length > 0) {
+                        const mappedMedia = mediaResults.map(item => ({
+                            vod_id: item.id.toString(),
+                            vod_name: item.title,
+                            vod_pic: item.poster_url || '',
+                            vod_remarks: item.year ? `${item.year}` : '',
+                            type_name: item.media_type === 'movie' ? '电影' : '剧集',
+                            source_id: item.source_id,
+                            is_netdisk: true
                         }));
-
-                        // 搜到一家，立即发送一家
-                        if (list.length > 0) {
-                            res.write(`data: ${JSON.stringify({ type: 'results', source: source.name, data: list })}\n\n`);
-                            // 强制刷新缓冲区，确保实时推送到前端
-                            if (typeof res.flush === 'function') res.flush();
-                        }
-                        return list;
-                    } catch (err) {
-                        console.warn(`[videos] Search failed for source ${source.name}:`, err.message);
-                        res.write(`data: ${JSON.stringify({ type: 'error', source: source.name, error: err.message })}\n\n`);
+                        res.write(`data: ${JSON.stringify({ type: 'results', source: '本地媒体库', data: mappedMedia })}\n\n`);
                         if (typeof res.flush === 'function') res.flush();
-                        return [];
                     }
-                });
+                } catch (err) {
+                    console.error('[videos] DB Search failed:', err);
+                }
+            }
 
-                await Promise.all(chunkPromises);
+            // 2. 影视库搜索 (Emby/Jellyfin)
+            // 逻辑：如果是全局搜索(!source_id && !isAllMediaServers)，或者显式搜索影视库
+            if ((!source_id && !isAllMediaServers) || isSpecificMediaServer || isAllMediaServers) {
+                try {
+                    if (isSpecificMediaServer) {
+                        mediaServers = await db.all('SELECT * FROM media_servers WHERE id = ? AND enabled = 1', [source_id]);
+                    } else {
+                        mediaServers = await db.all('SELECT * FROM media_servers WHERE enabled = 1');
+                    }
+
+                    // 权限检查：如果不是管理员，过滤掉隐藏的影视库
+                    const authorized = isAuthorized(req, db);
+                    if (!authorized) {
+                        mediaServers = mediaServers.filter(ms => !ms.hidden);
+                    }
+
+                    if (mediaServers.length > 0) {
+                        const MediaServerService = require('../services/media-server-service');
+                        const serverPromises = mediaServers.map(async (ms) => {
+                            try {
+                                const msResult = await MediaServerService.search(ms, keyword);
+                                if (msResult.success && msResult.data.length > 0) {
+                                    const mapped = msResult.data.map(item => ({
+                                        vod_id: item.Id,
+                                        vod_name: item.Name,
+                                        vod_pic: MediaServerService.getImageUrl(ms, item.Id, item.ImageTags?.Primary),
+                                        vod_remarks: item.ProductionYear ? `${item.ProductionYear}` : '',
+                                        type_name: item.Type === 'Movie' ? '电影' : '剧集',
+                                        source_id: ms.id,
+                                        source_name: ms.name,
+                                        is_media_server: true
+                                    }));
+                                    res.write(`data: ${JSON.stringify({ type: 'results', source: ms.name, data: mapped })}\n\n`);
+                                    if (typeof res.flush === 'function') res.flush();
+                                }
+                            } catch (e) {
+                                console.warn(`[videos] Media server search failed for ${ms.name}:`, e.message);
+                            }
+                        });
+                        await Promise.all(serverPromises);
+                    }
+                } catch (err) {
+                    console.error('[videos] Media Server search initialization failed:', err);
+                }
+            }
+
+            // 3. 资源站搜索 (CMS)
+            // 逻辑：如果 sources 数组不为空且未开启专项影视库模式
+            if (sources.length > 0 && !isAllMediaServers && !isSpecificMediaServer) {
+                const { CmsApiParser } = require('../services/CmsApiParser');
+                const concurrencyLimit = 10;
+                const sourceChunks = [];
+                // 如果指定了 CMS source_id，则 sources 数组里只会有一个元素，否则是全部
+                for (let i = 0; i < sources.length; i += concurrencyLimit) {
+                    sourceChunks.push(sources.slice(i, i + concurrencyLimit));
+                }
+
+                for (const chunk of sourceChunks) {
+                    const chunkPromises = chunk.map(async (source) => {
+                        try {
+                            const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
+                            const parser = new CmsApiParser(source.url, agent);
+                            const result = await parser.search(keyword, parseInt(page), parseInt(limit));
+
+                            const list = (result.list || []).map(item => ({
+                                ...item,
+                                source_id: source.id,
+                                source_name: source.name,
+                                vod_pic: item.vod_pic || item.pic || '' // 兼容性字段
+                            }));
+
+                            if (list.length > 0) {
+                                res.write(`data: ${JSON.stringify({ type: 'results', source: source.name, data: list })}\n\n`);
+                                if (typeof res.flush === 'function') res.flush();
+                            }
+                            return list;
+                        } catch (err) {
+                            console.warn(`[videos] Search failed for source ${source.name}:`, err.message);
+                            res.write(`data: ${JSON.stringify({ type: 'error', source: source.name, error: err.message })}\n\n`);
+                            if (typeof res.flush === 'function') res.flush();
+                            return [];
+                        }
+                    });
+
+                    await Promise.all(chunkPromises);
+                }
             }
 
             console.log(`[videos/search] Stream search finished for: "${keyword}"`);
@@ -157,6 +219,8 @@ router.get('/search', async (req, res) => {
             res.end();
             return;
         }
+
+
 
         // 非流式搜索（原逻辑，保持兼容）
         const { CmsApiParser } = require('../services/CmsApiParser');
@@ -269,6 +333,19 @@ router.get('/banner', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// 辅助函数：检查是否已授权（管理员）
+function isAuthorized(req, db) {
+    const adminPassword = req.headers['x-admin-password'];
+    const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
+    const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
+
+    const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
+    if (!isPasswordEnabled) return true;
+
+    const storedPassword = passwordSetting?.value || '';
+    return adminPassword === storedPassword;
+}
 
 /**
  * 获取视频详情

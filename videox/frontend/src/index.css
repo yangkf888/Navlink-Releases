@@ -37,8 +37,6 @@
     --border-main: rgba(255, 255, 255, 0.05);
     --glass-bg: rgba(7, 9, 14, 0.9);
     --brand-blue: #3b82f6;
-    color-scheme: dark;
-    /* 告知浏览器默认是暗色 */
 }
 
 [data-theme="light"] {
@@ -49,8 +47,6 @@
     --text-secondary: #334155;
     --border-main: #e2e8f0;
     --glass-bg: rgba(255, 255, 255, 0.8);
-    color-scheme: light;
-    /* 告知浏览器切换到亮色 */
 }
 
 /* 强制选中态颜色锁定 - 绝不随主题变动 */
@@ -94,50 +90,17 @@ body {
     background-color: #e2e8f0 !important;
 }
 
-/* ======================= */
-/* 全局滚动条美化 */
-/* ======================= */
-
-/* 通用 Webkit 滚动条样式 */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.2);
-    /* 默认淡灰色半透明 */
-    border-radius: 10px;
-    border: 3px solid var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.4);
-}
-
-/* Firefox 支持 */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
-}
-
-/* 侧边栏及自定义容器滚动条隐藏逻辑保持不变 */
-.sidebar-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-
-.sidebar-scrollbar {
+/* 隐藏滚动条 */
+.sidebar-scrollbar,
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
     scrollbar-width: none;
+    /* Firefox */
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.15);
+.sidebar-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
 }

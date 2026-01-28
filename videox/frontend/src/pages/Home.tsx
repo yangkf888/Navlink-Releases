@@ -111,7 +111,7 @@ export function Home() {
         loadData();
 
         // 监听同步消息
-        const channel = new BroadcastChannel('videox-sync');
+        const channel = new BroadcastChannel('video-plugin-sync');
         channel.onmessage = (event) => {
             if (event.data === 'sources-updated' || event.data === 'home-refreshed') {
                 console.log('[Home] Data updated in another window, reloading...');
@@ -290,8 +290,8 @@ export function Home() {
                 {[...Array(3)].map((_, i) => (
                     <div key={i}>
                         <div className="h-6 w-32 bg-secondary rounded mb-4"></div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
-                            {[...Array(6)].map((__, j) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                            {[...Array(8)].map((__, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>

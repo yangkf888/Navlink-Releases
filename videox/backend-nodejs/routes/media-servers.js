@@ -3,15 +3,38 @@ const router = express.Router();
 const { getDatabase } = require('../database');
 const MediaServerService = require('../services/media-server-service');
 
+// 辅助函数：检查是否已授权（管理员）
+function isAuthorized(req, db) {
+    const adminPassword = req.headers['x-admin-password'];
+    const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
+    const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
+
+    const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
+    if (!isPasswordEnabled) return true;
+
+    const storedPassword = passwordSetting?.value || '';
+    return adminPassword === storedPassword;
+}
+
 /**
  * 获取所有服务器配置
  */
 router.get('/', (req, res) => {
     try {
         const db = getDatabase();
-        const servers = db.all('SELECT * FROM media_servers ORDER BY sort_order ASC, created_at DESC');
+        if (!db) throw new Error('Database not initialized');
+
+        const authorized = isAuthorized(req, db);
+        let servers = db.all('SELECT * FROM media_servers ORDER BY sort_order ASC, created_at DESC');
+
+        // 如果密码保护开启且未授权，过滤掉隐藏的服务器
+        if (!authorized) {
+            servers = servers.filter(s => !s.hidden);
+        }
+
         res.json({ success: true, data: servers });
     } catch (error) {
+        console.error('[media-servers] GET / Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -27,14 +50,16 @@ router.post('/', (req, res) => {
         }
 
         const db = getDatabase();
+        if (!db) throw new Error('Database not initialized');
         const result = db.run(
             `INSERT INTO media_servers (name, url, type, api_key, user_id, enabled, hidden, remark, sort_order) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [name, url, type || 'emby', api_key, user_id, enabled === undefined ? 1 : enabled, hidden || 0, remark, sort_order || 0]
         );
 
-        res.json({ success: true, data: { id: result.lastID } });
+        res.json({ success: true, data: { id: result.lastInsertRowid } });
     } catch (error) {
+        console.error('[media-servers] POST / Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -63,8 +88,7 @@ router.put('/:id', (req, res) => {
 
         if (updates.length > 0) {
             updates.push('updated_at = CURRENT_TIMESTAMP');
-            values.push(id);
-            db.run(`UPDATE media_servers SET ${updates.join(', ')} WHERE id = ?`, values);
+            db.run(`UPDATE media_servers SET ${updates.join(', ')} WHERE id = ?`, [...values, id]);
         }
 
         res.json({ success: true });
@@ -100,6 +124,11 @@ router.post('/:id/test', async (req, res) => {
             return res.status(404).json({ success: false, error: '服务器不存在' });
         }
 
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
         const result = await MediaServerService.testConnection(server);
         res.json(result);
     } catch (error) {
@@ -118,6 +147,11 @@ router.get('/:id/libraries', async (req, res) => {
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
+        // 权限检查：如果服务器隐藏且未授权，则拒绝访问
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
         const result = await MediaServerService.getLibraries(server);
         res.json(result);
     } catch (error) {
@@ -131,13 +165,18 @@ router.get('/:id/libraries', async (req, res) => {
 router.get('/:id/items', async (req, res) => {
     try {
         const { id } = req.params;
-        const { parentId, limit, startIndex } = req.query;
+        const { parentId, ...options } = req.query;
         const db = getDatabase();
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
-        const result = await MediaServerService.getItems(server, parentId, { limit, startIndex });
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
+        const result = await MediaServerService.getItems(server, parentId, options);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -154,6 +193,11 @@ router.get('/:id/items/:itemId', async (req, res) => {
         const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
 
         const result = await MediaServerService.getItemDetail(server, itemId);
         res.json(result);
@@ -173,6 +217,11 @@ router.get('/:id/items/:itemId/similar', async (req, res) => {
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
         const result = await MediaServerService.getSimilarItems(server, itemId);
         res.json(result);
     } catch (error) {
@@ -191,7 +240,202 @@ router.get('/:id/playback/:itemId', async (req, res) => {
 
         if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
 
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
         const result = await MediaServerService.getPlaybackInfo(server, itemId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 上报播放开始
+ */
+router.post('/:id/playback/start', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { itemId, mediaSourceId } = req.body;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.reportPlaybackStart(server, itemId, mediaSourceId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 上报播放进度
+ */
+router.post('/:id/playback/progress', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { itemId, positionTicks, isPaused, playSessionId, mediaSourceId } = req.body;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.reportPlaybackProgress(server, itemId, positionTicks, isPaused, playSessionId, mediaSourceId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 上报播放停止
+ */
+router.post('/:id/playback/stop', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { itemId, positionTicks, playSessionId, mediaSourceId } = req.body;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        const result = await MediaServerService.reportPlaybackStopped(server, itemId, positionTicks, playSessionId, mediaSourceId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取全量首页聚合数据 (动态同步)
+ */
+router.get('/:id/home', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.json({ success: true, data: { resume: [], sections: [] } });
+        }
+
+        const result = await MediaServerService.getFullHomeData(server);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取“继续观看”列表
+ */
+router.get('/:id/resume', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const result = await MediaServerService.getResumeItems(server);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取“最新添加”列表
+ */
+router.get('/:id/latest', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const result = await MediaServerService.getLatestItems(server, limit);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取库的推荐视图 (Resume + Latest)
+ */
+router.get('/:id/suggestions', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
+        const result = await MediaServerService.getLibrarySuggestions(server, parentId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取分类 (Genres)
+ */
+router.get('/:id/genres', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
+        const result = await MediaServerService.getGenres(server, parentId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * 获取标签 (Tags)
+ */
+router.get('/:id/tags', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { parentId } = req.query;
+        const db = getDatabase();
+        const server = db.get('SELECT * FROM media_servers WHERE id = ?', [id]);
+        if (!server) return res.status(404).json({ success: false, error: '服务器不存在' });
+
+        // 权限检查
+        if (server.hidden && !isAuthorized(req, db)) {
+            return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+
+        const result = await MediaServerService.getTags(server, parentId);
         res.json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

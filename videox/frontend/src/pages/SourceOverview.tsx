@@ -75,7 +75,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                     limit: 12
                 });
 
-                if (subVideoRes.success && subVideoRes.data && subVideoRes.data.length > 0) {
+                if (subVideoRes.success && Array.isArray(subVideoRes.data) && subVideoRes.data.length > 0) {
                     resultData = subVideoRes.data;
                     break;
                 }
@@ -91,7 +91,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                 limit: 12
             });
 
-            if (videoRes.success && videoRes.data && videoRes.data.length > 0) {
+            if (videoRes.success && Array.isArray(videoRes.data) && videoRes.data.length > 0) {
                 // 检查是否是一级分类特有的内容，或者该源根本就不支持分类筛选（返回了全站最新）
                 // 这一点通常在 UI 层面由用户判断，或者我们在这里对比一下视频内容是否完全一致
                 resultData = videoRes.data;
@@ -279,7 +279,7 @@ export function SourceOverview({ sourceId, sourceName, categories, onNavigate }:
                                 </button>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
-                                {section.videos.slice(0, 8).map(video => (
+                                {Array.isArray(section.videos) && section.videos.slice(0, 8).map(video => (
                                     <VideoCard
                                         key={`${video.source_id}-${video.vod_id}`}
                                         video={video}

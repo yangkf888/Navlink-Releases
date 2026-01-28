@@ -11,100 +11,17 @@ import { Live } from './pages/Live'; // New component
 import { LivePlayer } from './pages/LivePlayer'; // New component
 import { Netdisk } from './pages/Netdisk'; // Netdisk module
 import { NetdiskPlayer } from './pages/NetdiskPlayer'; // Netdisk Player
-import { MediaServer } from './pages/MediaServer'; // Media Server page
 import { Search } from './pages/Search';
-import { MediaServerPlay } from './pages/MediaServerPlay';
 import { Admin } from './pages/Admin';
 import { Favorites } from './pages/Favorites';
 import { History } from './pages/History';
-import ReactDOM from 'react-dom';
+import { MediaServer } from './pages/MediaServer';
+import { MediaServerPlay } from './pages/MediaServerPlay';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { useAuth } from './contexts/AuthContext';
 
-// 简单的密码输入模态框
-function PasswordModal({ isOpen, onClose, onLogin, title = '管理员登录', subtitle = '请输入管理密码以继续' }: { isOpen: boolean; onClose: () => void; onLogin: (pwd: string) => Promise<boolean>; title?: string; subtitle?: string }) {
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    if (!isOpen) return null;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!password.trim()) return;
-
-        setLoading(true);
-        setError('');
-
-        const success = await onLogin(password);
-        if (success) {
-            setPassword('');
-            onClose();
-            // 登录成功后无需强制刷新，React 状态会自动更新 UI
-        } else {
-            setError('密码错误');
-        }
-        setLoading(false);
-    };
-
-    return ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <div className="bg-secondary rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-border-color transform transition-all">
-                <div className="flex flex-col items-center mb-6">
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                        <i className="fas fa-user-shield text-red-500 text-2xl"></i>
-                    </div>
-                    <h3 className="text-2xl font-black text-primary">{title}</h3>
-                    <p className="text-secondary text-sm mt-1">{subtitle}</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="relative">
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="管理密码"
-                            className="w-full px-4 py-3 bg-white text-[#1a1c1e] rounded-xl border border-border-color focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono tracking-wider transition-all placeholder:text-gray-400"
-                            autoFocus
-                        />
-                        {error && (
-                            <div className="flex items-center justify-center gap-2 mt-3 text-red-500 text-xs font-bold animate-shake">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {error}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 px-4 py-3 bg-secondary hover:bg-tertiary text-primary rounded-xl border border-border-color font-bold transition-all active:scale-95"
-                        >
-                            取消
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all font-bold active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? (
-                                <i className="fas fa-spinner fa-spin mr-2"></i>
-                            ) : (
-                                '确认登录'
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body
-    );
-}
-
-// 设置页面标题
-document.title = 'VideoX';
+// 设置网页标题
+document.title = "VideoX - 视频中心";
 
 // 视图类型
 type ViewType = 'home' | 'source' | 'category' | 'play' | 'tv_play' | 'live' | 'live_play' | 'netdisk' | 'netdisk_play' | 'search' | 'favorites' | 'history' | 'admin' | 'media_server' | 'media_server_play';
@@ -128,8 +45,8 @@ interface NavParams {
     videoIndex?: number; // For Netdisk
     netdiskSourceId?: number; // For Netdisk source selection
     netdiskPath?: string; // For Netdisk search
+    isMediaServer?: boolean; // 🚀 增加此标识，用于搜索路由判定
     mediaServerId?: number; // For Media Server
-    sourceType?: 'cms' | 'netdisk' | 'live' | 'tv' | 'media_server'; // For identifying source type in Play
     title?: string;
     url?: string;
     cover?: string;
@@ -151,7 +68,7 @@ function AccessDenied({ onGoHome }: { onGoHome: () => void }) {
                 <i className="fas fa-lock text-3xl"></i>
             </div>
             <h2 className="text-xl font-bold text-white mb-2">访问受限</h2>
-            <p className="mb-6">您没有权限访问该页面，请先进行管理员身份验证</p>
+            <p className="mb-6">您没有权限访问该资源站，请先登录管理员账号</p>
             <button
                 onClick={onGoHome}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -163,18 +80,8 @@ function AccessDenied({ onGoHome }: { onGoHome: () => void }) {
 }
 
 function VideoApp() {
-    const { isAuthenticated, isAdminAuthenticated, login: authLogin } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [isLoaded, setIsLoaded] = useState(false);
-
-    const handleLoginSuccess = async (password: string, type: 'site' | 'admin' = 'admin') => {
-        const success = await authLogin(password, type);
-        if (success) {
-            setIsLoginModalOpen(false);
-            // 🚀 核心方案：登录成功后强制刷新全页，确保侧边栏及全站状态彻底同步
-            window.location.reload();
-        }
-        return success;
-    };
 
     // 从 localStorage 初始化状态
     const [activeView, setActiveView] = useState<ViewType>(() => {
@@ -223,44 +130,6 @@ function VideoApp() {
 
     // 安全设置状态
     const [isAdminPasswordEnabled, setIsAdminPasswordEnabled] = useState<boolean>(false);
-    const [isSitePasswordEnabled, setIsSitePasswordEnabled] = useState<boolean>(false);
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [loginModalConfig, setLoginModalConfig] = useState<{ title: string; subtitle: string; type?: 'site' | 'admin' }>({ title: '管理员登录', subtitle: '请输入管理密码以继续', type: 'admin' });
-
-    // 监听全局登录显示事件
-    useEffect(() => {
-        const handleShowLogin = (e: any) => {
-            if (e.detail?.title) {
-                setLoginModalConfig({
-                    title: e.detail.title,
-                    subtitle: e.detail.subtitle || '请输入访问密码以继续',
-                    type: e.detail.type || 'admin'
-                });
-            } else {
-                setLoginModalConfig({
-                    title: '身份验证',
-                    subtitle: '请输入访问密码进入站点',
-                    type: 'site'
-                });
-            }
-            setIsLoginModalOpen(true);
-        };
-
-        window.addEventListener('videox-show-login' as any, handleShowLogin);
-        return () => window.removeEventListener('videox-show-login' as any, handleShowLogin);
-    }, []);
-
-    // 🚀 优化：全站锁定时自动打开登录窗
-    useEffect(() => {
-        if (isSitePasswordEnabled && !isAuthenticated) {
-            setLoginModalConfig({
-                title: '身份验证',
-                subtitle: '本站点已开启访问限制，请输入访问密码进入',
-                type: 'site'
-            });
-            setIsLoginModalOpen(true);
-        }
-    }, [isSitePasswordEnabled, isAuthenticated]);
 
     // 直播状态数据
     const [liveStatuses, setLiveStatuses] = useState<Record<number, any>>({});
@@ -332,16 +201,10 @@ function VideoApp() {
             setNavParams({});
             setSelectedNetdiskSourceId(null);  // 清空选中的网盘源，显示全部网盘视图
         } else if (module === 'media_server') {
-            // 影视库模块
-            const firstServer = mediaServers.find(s => s.enabled);
-            if (firstServer && !selectedMediaServerId) {
-                setSelectedMediaServerId(firstServer.id);
-                setActiveView('media_server');
-                setNavParams({ mediaServerId: firstServer.id });
-            } else {
-                setActiveView('media_server');
-                setNavParams({ mediaServerId: selectedMediaServerId || undefined });
-            }
+            // 影视库模块：由 Effect 统一处理自动跳转
+            setActiveView('media_server');
+            // 🚀 修复补丁：清理可能存在的资源站分类参数，防止影视库页面显示错误标题和内容
+            setNavParams({});
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
@@ -354,7 +217,7 @@ function VideoApp() {
 
     // 全局数据同步通道 (用于多标签页间通信)
     useEffect(() => {
-        const channel = new BroadcastChannel('videox-sync');
+        const channel = new BroadcastChannel('video-plugin-sync');
         channel.onmessage = (event) => {
             if (event.data === 'refresh-data' || event.data === 'sources-updated') {
                 console.log('[App] Received sync message, reloading data...');
@@ -367,7 +230,7 @@ function VideoApp() {
     // 加载视频源和分类
     useEffect(() => {
         loadSourcesAndCategories();
-    }, [isAuthenticated, isAdminAuthenticated]);
+    }, [isAuthenticated]);
 
     const loadSourcesAndCategories = async () => {
         try {
@@ -383,21 +246,26 @@ function VideoApp() {
 
             // 处理安全设置
             if (settingsRes.success && settingsRes.data) {
-                const settings = settingsRes.data as any;
-                const isAdminEnabled = settings.admin_password_enabled === 'true' ||
-                    settings.admin_password_enabled === true;
-                const isSiteEnabled = settings.site_password_enabled === 'true' ||
-                    settings.site_password_enabled === true;
-
-                setIsAdminPasswordEnabled(isAdminEnabled);
-                setIsSitePasswordEnabled(isSiteEnabled);
+                const isEnabled = settingsRes.data.admin_password_enabled === 'true' ||
+                    settingsRes.data.admin_password_enabled === true;
+                setIsAdminPasswordEnabled(isEnabled);
             }
 
             // 处理视频源
             if (sourcesRes.success && sourcesRes.data) {
+                // 🚀 防卫逻辑：检查数据结构是否真为 VideoSource
+                // 如果发现数据中包含 vod_id（属于视频而非源），则说明后台数据冲突
+                const sample = sourcesRes.data[0];
+                if (sample && (sample as any).vod_id) {
+                    console.error('[App] CRITICAL: Invalid source data structure detected!', sample);
+                    // 标记加载完成并报错
+                    setIsLoaded(true);
+                    return;
+                }
+
                 // 如果开启了密码保护且未登录，则过滤掉隐藏源；否则显示全部启用源
                 const enabledSources = sourcesRes.data.filter(s =>
-                    s.enabled && (isAdminAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
                 );
                 setSources(enabledSources);
 
@@ -410,7 +278,7 @@ function VideoApp() {
                     localStorage.setItem(SELECTED_SOURCE_KEY, String(finalSelectedId));
                 }
 
-                // 2. 并发加载这些源的分类
+                // 2. 并发加载这些源的分类 (不再一个一个 await)
                 const catPromises = enabledSources.map(source =>
                     apiGet<Category[]>('/categories', { source_id: source.id })
                         .then(res => ({ id: source.id, data: res.success ? res.data : [] }))
@@ -444,7 +312,7 @@ function VideoApp() {
             // 处理网盘源
             if (netdiskRes.success && netdiskRes.data) {
                 const enabledNetdisk = netdiskRes.data.filter(s =>
-                    s.enabled && (isAdminAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
                 );
                 setNetdiskSources(enabledNetdisk);
 
@@ -456,7 +324,10 @@ function VideoApp() {
 
             // 处理影视库服务器
             if (mediaServersRes && mediaServersRes.success && mediaServersRes.data) {
-                const enabledServers = mediaServersRes.data.filter((s: any) => s.enabled);
+                // 如果开启了密码保护且未登录，则过滤掉隐藏的服务器
+                const enabledServers = mediaServersRes.data.filter((s: any) =>
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                );
                 setMediaServers(enabledServers);
 
                 if (selectedMediaServerId && !enabledServers.some((s: any) => s.id === selectedMediaServerId)) {
@@ -493,7 +364,7 @@ function VideoApp() {
         loadSourcesAndCategories();
 
         // 发送广播消息，通知其他标签页
-        const channel = new BroadcastChannel('videox-sync');
+        const channel = new BroadcastChannel('video-plugin-sync');
         channel.postMessage('sources-updated');
         channel.close();
     };
@@ -541,13 +412,69 @@ function VideoApp() {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('video_theme', theme);
+
+        // 同步主题到主应用
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'PLUGIN_THEME_CHANGED',
+                payload: { theme }
+            }, '*');
+        }
     }, [theme]);
 
     const toggleTheme = () => {
         setTheme(prev => prev === 'light' ? 'dark' : 'light');
     };
 
-    // 独立应用模式，不需要与父窗口通信
+    // 🚀 核心补丁：当处于影视库模块且数据加载完成时，如果没有选中的库，自动选择第一个
+    useEffect(() => {
+        if (isLoaded && activeModule === 'media_server' && !navParams.mediaServerId) {
+            const firstServer = mediaServers.find(s => s.enabled);
+            const targetId = selectedMediaServerId || firstServer?.id;
+            if (targetId) {
+                console.log('[AutoNav] Redirecting to first media server:', targetId);
+                if (!selectedMediaServerId) setSelectedMediaServerId(targetId);
+                setNavParams(prev => ({ ...prev, mediaServerId: targetId }));
+            }
+        }
+    }, [isLoaded, activeModule, mediaServers, selectedMediaServerId, navParams.mediaServerId]);
+
+    // 发送最小化侧边栏配置到主应用
+    useEffect(() => {
+        const isInIframe = window.parent !== window;
+        if (!isInIframe || !isLoaded) return;
+
+
+        let count = 0;
+        const maxAttempts = 5;
+
+        const sendMessage = () => {
+            // 发送空侧边栏配置
+            window.parent.postMessage({
+                type: 'PLUGIN_SET_SIDEBAR',
+                payload: {
+                    title: '视频中心',
+                    subtitle: sources.find(s => s.id === selectedSourceId)?.name || '多源视频聚合',
+                    items: [],
+                    activeId: ''
+                }
+            }, '*');
+
+
+            // 请求隐藏 Header（默认仅移动端隐藏，桌面端保持显示）
+            window.parent.postMessage({
+                type: 'PLUGIN_REQUEST_HIDE_HEADER',
+                payload: { hideHeader: false }
+            }, '*');
+
+            count++;
+            if (count < maxAttempts) {
+                setTimeout(sendMessage, 500);
+            }
+        };
+
+        sendMessage();
+    }, [selectedSourceId, isLoaded, sources]);
 
     if (!isLoaded) {
         return (
@@ -576,26 +503,17 @@ function VideoApp() {
         return sources.some(s => s.id === id);
     };
 
+    // 辅助函数：网盘源可见性
     const isNetdiskVisible = (id?: number) => {
         if (!id) return true;
         return netdiskSources.some(s => s.id === id);
     };
 
-    // 如果启用了全站密码保护且未授权，显示全站锁定占位（PasswordModal 会由顶层的 useEffect 自动弹出）
-    if (isSitePasswordEnabled && !isAuthenticated) {
-        return (
-            <div className="min-h-screen bg-primary flex items-center justify-center p-4">
-                {/* 关键：必须在锁定渲染分支中也放置 Modal，否则状态修改后没有组件可渲染 */}
-                <PasswordModal
-                    isOpen={isLoginModalOpen}
-                    onClose={() => setIsLoginModalOpen(false)}
-                    onLogin={(pwd) => authLogin(pwd, (loginModalConfig as any).type || 'site')}
-                    title={loginModalConfig.title}
-                    subtitle={loginModalConfig.subtitle}
-                />
-            </div>
-        );
-    }
+    // 辅助函数：影视库服务器可见性
+    const isMediaServerVisible = (id?: number) => {
+        if (!id) return true;
+        return mediaServers.some(s => s.id === id);
+    };
 
     return (
         <NavigationProvider navigate={navigate}>
@@ -630,6 +548,7 @@ function VideoApp() {
                     mediaServers,
                     selectedMediaServerId,
                     onMediaServerChange: handleMediaServerChange,
+
                     theme,
                     onToggleTheme: toggleTheme,
                     isAdminPasswordEnabled  // 传递安全设置状态
@@ -713,60 +632,58 @@ function VideoApp() {
                         initialKeyword={navParams.keyword}
                         sourceId={navParams.sourceId ?? null}
                         netdiskPath={navParams.netdiskPath}
+                        isMediaServer={navParams.isMediaServer}
+                        _t={navParams._t}
                         sources={sources}
                         onNavigate={navigate}
                     />
                 )}
                 {activeView === 'media_server' && (
-                    <MediaServer
-                        serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
-                        categoryId={navParams.categoryId}
-                        onNavigate={navigate}
-                    />
+                    isMediaServerVisible(navParams.mediaServerId || selectedMediaServerId || undefined) ? (
+                        <MediaServer
+                            serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
+                            categoryId={navParams.categoryId}
+                            categoryName={navParams.categoryName}
+                            onNavigate={navigate}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'media_server_play' && navParams.mediaServerId && navParams.vodId && (
-                    <MediaServerPlay
-                        mediaServerId={navParams.mediaServerId}
-                        vodId={navParams.vodId}
-                        title={navParams.title || ''}
-                        streamUrl={navParams.url || ''}
-                        cover={navParams.cover || ''}
-                        onGoBack={goBack}
-                    />
+                    isMediaServerVisible(navParams.mediaServerId) ? (
+                        <MediaServerPlay
+                            mediaServerId={navParams.mediaServerId}
+                            vodId={navParams.vodId}
+                            title={navParams.title || ''}
+                            streamUrl={navParams.url || ''}
+                            cover={navParams.cover || ''}
+                            onGoBack={goBack}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
-                {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAdminAuthenticated && (
+                {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (
                     <AccessDenied onGoHome={() => navigate('home')} />
                 )}
-                {activeView === 'favorites' && isAdminAuthenticated && (
+                {activeView === 'favorites' && isAuthenticated && (
                     <Favorites
                         onNavigate={navigate}
                         sources={sources}
                         netdiskSources={netdiskSources}
                     />
                 )}
-                {activeView === 'history' && isAdminAuthenticated && (
+                {activeView === 'history' && isAuthenticated && (
                     <History
                         onNavigate={navigate}
                         sources={sources}
                         netdiskSources={netdiskSources}
                     />
                 )}
-                {activeView === 'admin' && isAdminAuthenticated && (
+                {activeView === 'admin' && isAuthenticated && (
                     <Admin
                         onNavigate={navigate}
                         onSourcesChange={handleSourcesChangeSync}
                     />
                 )}
             </Layout>
-
-            {/* 全局登录弹窗 */}
-            <PasswordModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-                onLogin={(pwd) => handleLoginSuccess(pwd, (loginModalConfig as any).type || 'admin')}
-                title={loginModalConfig.title}
-                subtitle={loginModalConfig.subtitle}
-            />
         </NavigationProvider>
     );
 }

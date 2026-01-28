@@ -51,15 +51,13 @@ async function getNetdiskClient(source) {
 // 网盘源管理 API
 // ==========================================================================
 
-/**
- * 辅助函数：检查是否已授权（管理员）
- */
+// 辅助函数：检查是否已授权（管理员）
 function isAuthorized(req, db) {
     const adminPassword = req.headers['x-admin-password'];
     const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
     const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
 
-    const isPasswordEnabled = enabledSetting?.value === 'true';
+    const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
     if (!isPasswordEnabled) return true;
 
     const storedPassword = passwordSetting?.value || '';

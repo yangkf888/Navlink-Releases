@@ -22,8 +22,7 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
     const [installProgress, setInstallProgress] = useState(0);
 
     // 密码确认
-    const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
-    const [confirmSitePassword, setConfirmSitePassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
 
 
     useEffect(() => {
@@ -41,18 +40,9 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
 
     const handleSave = async () => {
         // 验证密码确认
-        // 验证管理密码确认
         if (settings.admin_password_enabled && settings.admin_password) {
-            if (settings.admin_password !== confirmAdminPassword) {
-                alert('管理密码两次输入不一致');
-                return;
-            }
-        }
-
-        // 验证全站密码确认
-        if (settings.site_password_enabled && settings.site_password) {
-            if (settings.site_password !== confirmSitePassword) {
-                alert('全站访问密码两次输入不一致');
+            if (settings.admin_password !== confirmPassword) {
+                alert('两次输入的密码不一致');
                 return;
             }
         }
@@ -317,76 +307,36 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                 </p>
 
                 <div className="space-y-4">
-                    {/* 启用全站访问开关 */}
+                    {/* 启用开关 */}
                     <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={settings.site_password_enabled || false}
-                            onChange={e => setSettings(prev => ({ ...prev, site_password_enabled: e.target.checked }))}
-                            className="w-5 h-5 rounded"
-                        />
-                        <span className="text-primary font-medium">启用全站密码访问</span>
-                        <span className="text-secondary text-xs">(访问本站任何内容都需要输入密码)</span>
-                    </label>
-
-                    {settings.site_password_enabled && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 mb-6 ml-8">
-                            <div>
-                                <label className="block text-secondary text-sm mb-2">设置全站访问密码</label>
-                                <input
-                                    type="password"
-                                    value={settings.site_password || ''}
-                                    onChange={e => setSettings(prev => ({ ...prev, site_password: e.target.value }))}
-                                    placeholder="输入访问密码"
-                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
-                                             focus:border-blue-500 focus:outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-secondary text-sm mb-2">确认全站访问密码</label>
-                                <input
-                                    type="password"
-                                    value={confirmSitePassword}
-                                    onChange={e => setConfirmSitePassword(e.target.value)}
-                                    placeholder="再次输入密码"
-                                    className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
-                                             focus:border-blue-500 focus:outline-none"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 启用隐藏内容开关 */}
-                    <label className="flex items-center gap-3 cursor-pointer mt-2">
                         <input
                             type="checkbox"
                             checked={settings.admin_password_enabled || false}
                             onChange={e => setSettings(prev => ({ ...prev, admin_password_enabled: e.target.checked }))}
                             className="w-5 h-5 rounded"
                         />
-                        <span className="text-primary">启用隐藏内容密码</span>
-                        <span className="text-secondary text-xs">（进入后台及显示隐藏内容需要输入密码）</span>
+                        <span className="text-primary">启用访问密码</span>
                     </label>
 
                     {settings.admin_password_enabled && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 ml-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-secondary text-sm mb-2">设置隐藏内容密码</label>
+                                <label className="block text-secondary text-sm mb-2">设置密码</label>
                                 <input
                                     type="password"
                                     value={settings.admin_password || ''}
                                     onChange={e => setSettings(prev => ({ ...prev, admin_password: e.target.value }))}
-                                    placeholder="输入管理密码"
+                                    placeholder="输入访问密码"
                                     className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-green-500 focus:outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="block text-secondary text-sm mb-2">确认隐藏内容密码</label>
+                                <label className="block text-secondary text-sm mb-2">确认密码</label>
                                 <input
                                     type="password"
-                                    value={confirmAdminPassword}
-                                    onChange={e => setConfirmAdminPassword(e.target.value)}
+                                    value={confirmPassword}
+                                    onChange={e => setConfirmPassword(e.target.value)}
                                     placeholder="再次输入密码"
                                     className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
                                              focus:border-green-500 focus:outline-none"

@@ -76,15 +76,15 @@ interface NetdiskProps {
     onPlay?: (mediaId: number, sourceId: number, videoIndex?: number) => void;
 }
 
-// 每行显示的视频数量（对齐大屏 8 列布局）
+// 每行显示的视频数量（8列布局）
 const VIDEOS_PER_ROW = 8;
-// 初始显示行数
+// 初始显示行数（4行，31个位置，30个视频+1个加载更多）
 const INITIAL_ROWS = 4;
 // 初始显示数量：4行 * 8 - 1 = 31（实际显示30个视频+1个加载更多卡片）
 const INITIAL_COUNT = INITIAL_ROWS * VIDEOS_PER_ROW - 1;
 // 每次加载更多的数量
-const LOAD_MORE_COUNT = 12;
-// 全部网盘视图每个网盘源显示的数量（对准 8 列布局）
+const LOAD_MORE_COUNT = 16;
+// 全部网盘视图每个网盘源显示的数量
 const SOURCE_PREVIEW_COUNT = 8;
 
 // 视图层级
@@ -109,7 +109,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
     const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(1);
-    const PAGE_SIZE = 20;
+    const PAGE_SIZE = 24;
 
     // 当前视图层级
     const [currentLevel, setCurrentLevel] = useState<ViewLevel>('all');
@@ -137,7 +137,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
         window.addEventListener('resize', handleResize);
 
         // 监听同步消息
-        const channel = new BroadcastChannel('videox-sync');
+        const channel = new BroadcastChannel('video-plugin-sync');
         channel.onmessage = (event) => {
             if (event.data === 'sources-updated') {
                 // 同步网盘源
@@ -600,13 +600,13 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             }}
             className="group relative cursor-pointer"
         >
-            <div className="relative aspect-[2/3] transition-transform duration-300 group-hover:-translate-y-2">
+            <div className={`relative aspect-[2/3] transition-transform duration-300 group-hover:-translate-y-2 rounded-2xl overflow-hidden bg-secondary border border-border-color shadow-md`}>
                 {/* 叠层效果背景 2 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-2 -translate-y-2 border border-border-color shadow-sm"></div>
+                <div className="absolute inset-0 bg-secondary rounded-2xl translate-x-2 -translate-y-2 border border-border-color shadow-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {/* 叠层效果背景 1 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg translate-x-1 -translate-y-1 border border-border-color shadow-sm"></div>
+                <div className="absolute inset-0 bg-secondary rounded-2xl translate-x-1 -translate-y-1 border border-border-color shadow-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {/* 主封面 */}
-                <div className="absolute inset-0 bg-secondary rounded-lg overflow-hidden border border-border-color shadow-md">
+                <div className="absolute inset-0 bg-secondary overflow-hidden">
                     {group.covers && group.covers.length > 0 ? (
                         group.count > 2 && group.covers.length >= 4 ? (
                             // 多封面 2x2 网格布局
@@ -658,11 +658,11 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 e.preventDefault();
                 setContextMenu({ x: e.clientX, y: e.clientY, item });
             }}
-            className="video-card bg-secondary rounded-lg overflow-hidden cursor-pointer group relative"
+            className="video-card group relative cursor-pointer"
         >
             {/* 封面部分 */}
-            <div className="relative">
-                <div className="aspect-[2/3] overflow-hidden bg-secondary">
+            <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-secondary border border-border-color group-hover:border-blue-500/50 transition-all shadow-md">
+                <div className="w-full h-full bg-secondary">
                     {item.poster_url ? (
                         <img
                             src={(() => {
@@ -718,7 +718,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {/* 年份/备注 (右下角) */}
                 {item.year && (
                     <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-500/90 
-                                   text-[10px] text-primary rounded font-medium">
+                                   text-[10px] text-white rounded font-medium">
                         {item.year}
                     </span>
                 )}
@@ -743,7 +743,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
             </div>
 
             {/* 信息部分 (底部) */}
-            <div className="p-3">
+            <div className="mt-2 px-1">
                 <h3 className="text-primary text-sm font-medium truncate" title={item.title}>
                     {item.title}
                 </h3>
@@ -808,8 +808,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
                         <div className="h-6 bg-secondary rounded w-32"></div>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-                            {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 6)].map((_, j) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
+                            {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 16)].map((_, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
@@ -871,7 +871,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     key={item.id}
                                     onClick={() => setViewMode(item.id as ViewMode)}
                                     title={item.label}
-                                    className={`px-3 py-1.5 rounded-md text-xs transition-all flex items-center gap-1.5 font-medium ${viewMode === item.id ? 'bg-blue-500 text-white shadow-md' : 'text-secondary hover:text-primary hover:bg-secondary'}`}
+                                    className={`px-3 py-1.5 rounded-md text-xs transition-all flex items-center gap-1.5 ${viewMode === item.id ? 'bg-blue-500 text-white shadow-sm' : 'text-secondary hover:text-primary hover:bg-secondary'}`}
                                 >
                                     <i className={`fas ${item.icon}`}></i>
                                     {item.label}
@@ -930,7 +930,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             <p>未发现以此维度聚合的内容</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
                             {groupedData.map(group => renderCollectionCard(group))}
                         </div>
                     )
@@ -1072,7 +1072,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     style={{ height: 'calc(100vh - 200px)' }}
                                     totalCount={media.length}
                                     overscan={200}
-                                    listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
+                                    listClassName="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
                                     itemContent={(index) => renderMediaCard(media[index])}
                                     endReached={() => {
                                         if (hasMore && !loadingMore) {

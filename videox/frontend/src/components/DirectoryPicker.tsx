@@ -143,13 +143,13 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                     >
                         <i className="fas fa-level-up-alt rotate-[-90deg]"></i>
                     </button>
-                    <div className="flex-1 px-3 py-1.5 bg-tertiary border border-border-color rounded-lg text-sm text-blue-500 truncate font-mono shadow-inner shadow-black/5 dark:shadow-black">
+                    <div className="flex-1 px-3 py-1.5 bg-black/60 border border-border-color rounded-lg text-sm text-blue-400 truncate font-mono shadow-inner shadow-black/40">
                         {currentPath || '/'}
                     </div>
                 </div>
 
                 {/* 目录列表 */}
-                <div className="flex-1 overflow-y-auto p-3 min-h-[300px] bg-primary/50">
+                <div className="flex-1 overflow-y-auto p-3 min-h-[300px] bg-secondary/20">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-full text-secondary gap-4">
                             <i className="fas fa-spinner fa-spin text-3xl text-blue-500"></i>
@@ -177,16 +177,16 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                                 <div
                                     key={idx}
                                     onClick={() => handleNavigate(item)}
-                                    className="group flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer hover:bg-secondary border border-transparent hover:border-border-color transition-all"
+                                    className="group flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer hover:bg-white/5 border border-transparent hover:border-border-color transition-all"
                                 >
                                     <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
                                         <i className="fas fa-folder text-xl"></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="text-primary font-medium transition-colors block truncate">{item.name}</span>
-                                        <span className="text-[10px] text-secondary font-mono truncate block">{item.path}</span>
+                                        <span className="text-gray-200 font-medium group-hover:text-primary transition-colors block truncate">{item.name}</span>
+                                        <span className="text-[10px] text-gray-600 font-mono truncate block">{item.path}</span>
                                     </div>
-                                    <i className="fas fa-chevron-right text-secondary/30 group-hover:text-secondary text-xs translate-x-[-10px] opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                                    <i className="fas fa-chevron-right text-gray-700 group-hover:text-secondary text-xs translate-x-[-10px] opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                                 </div>
                             ))}
                         </div>
@@ -208,7 +208,7 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                         </button>
                         <button
                             onClick={handleSelectCurrent}
-                            className="px-6 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            className="px-6 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
                             <i className="fas fa-check mr-2"></i> 确定选择
                         </button>

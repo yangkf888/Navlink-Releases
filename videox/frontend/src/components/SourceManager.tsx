@@ -220,7 +220,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
 
         try {
             const token = localStorage.getItem('auth_token');
-            const adminPassword = localStorage.getItem('videox_admin_auth');
+            const adminPassword = localStorage.getItem('video_admin_auth');
             const url = new URL(`${window.location.origin}/api/sources/${source.id}/sync`);
             url.searchParams.append('stream', 'true');
 
@@ -418,8 +418,9 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                 {/* 操作按钮 */}
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 
-                             transition-colors flex items-center gap-2 shadow-md shadow-red-500/20"
+                    className="px-4 py-2 bg-red-500 rounded-lg hover:bg-red-600 
+                             transition-colors flex items-center gap-2"
+                    style={{ color: '#fff' }}
                 >
                     <i className="fas fa-plus"></i>
                     添加
@@ -510,7 +511,7 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                 className="rounded"
                             />
                             <span className="text-primary font-medium flex-1 truncate">{source.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold bg-green-600 text-white`} >
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold text-white ${source.enabled ? 'bg-green-600' : 'bg-gray-500'}`}>
                                 {source.enabled ? '启用' : '禁用'}
                             </span>
                         </div>
@@ -618,30 +619,33 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                                 </td>
                                 <td className="p-3">
                                     <span
-                                        className={`px-2 py-1 rounded text-xs font-bold text-white ${source.enabled
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.enabled
                                             ? 'bg-green-600'
                                             : 'bg-gray-500'
                                             }`}
+                                        style={{ color: '#fff' }}
                                     >
                                         {source.enabled ? '启用' : '禁用'}
                                     </span>
                                 </td>
                                 <td className="p-3">
                                     <span
-                                        className={`px-2 py-1 rounded text-xs font-bold text-white ${source.proxy_enabled
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.proxy_enabled
                                             ? 'bg-purple-600'
                                             : 'bg-gray-500'
                                             }`}
+                                        style={{ color: '#fff' }}
                                     >
                                         {source.proxy_enabled ? '开启' : '关闭'}
                                     </span>
                                 </td>
                                 <td className="p-3">
                                     <span
-                                        className={`px-2 py-1 rounded text-xs font-bold text-white ${source.hidden
+                                        className={`px-2 py-1 rounded text-xs font-medium ${source.hidden
                                             ? 'bg-orange-500'
                                             : 'bg-blue-600'
                                             }`}
+                                        style={{ color: '#fff' }}
                                     >
                                         {source.hidden ? '是' : '否'}
                                     </span>
@@ -914,14 +918,14 @@ export function SourceManager({ onSourcesChange }: SourceManagerProps) {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => handleImportConfirm('append')}
-                                    className="flex-1 px-4 py-2 bg-blue-500 text-primary rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg 
                                          hover:bg-blue-600 transition-colors"
                                 >
                                     追加导入
                                 </button>
                                 <button
                                     onClick={() => handleImportConfirm('replace')}
-                                    className="flex-1 px-4 py-2 bg-orange-500 text-primary rounded-lg 
+                                    className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg 
                                          hover:bg-orange-600 transition-colors"
                                 >
                                     替换导入

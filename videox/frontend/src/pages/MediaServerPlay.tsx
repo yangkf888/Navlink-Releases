@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiGet } from '../utils/api';
+import { apiGet, apiPost, apiDelete } from '../utils/api';
 
 interface MediaServerPlayProps {
     mediaServerId: number;
@@ -26,6 +26,10 @@ interface MediaItemDetail {
     };
     People?: Array<{ Name: string; Role: string; Type: string }>;
     Studios?: Array<{ Name: string }>;
+    UserData?: {
+        PlaybackPositionTicks: number;
+        Played: boolean;
+    };
 }
 
 interface SimilarItem {
@@ -41,6 +45,7 @@ interface SimilarItem {
 export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, streamUrl: initialStreamUrl, cover: initialCover, onGoBack }: MediaServerPlayProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const artRef = useRef<any>(null);
+    const sessionRef = useRef<string | null>(null);
 
     // 状态管理
     const [loading, setLoading] = useState(true);
@@ -76,23 +81,44 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
 
                 if (!isMounted) return;
 
-                if (detailRes.success && detailRes.data) setMediaDetail(detailRes.data);
+                if (detailRes.success && detailRes.data) {
+                    setMediaDetail(detailRes.data);
+                    // 🎬 核心：详情获取成功后立即上报记录
+                    savePlayHistory(detailRes.data);
+                }
                 if (similarRes.success && similarRes.data) setSimilarItems(similarRes.data);
 
                 // 🚀 核心关键：检查并获取播放地址
                 let targetUrl = currentPlayUrl;
-                if (!targetUrl) {
-                    const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${currentVodId}`);
-                    if (playRes.success && playRes.data.streamUrl) {
-                        targetUrl = playRes.data.streamUrl;
-                        setCurrentPlayUrl(targetUrl);
-                    } else {
-                        throw new Error(playRes.error || '无法解析播放地址');
+                let currentMediaSourceId = '';
+                let startTime = 0; // 🎯 这里的 startTime 将作为最终播放起点 antisocial antisense
+
+                const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${currentVodId}`);
+                if (playRes.success && playRes.data.streamUrl) {
+                    targetUrl = playRes.data.streamUrl;
+                    setCurrentPlayUrl(targetUrl);
+
+                    // 1. 尝试从 MediaSources 提取 ID
+                    if (playRes.data.MediaSources && playRes.data.MediaSources.length > 0) {
+                        currentMediaSourceId = playRes.data.MediaSources[0].Id;
                     }
+
+                    // 2. 🎯 核心修复：优先从详情接口加载进度 (因为详情接口通过 Fields=UserData 已被加固) antisocial antisense
+                    if (detailRes.success && detailRes.data?.UserData?.PlaybackPositionTicks) {
+                        startTime = detailRes.data.UserData.PlaybackPositionTicks / 10000000;
+                        console.log(`[MediaServerPlay] Found resume ticks from Detail: ${startTime}s`);
+                    }
+                    // 3. 兜底：从 PlaybackInfo 接口获取 Ticks antisocial antisense
+                    else if (playRes.success && playRes.data.MediaSources?.[0]?.UserData?.PlaybackPositionTicks) {
+                        startTime = playRes.data.MediaSources[0].UserData.PlaybackPositionTicks / 10000000;
+                        console.log(`[MediaServerPlay] Found resume ticks from PlaybackInfo: ${startTime}s`);
+                    }
+                } else {
+                    throw new Error(playRes.error || '无法解析播放地址');
                 }
 
                 // 启动播放器内核
-                if (isMounted) await initPlayer(targetUrl);
+                if (isMounted) await initPlayer(targetUrl, startTime, currentMediaSourceId);
 
             } catch (err: any) {
                 if (isMounted) {
@@ -100,7 +126,12 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                     setLoading(false);
                 }
             } finally {
-                if (isMounted) setDetailLoading(false);
+                if (isMounted) {
+                    setDetailLoading(false);
+                    // 🎬 核心：详情加载完成后，尝试上报一次历史记录 (针对初次进入)
+                    // 注意：这里需要确保 mediaDetail 已经通过 detailRes 赋值成功
+                    // 但由于 setState 是异步的，我们直接在 bootstrap 逻辑中拿到数据后立即上报更靠谱
+                }
             }
         };
 
@@ -134,24 +165,22 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
         if (!mediaDetail) return;
         try {
             if (isFavorite) {
-                const delRes = await fetch(`/api/favorites?source_id=${mediaServerId}&vod_id=${currentVodId}&source_type=media_server`, { method: 'DELETE' });
-                const data = await delRes.json();
-                if (data.success) setIsFavorite(false);
-            } else {
-                const addRes = await fetch('/api/favorites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source_id: mediaServerId,
-                        source_type: 'media_server',
-                        vod_id: currentVodId,
-                        title: mediaDetail.Name,
-                        cover: currentCover,
-                        year: mediaDetail.ProductionYear?.toString()
-                    })
+                const res = await apiDelete('/favorites', {
+                    source_id: mediaServerId,
+                    vod_id: currentVodId,
+                    source_type: 'media_server'
                 });
-                const data = await addRes.json();
-                if (data.success) setIsFavorite(true);
+                if (res.success) setIsFavorite(false);
+            } else {
+                const res = await apiPost('/favorites', {
+                    source_id: mediaServerId,
+                    source_type: 'media_server',
+                    vod_id: currentVodId,
+                    title: mediaDetail.Name,
+                    cover: currentCover,
+                    year: mediaDetail.ProductionYear?.toString()
+                });
+                if (res.success) setIsFavorite(true);
             }
         } catch (err) {
             console.error('Toggle favorite failed:', err);
@@ -192,7 +221,12 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
             const playRes = await apiGet<any>(`/media-servers/${mediaServerId}/playback/${id}`);
             if (playRes.success && playRes.data.streamUrl) {
                 setCurrentPlayUrl(playRes.data.streamUrl);
-                await initPlayer(playRes.data.streamUrl);
+                // 刷新时也要考虑续播
+                let startTime = 0;
+                if (detailRes.success && detailRes.data?.UserData?.PlaybackPositionTicks) {
+                    startTime = detailRes.data.UserData.PlaybackPositionTicks / 10000000;
+                }
+                await initPlayer(playRes.data.streamUrl, startTime, playRes.data.MediaSources?.[0]?.Id);
             }
         } catch (err) {
             console.error('Refresh failed:', err);
@@ -203,7 +237,7 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
     };
 
     // 独立出播放器初始化引擎
-    const initPlayer = async (url: string) => {
+    const initPlayer = async (url: string, startTime = 0, mediaSourceId?: string) => {
         if (!wrapperRef.current) return;
 
         // 物理隔离清理
@@ -232,6 +266,7 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
         const playerConfig: any = {
             container: mountPoint,
             url: url,
+            seek: startTime, // 断点续播
             autoplay: true,
             autoMini: true,
             setting: true,
@@ -267,12 +302,147 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
         const art = new Artplayer(playerConfig);
         artRef.current = art;
 
-        art.on('ready', () => setLoading(false));
+        art.on('ready', async () => {
+            setLoading(false);
+
+            // 🎯 核心增强：强制跳转到断点位置 antisense antisocial antisocial
+            if (startTime > 0) {
+                console.log(`[ArtPlayer] Core signal: Forced seeking to ${startTime}s`);
+                art.seek = startTime;
+            }
+
+            // 🎬 核心：上报 NavLink 本地历史记录
+            savePlayHistory();
+
+            // 🎬 核心：并在新播放开始时重置 SessionId
+            sessionRef.current = null;
+
+            try {
+                // 🎬 核心修复：使用 await 阻塞，确保 Start 请求完成后再继续后续逻辑（防止 Progress 抢跑）
+                console.log('[DEBUG] Reporting Playback Start to Emby (Awaiting...)');
+                const r = await apiPost<any>(`/media-servers/${mediaServerId}/playback/start`, {
+                    itemId: currentVodId,
+                    mediaSourceId: mediaSourceId
+                });
+
+                console.log('[DEBUG] Start Response Received:', r);
+                const data = (r.data || r) as any;
+                if (data && data.Id) {
+                    sessionRef.current = data.Id;
+                    console.log('[DEBUG] Captured PlaySessionId via Ref:', sessionRef.current);
+                } else if (r.success && r.data && r.data.Id) {
+                    sessionRef.current = r.data.Id;
+                }
+            } catch (e) {
+                console.error('[DEBUG] Playback Start Failed:', e);
+            }
+        });
+
+        // 定时上报进度给 Emby (每 15 秒)
+        const HEARTBEAT_INTERVAL = 15000;
+        let lastReportTime = 0;
+
+        art.on('video:timeupdate', () => {
+            const now = Date.now();
+            if (now - lastReportTime > HEARTBEAT_INTERVAL) {
+                lastReportTime = now;
+
+                // 🎯 核心修复：通过 useRef 实时获取最新的 SessionId
+                if (!sessionRef.current) {
+                    console.warn('[DEBUG] Skipping heartbeat: sessionRef.current not yet captured.');
+                    return;
+                }
+
+                const currentTime = art.video.currentTime;
+                const positionTicks = Math.floor(currentTime * 10000000);
+                console.log(`[DEBUG] Syncing progress: ${currentTime}s | Session: ${sessionRef.current}`);
+                apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
+                    itemId: currentVodId,
+                    positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                    isPaused: art.video.paused,
+                    playSessionId: sessionRef.current,
+                    mediaSourceId: mediaSourceId
+                }).then(r => console.log('[DEBUG] Progress Response:', r));
+            }
+        });
+
+        art.on('video:ended', () => {
+            if (!sessionRef.current) return;
+            const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            console.log(`[DEBUG] Video ended. Reporting Stop.`);
+            apiPost(`/media-servers/${mediaServerId}/playback/stop`, {
+                itemId: currentVodId,
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
+            }).then(r => console.log('[DEBUG] Stop Response (Ended):', r));
+        });
+
+        // 监听暂停和播放事件，立即上报
+        art.on('video:pause', () => {
+            if (!sessionRef.current) return;
+            const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            console.log(`[DEBUG] Paused at: ${art.video.currentTime}s | Reporting Stop/Pause to Emby`);
+            // 🎬 核心：暂停时同时发送进度，且标记为 IsPaused
+            apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
+                itemId: currentVodId,
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                isPaused: true,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
+            }).then(r => console.log('[DEBUG] Pause Response:', r));
+        });
+
+        art.on('video:play', () => {
+            if (!sessionRef.current) return;
+            const positionTicks = Math.floor(art.video.currentTime * 10000000);
+            apiPost(`/media-servers/${mediaServerId}/playback/progress`, {
+                itemId: currentVodId,
+                positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                isPaused: false,
+                playSessionId: sessionRef.current,
+                mediaSourceId: mediaSourceId
+            });
+        });
+
+        art.on('destroy', () => {
+            if (art.video && sessionRef.current) {
+                const positionTicks = Math.floor(art.video.currentTime * 10000000);
+                console.log(`[DEBUG] Player destroying. Final reporting Stop. Session: ${sessionRef.current}`);
+                // 🎬 核心：退出前最后一次点击/返回，必须带上 SessionId，否则记录无法归档
+                apiPost(`/media-servers/${mediaServerId}/playback/stop`, {
+                    itemId: currentVodId,
+                    positionTicks: isNaN(positionTicks) ? 0 : positionTicks,
+                    playSessionId: sessionRef.current,
+                    mediaSourceId: mediaSourceId
+                });
+            }
+        });
+
         art.on('video:canplay', () => setLoading(false));
         art.on('video:error', () => {
             setLoadError(`播放器错误: ${art.video.error?.code || '未知'}`);
             setLoading(false);
         });
+    };
+
+    const savePlayHistory = async (detail?: MediaItemDetail) => {
+        const targetDetail = detail || mediaDetail;
+        if (!targetDetail) return;
+        try {
+            await apiPost('/history', {
+                source_id: mediaServerId,
+                source_type: 'media_server',
+                vod_id: currentVodId,
+                title: targetDetail.Name,
+                cover: currentCover,
+                year: targetDetail.ProductionYear?.toString(),
+                progress: 0,
+                duration: 0
+            });
+        } catch (err) {
+            console.error('[History] Failed to save history:', err);
+        }
     };
 
     // 处理切换推荐内容
@@ -293,6 +463,13 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                 if (server && item.ImageTags.Primary) {
                     const poster = `${server.url}/emby/Items/${item.Id}/Images/Primary?maxWidth=300&tag=${item.ImageTags.Primary}&api_key=${server.api_key}`;
                     setCurrentCover(poster);
+                }
+
+                // 🎬 切换时也上报历史记录
+                // 获取新详情以确保数据最新
+                const detailRes = await apiGet<MediaItemDetail>(`/media-servers/${mediaServerId}/items/${item.Id}`);
+                if (detailRes.success && detailRes.data) {
+                    savePlayHistory(detailRes.data);
                 }
             } else {
                 alert('获取推荐内容播放地址失败');
@@ -425,63 +602,79 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                 </div>
             </div>
 
-            {/* 下方：媒体详情 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4 shadow-sm">
-                        <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
-                            <i className="fas fa-info-circle text-blue-400"></i>
-                            媒体详情
-                        </h3>
+            {/* 下方：媒体详情 (全宽) */}
+            <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-4">
+                    <div className="bg-secondary rounded-xl p-5 border border-border-color shadow-sm flex flex-col md:flex-row gap-6">
+                        <div className="flex-1 space-y-4">
+                            <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
+                                <i className="fas fa-info-circle text-blue-400"></i>
+                                媒体详情
+                            </h3>
 
-                        {detailLoading ? (
-                            <div className="py-10 flex justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">影片名称:</span>
-                                    <div className="text-primary text-xs sm:text-sm font-bold">{mediaDetail?.Name}</div>
+                            {detailLoading ? (
+                                <div className="py-10 flex justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">影片名称:</span>
+                                        <div className="text-primary text-xs sm:text-sm font-bold">{mediaDetail?.Name}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">发行年份:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{mediaDetail?.ProductionYear}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">分级:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{mediaDetail?.OfficialRating || '无'}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">时长:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{formatDuration(mediaDetail?.RunTimeTicks)}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">类型:</span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {mediaDetail?.Genres?.map(g => (
+                                                <span key={g} className="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] font-medium border border-blue-500/20">#{g}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">评分:</span>
+                                        <div className="text-yellow-500 font-bold">★ {mediaDetail?.CommunityRating || '0'}</div>
+                                    </div>
                                 </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">发行年份:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{mediaDetail?.ProductionYear}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">分级:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{mediaDetail?.OfficialRating || '无'}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">时长:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{formatDuration(mediaDetail?.RunTimeTicks)}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">类型:</span>
-                                    <div className="flex flex-wrap gap-1">
-                                        {mediaDetail?.Genres?.map(g => (
-                                            <span key={g} className="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] font-medium border border-blue-500/20">#{g}</span>
+                            )}
+
+                            {!detailLoading && mediaDetail?.People && (
+                                <div className="pt-4 border-t border-border-color">
+                                    <div className="text-secondary mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest opacity-60">
+                                        <i className="fas fa-users text-blue-500"></i>
+                                        主演阵容
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        {mediaDetail.People.slice(0, 10).map((person, idx) => (
+                                            <div key={idx} className="flex flex-col">
+                                                <span className="text-primary text-xs font-bold">{person.Name}</span>
+                                                <span className="text-white/30 text-[9px] uppercase">{person.Role || person.Type}</span>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">评分:</span>
-                                    <div className="text-yellow-500 font-bold">★ {mediaDetail?.CommunityRating || '0'}</div>
-                                </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
-                        {!detailLoading && mediaDetail?.People && (
-                            <div className="pt-4 border-t border-border-color">
-                                <div className="text-secondary mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest opacity-60">
-                                    <i className="fas fa-users text-blue-500"></i>
-                                    主演阵容
-                                </div>
-                                <div className="flex flex-wrap gap-3">
-                                    {mediaDetail.People.slice(0, 10).map((person, idx) => (
-                                        <div key={idx} className="flex flex-col">
-                                            <span className="text-primary text-xs font-bold">{person.Name}</span>
-                                            <span className="text-white/30 text-[9px] uppercase">{person.Role || person.Type}</span>
-                                        </div>
-                                    ))}
+                        {/* 🚀 封面图：内置到详情卡片右侧 */}
+                        {!detailLoading && (
+                            <div className="w-full md:w-48 lg:w-56 flex-shrink-0">
+                                <div className="rounded-lg overflow-hidden shadow-2xl border border-white/10">
+                                    <img
+                                        src={currentCover}
+                                        alt={currentTitle}
+                                        className="w-full h-auto object-cover"
+                                        onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -498,17 +691,6 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                             </p>
                         </div>
                     )}
-                </div>
-
-                <div className="hidden lg:block">
-                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden shadow-lg sticky top-6 w-full">
-                        <img
-                            src={currentCover}
-                            alt={currentTitle}
-                            className="w-full h-auto rounded-lg shadow-2xl filter brightness-90 hover:brightness-100 transition-all"
-                            onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
-                        />
-                    </div>
                 </div>
             </div>
 

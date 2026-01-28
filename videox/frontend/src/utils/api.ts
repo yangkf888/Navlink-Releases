@@ -1,6 +1,6 @@
 import { ApiResponse } from '../types';
 
-// API 基础路径 - 独立应用模式，直接访问后端
+// API 基础路径
 export const API_BASE = '/api';
 
 /**
@@ -9,24 +9,6 @@ export const API_BASE = '/api';
 const buildUrl = (path: string): string => {
     const cleanPath = path.replace(/^\.?\//, '');
     return `${API_BASE}/${cleanPath}`;
-};
-
-/**
- * 获取管理员密码（用于访问隐藏资源）
- */
-const getAdminPassword = (): string => {
-    try {
-        const authData = localStorage.getItem('videox_admin_auth');
-        if (authData) {
-            const parsed = JSON.parse(authData);
-            if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
-                return parsed.password || '';
-            }
-        }
-    } catch {
-        // 忽略解析错误
-    }
-    return '';
 };
 
 /**
@@ -39,10 +21,25 @@ export async function apiRequest<T>(
     const url = buildUrl(path);
 
     try {
-        const adminPassword = getAdminPassword();
+        const token = localStorage.getItem('auth_token');
+
+        // 从 localStorage 获取登录密码
+        let adminPassword = '';
+        try {
+            const authData = localStorage.getItem('video_admin_auth');
+            if (authData) {
+                const parsed = JSON.parse(authData);
+                if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
+                    adminPassword = parsed.password || '';
+                }
+            }
+        } catch {
+            // 忽略解析错误
+        }
 
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(adminPassword ? { 'X-Admin-Password': adminPassword } : {}),
             ...options.headers
         };
@@ -53,12 +50,36 @@ export async function apiRequest<T>(
         });
 
         if (!response.ok) {
+            // 如果是 401 Unauthorized，说明 Token 过期或无效
+            if (response.status === 401) {
+                console.warn('[API] Auth token expired or invalid. Redirecting to login...');
+
+                // 清除本地存储的登录相关信息
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('video_admin_auth');
+
+                // 发送消息通知主框架或本地触发重定向
+                // 延迟一秒给用户看提示的时间（如果以后有 Toast 的话）
+                setTimeout(() => {
+                    // 如果在 iframe 中，尝试通过 postMessage 通知父窗口
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'AUTH_EXPIRED' }, '*');
+                    } else {
+                        // 独立运行模式下强制刷新页面，触发 App.tsx 的未登录逻辑
+                        window.location.reload();
+                    }
+                }, 1000);
+            }
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
         return data;
     } catch (error) {
+        // 对于正在进行的轮询请求（如 live/status），静默处理 401 错误日志
+        if (path.includes('live/status') && error instanceof Error && error.message.includes('401')) {
+            return { success: false, error: 'Unauthorized' };
+        }
         console.error(`[API] Request failed: ${url}`, error);
         return {
             success: false,

@@ -587,7 +587,7 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={toggleFavorite}
-                                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 font-bold ${isFavorite
+                                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite
                                     ? 'bg-red-500 text-white shadow-lg'
                                     : 'bg-secondary text-secondary hover:text-primary border border-border-color shadow-sm'
                                     }`}
@@ -625,9 +625,9 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                                             setSelectedVideoIndex(idx);
                                             setIsTranscoding(true);
                                         }}
-                                        className={`px-2 py-2.5 rounded text-sm transition-colors truncate font-bold ${selectedVideoIndex === idx
-                                            ? 'bg-red-500 text-white shadow-lg'
-                                            : 'bg-secondary/50 text-white hover:bg-secondary hover:text-primary border border-border-color'
+                                        className={`px-2 py-2.5 rounded text-sm transition-colors truncate ${selectedVideoIndex === idx
+                                            ? 'bg-red-500 text-white font-medium shadow-lg'
+                                            : 'bg-secondary/50 text-secondary hover:bg-secondary hover:text-primary border border-border-color'
                                             }`}
                                         title={file}
                                     >
@@ -640,47 +640,67 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                 </div>
             </div>
 
-            {/* 下方：NFO 信息 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4 shadow-sm">
-                        <h3 className="text-primary font-bold flex items-center justify-between border-b border-border-color pb-2">
-                            <div className="flex items-center gap-2">
-                                <i className="fas fa-info-circle text-blue-400"></i>
-                                媒体详情
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setIsCorrectModalOpen(true)}
-                                    className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white rounded flex items-center gap-1.5 text-xs transition-all duration-300"
-                                >
-                                    <i className="fas fa-magic"></i>
-                                    识别修正
-                                </button>
-                                <button
-                                    onClick={handleUnlockMedia}
-                                    className="px-3 py-1 bg-secondary hover:bg-secondary-hover text-secondary hover:text-primary rounded flex items-center gap-1.5 text-xs transition-all duration-300 border border-border-color"
-                                    title="解锁手动修正，恢复系统自动识别"
-                                >
-                                    <i className="fas fa-undo"></i>
-                                    恢复自动识别
-                                </button>
-                            </div>
-                        </h3>
+            {/* 下方：NFO 信息 (全宽) */}
+            <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-4">
+                    <div className="bg-secondary rounded-xl p-5 border border-border-color shadow-sm flex flex-col md:flex-row gap-6">
+                        <div className="flex-1 space-y-4">
+                            <h3 className="text-primary font-bold flex items-center justify-between border-b border-border-color pb-2">
+                                <div className="flex items-center gap-2">
+                                    <i className="fas fa-info-circle text-blue-400"></i>
+                                    媒体详情
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setIsCorrectModalOpen(true)}
+                                        className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white rounded flex items-center gap-1.5 text-xs transition-all duration-300"
+                                    >
+                                        <i className="fas fa-magic"></i>
+                                        识别修正
+                                    </button>
+                                    <button
+                                        onClick={handleUnlockMedia}
+                                        className="px-3 py-1 bg-secondary hover:bg-secondary-hover text-secondary hover:text-primary rounded flex items-center gap-1.5 text-xs transition-all duration-300 border border-border-color"
+                                        title="解锁手动修正，恢复系统自动识别"
+                                    >
+                                        <i className="fas fa-undo"></i>
+                                        恢复自动识别
+                                    </button>
+                                </div>
+                            </h3>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                            {renderMetadataRows()}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                                {renderMetadataRows()}
+                            </div>
+
+                            {media.actor && (
+                                <div className="pt-4 border-t border-border-color">
+                                    <div className="text-secondary mb-2 flex items-center gap-2">
+                                        <i className="fas fa-users text-xs"></i>
+                                        主演阵容:
+                                    </div>
+                                    <p className="text-primary leading-relaxed text-sm">{media.actor}</p>
+                                </div>
+                            )}
                         </div>
 
-                        {media.actor && (
-                            <div className="pt-4 border-t border-border-color">
-                                <div className="text-secondary mb-2 flex items-center gap-2">
-                                    <i className="fas fa-users text-xs"></i>
-                                    主演阵容:
-                                </div>
-                                <p className="text-primary leading-relaxed text-sm">{media.actor}</p>
+                        {/* 🚀 封面图：内置到详情卡片右侧，宽度与上方侧边栏同步以实现垂直对齐 */}
+                        <div className="w-full md:w-56 lg:w-72 xl:w-80 flex-shrink-0">
+                            <div className="rounded-lg overflow-hidden shadow-2xl border border-white/10">
+                                {media.poster_url ? (
+                                    <img
+                                        src={media.poster_url.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(media.poster_url)}` : media.poster_url}
+                                        alt={media.title}
+                                        className="w-full h-auto object-cover filter brightness-95 hover:brightness-100 transition-all duration-500"
+                                        onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
+                                    />
+                                ) : (
+                                    <div className="aspect-[2/3] bg-tertiary rounded-lg flex items-center justify-center text-secondary">
+                                        <i className="fas fa-film text-6xl opacity-20"></i>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {media.overview && (
@@ -694,24 +714,6 @@ export function NetdiskPlayer({ mediaId, sourceId, initialVideoIndex = 0, onNavi
                             </p>
                         </div>
                     )}
-                </div>
-
-                {/* 海报封面展示区 */}
-                <div className="hidden lg:block">
-                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden shadow-lg">
-                        {media.poster_url ? (
-                            <img
-                                src={media.poster_url.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(media.poster_url)}` : media.poster_url}
-                                alt={media.title}
-                                className="w-full h-auto rounded-lg shadow-2xl filter brightness-90 hover:brightness-100 transition-all"
-                                onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
-                            />
-                        ) : (
-                            <div className="aspect-[2/3] bg-tertiary rounded-lg flex items-center justify-center text-secondary">
-                                <i className="fas fa-film text-6xl opacity-20"></i>
-                            </div>
-                        )}
-                    </div>
                 </div>
             </div>
 

@@ -294,7 +294,7 @@ class HomeService {
                 const catTasks = targetCatIds.map((tid) => async () => {
                     const agent = source.proxy_agent_enabled || source.proxy_enabled ? getSystemProxyAgent() : null;
                     const parser = new CmsApiParser(source.url, agent);
-                    const res = await parser.getVideos({ categoryId: tid, page: 1, limit: 16 });
+                    const res = await parser.getVideos({ categoryId: tid, page: 1, limit: 12 });
                     if (res.list) {
                         return res.list.map(v => ({ ...v, source_id: source.id, source_name: source.name }));
                     }

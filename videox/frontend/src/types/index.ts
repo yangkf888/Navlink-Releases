@@ -157,6 +157,7 @@ export interface Video {
     source_id?: number;
     source_name?: string;
     is_netdisk?: boolean;
+    is_media_server?: boolean;
 }
 
 /**
@@ -259,9 +260,7 @@ export interface Settings {
 
     // 安全设置
     admin_password_enabled: boolean;
-    site_password_enabled: boolean;
     admin_password: string;
-    site_password: string;
 
     // TMDB 设置
     tmdb_api_key: string;

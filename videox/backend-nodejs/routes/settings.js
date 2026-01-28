@@ -114,42 +114,29 @@ router.put('/', (req, res) => {
  */
 router.post('/verify-password', (req, res) => {
     try {
-        const { password, type = 'admin' } = req.body;
+        const { password } = req.body;
         const db = getDatabase();
 
-        let isEnabled = false;
-        let storedPassword = '';
-        let messageType = '管理密码';
+        // 获取密码设置
+        const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
+        const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
 
-        if (type === 'site') {
-            // 获取全站密码设置
-            const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'site_password_enabled'");
-            const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'site_password'");
-            isEnabled = enabledSetting?.value === 'true';
-            storedPassword = passwordSetting?.value || '';
-            messageType = '全站访问密码';
-        } else {
-            // 获取管理密码设置
-            const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
-            const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
-            isEnabled = enabledSetting?.value === 'true';
-            storedPassword = passwordSetting?.value || '';
-            messageType = '管理密码';
-        }
+        const isEnabled = enabledSetting?.value === 'true';
+        const storedPassword = passwordSetting?.value || '';
 
         if (!isEnabled) {
             // 密码未启用，直接验证通过
-            return res.json({ success: true, valid: true, message: `${messageType}未启用` });
+            return res.json({ success: true, valid: true, message: 'Password not enabled' });
         }
 
         if (!password) {
-            return res.json({ success: true, valid: false, message: '请提供密码' });
+            return res.json({ success: true, valid: false, message: 'Password required' });
         }
 
         // 简单字符串比较（生产环境应使用加密比较）
-        console.log(`[settings] ${messageType}验证: 输入=${password}, 匹配=${password === storedPassword}`);
+        console.log('[settings] 密码验证: 输入=', password, '存储=', storedPassword, '匹配=', password === storedPassword);
         const valid = password === storedPassword;
-        res.json({ success: true, valid, message: valid ? '密码正确' : '密码错误' });
+        res.json({ success: true, valid, message: valid ? 'Password correct' : 'Password incorrect' });
     } catch (error) {
         console.error('[settings] Failed to verify password:', error);
         res.status(500).json({ success: false, error: error.message });

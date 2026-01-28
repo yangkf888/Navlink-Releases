@@ -2,13 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-    base: '/',
+    base: './',
     plugins: [
         react()
     ],
     resolve: {
         alias: {
-            // 预留别名配置
         },
     },
     build: {
@@ -16,13 +15,12 @@ export default defineConfig({
         emptyOutDir: true,
     },
     server: {
-        host: '127.0.0.1',
+        host: '0.0.0.0',
         port: 5176,
-        strictPort: false,
+        strictPort: true,
         proxy: {
-            // 代理所有 API 请求到后端服务
             '/api': {
-                target: 'http://localhost:3100',
+                target: 'http://127.0.0.1:3100',
                 changeOrigin: true,
                 secure: false,
                 ws: true

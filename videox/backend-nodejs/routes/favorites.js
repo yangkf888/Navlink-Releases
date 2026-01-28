@@ -21,11 +21,13 @@ router.get('/', (req, res) => {
             SELECT f.*, 
                    CASE 
                        WHEN f.source_type = 'netdisk' THEN ns.name 
+                       WHEN f.source_type = 'media_server' THEN ms.name
                        ELSE vs.name 
                    END as source_name
             FROM favorites f
             LEFT JOIN video_sources vs ON f.source_id = vs.id AND (f.source_type = 'cms' OR f.source_type IS NULL)
             LEFT JOIN netdisk_sources ns ON f.source_id = ns.id AND f.source_type = 'netdisk'
+            LEFT JOIN media_servers ms ON f.source_id = ms.id AND f.source_type = 'media_server'
             WHERE f.user_id = ?
             ORDER BY f.created_at DESC
         `).all(userId);
