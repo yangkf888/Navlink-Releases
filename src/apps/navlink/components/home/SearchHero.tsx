@@ -30,7 +30,7 @@ const HighlightedText = ({ text, highlight }: { text: string, highlight: string 
                 {chars.map((char, i) =>
                     matchResult.includes(i)
                         ? <span key={i} className="text-[var(--theme-primary)] font-bold">{char}</span>
-                        : char
+                        : <span key={i}>{char}</span>
                 )}
             </>
         );
@@ -43,7 +43,7 @@ const HighlightedText = ({ text, highlight }: { text: string, highlight: string 
             {parts.map((part, i) =>
                 part.toLowerCase() === highlight.toLowerCase()
                     ? <span key={i} className="text-[var(--theme-primary)] font-bold">{part}</span>
-                    : part
+                    : <span key={i}>{part}</span>
             )}
         </>
     );
