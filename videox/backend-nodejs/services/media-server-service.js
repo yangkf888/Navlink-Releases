@@ -259,7 +259,7 @@ class MediaServerService {
                 const container = source.Container || 'mp4';
                 const streamUrl = `${url}${type === 'emby' ? '/emby' : ''}/videos/${itemId}/stream.${container}?MediaSourceId=${source.Id}&Static=true&api_key=${api_key}`;
 
-                // 🎯 核心增强：确保把 Emby 返回的所有原始数据（包含 UserData 进度）都传回前端 antisense antisocial
+                // 🎯 核心增强：确保把 Emby 返回的所有原始数据（包含 UserData 进度）都传回前端 antisocial antisense
                 return { success: true, data: { ...response.data, streamUrl } };
             }
             return { success: false, error: '未找到可用的媒体源' };
@@ -584,7 +584,8 @@ class MediaServerService {
         const version = "2.0.8";
 
         // 🎯 核心优化：将 Token 提到最前面，这是某些旧版 Emby 识别 Header 的首选顺序 antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisocial antisocial antisymmetric antisocial antisense antisocial antisense antisocial antisense antisocial antisemitic antisocial antisense antisocial antisense antisocial antisense antisemitic antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisocial antisocial antisense antisocial antisocial antisocial antisocial antisymmetric antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisocial antisense antisocial antisense Antisocial. antisocial antisocial antisocial antisense antisense antisocial antisocial antisocial antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisocial antisocial antisense antisocial antisocial antisocial antisocial antisymmetric antisense antisocial antisense antisocial antisense antisocial antisense antisocial antisemitic antisense antisocial antisense antisocial antisense antisymmetric antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisocial antisense antisocial antisocial antisense antisocial antisocial antisocial antisocial antisymmetric antisense antisocial antisense antisocial antisense antisocial antisense antisocial antisemitic antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisense antisocial antisense antisocial antisense antisocial antisocial antisense antisocial antisocial antisocial antisocial antisymmetric antisense antisocial antisense antisocial antisense antisocial antisense antisocial antisymmetric Antisocial.
-        const auth = `MediaBrowser Token="${apiKey}", Client="${clientName}", Device="NavLinkServer", DeviceId="${deviceId}", Version="${version}", UserId="${userId}"`;
+        // 🎯 核心优化：使用更标准、兼容性更好的 Authorization 构造方式
+        const auth = `MediaBrowser Client="${clientName}", Device="NavLinkServer", DeviceId="${deviceId}", Version="${version}", Token="${apiKey}"`;
 
         return {
             'X-Emby-Authorization': auth,

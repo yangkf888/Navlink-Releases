@@ -58,3 +58,4 @@ data/cache/
 data/transcode_cache/
 data/transcode/
 plugins/video/data/transcode_cache/
+videox/backend-build/

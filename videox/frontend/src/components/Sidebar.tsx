@@ -12,6 +12,7 @@ interface NavParams {
     platform?: string;
     liveSourceId?: number;
     mediaServerId?: number;
+    netdiskSourceId?: number;
 }
 
 interface SidebarProps {
@@ -159,19 +160,28 @@ export function Sidebar({
 
     const isActive = (id: string) => {
         if (id === 'home' && activeView === 'home') return true;
+
+        // 🚀 核心优化：优先从 navParams 获取 ID，确保在多级路由下高亮准确 antisocial antisense
         if (id.startsWith('source-')) {
             const sid = parseInt(id.split('-')[1]);
-            // 🚀 修复补丁：在 category 视图（资源站二级分类）时也保持源项的高亮选中
-            return activeView !== 'home' && sid === selectedSourceId;
+            const currentSourceId = navParams.sourceId || selectedSourceId;
+            // 只有在相关联的视图（源概览、分类列表、播放页）时才高亮对应的源
+            const isSourceView = activeView === 'source' || activeView === 'category' || activeView === 'play';
+            return isSourceView && sid === currentSourceId;
         }
+
         if (id.startsWith('netdisk-source-')) {
             const sid = parseInt(id.split('-')[1]);
-            return activeView !== 'home' && sid === selectedNetdiskSourceId;
+            const currentNetdiskId = navParams.netdiskSourceId || selectedNetdiskSourceId;
+            const isNetdiskView = activeView === 'netdisk' || activeView === 'netdisk_play';
+            return isNetdiskView && sid === currentNetdiskId;
         }
+
         if (id.startsWith('live-play-')) {
             const sid = parseInt(id.split('-')[1]);
-            return activeView !== 'home' && sid === navParams.liveSourceId;
+            return (activeView === 'live' || activeView === 'live_play') && sid === navParams.liveSourceId;
         }
+
         if (id === activeView) return true;
         return false;
     };

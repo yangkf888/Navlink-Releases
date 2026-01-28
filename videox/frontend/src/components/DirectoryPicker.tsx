@@ -143,7 +143,7 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                     >
                         <i className="fas fa-level-up-alt rotate-[-90deg]"></i>
                     </button>
-                    <div className="flex-1 px-3 py-1.5 bg-black/60 border border-border-color rounded-lg text-sm text-blue-400 truncate font-mono shadow-inner shadow-black/40">
+                    <div className="flex-1 px-3 py-1.5 bg-secondary/50 border border-border-color rounded-lg text-sm text-blue-500 truncate font-mono shadow-inner">
                         {currentPath || '/'}
                     </div>
                 </div>
@@ -183,8 +183,8 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                                         <i className="fas fa-folder text-xl"></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="text-gray-200 font-medium group-hover:text-primary transition-colors block truncate">{item.name}</span>
-                                        <span className="text-[10px] text-gray-600 font-mono truncate block">{item.path}</span>
+                                        <span className="text-primary font-medium group-hover:text-blue-500 transition-colors block truncate">{item.name}</span>
+                                        <span className="text-[10px] text-secondary font-mono truncate block opacity-70">{item.path}</span>
                                     </div>
                                     <i className="fas fa-chevron-right text-gray-700 group-hover:text-secondary text-xs translate-x-[-10px] opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                                 </div>
@@ -196,8 +196,8 @@ export function DirectoryPicker({ sourceId, isOpen, onClose, onSelect, initialPa
                 {/* 底部操作 */}
                 <div className="flex items-center justify-between p-5 border-t border-border-color bg-secondary/50">
                     <div className="max-w-[60%]">
-                        <p className="text-[10px] text-gray-600 uppercase font-bold tracking-wider mb-1">当前选择</p>
-                        <p className="text-sm text-blue-400 font-mono truncate">{currentPath || '/'}</p>
+                        <p className="text-[10px] text-secondary uppercase font-bold tracking-wider mb-1">当前选择</p>
+                        <p className="text-sm text-blue-500 font-mono truncate">{currentPath || '/'}</p>
                     </div>
                     <div className="flex gap-3">
                         <button

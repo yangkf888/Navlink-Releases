@@ -90,17 +90,40 @@ body {
     background-color: #e2e8f0 !important;
 }
 
-/* 隐藏滚动条 */
+/* 隐藏滚动条工具类 */
 .sidebar-scrollbar,
 .hide-scrollbar {
     -ms-overflow-style: none;
-    /* IE and Edge */
     scrollbar-width: none;
-    /* Firefox */
 }
 
 .sidebar-scrollbar::-webkit-scrollbar,
 .hide-scrollbar::-webkit-scrollbar {
     display: none;
-    /* Chrome, Safari and Opera */
+}
+
+/* 全局自定义滚动条 - 适配暗黑/明亮模式 */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border: 3px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4a5568;
+}
+
+/* 兼容 Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-tertiary) var(--bg-primary);
 }

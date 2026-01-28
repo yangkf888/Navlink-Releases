@@ -66,8 +66,13 @@ async function startServer() {
         app.use('/api/transcode', require('./routes/transcode'));
         app.use('/api/media-servers', require('./routes/media-servers'));
 
-        // 全站访问密码中间件
+        // 全站访问密码中间件 (仅对 API 路由生效)
         app.use(async (req, res, next) => {
+            // 只对 API 路径进行密码验证，静态资源不受限制
+            if (!req.path.startsWith('/api')) {
+                return next();
+            }
+
             // 排除健康检查等公开接口
             if (req.path === '/api/health' || req.path === '/api/settings/verify-site-password') {
                 return next();
@@ -103,9 +108,23 @@ async function startServer() {
             }
         });
 
+        // 静态文件服务 - 前端资源
+        const frontendPath = path.join(__dirname, '../frontend/dist');
+        app.use(express.static(frontendPath));
+
+        // SPA fallback - 所有未匹配的路由返回 index.html
+        app.get('*', (req, res) => {
+            // 排除 API 路由
+            if (req.path.startsWith('/api')) {
+                return res.status(404).json({ error: 'Not Found' });
+            }
+            res.sendFile(path.join(frontendPath, 'index.html'));
+        });
+
         const PORT = 3100;
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`[videox] Standalone backend listening on port ${PORT}`);
+            console.log(`[videox] Frontend served from: ${frontendPath}`);
         });
 
     } catch (error) {

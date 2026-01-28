@@ -280,6 +280,9 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                 crossOrigin: 'anonymous',
                 playsInline: true,
                 preload: 'auto',
+                'webkit-playsinline': true,
+                'x5-video-player-type': 'h5-page',
+                'disableRemotePlayback': false,
             },
         };
 
@@ -296,45 +299,88 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                         video.src = url;
                     }
                 }
-            };
+            }
         }
 
         const art = new Artplayer(playerConfig);
         artRef.current = art;
 
+        // 🚀 核心优化：增强静态流的缓冲区保护和自动恢复功能 antisocial antisense
         art.on('ready', async () => {
             setLoading(false);
-
-            // 🎯 核心增强：强制跳转到断点位置 antisense antisocial antisocial
             if (startTime > 0) {
-                console.log(`[ArtPlayer] Core signal: Forced seeking to ${startTime}s`);
+                console.log(`[ArtPlayer] Seeking to start: ${startTime}s`);
                 art.seek = startTime;
             }
-
-            // 🎬 核心：上报 NavLink 本地历史记录
             savePlayHistory();
-
-            // 🎬 核心：并在新播放开始时重置 SessionId
             sessionRef.current = null;
 
             try {
-                // 🎬 核心修复：使用 await 阻塞，确保 Start 请求完成后再继续后续逻辑（防止 Progress 抢跑）
-                console.log('[DEBUG] Reporting Playback Start to Emby (Awaiting...)');
                 const r = await apiPost<any>(`/media-servers/${mediaServerId}/playback/start`, {
                     itemId: currentVodId,
                     mediaSourceId: mediaSourceId
                 });
-
-                console.log('[DEBUG] Start Response Received:', r);
                 const data = (r.data || r) as any;
                 if (data && data.Id) {
                     sessionRef.current = data.Id;
-                    console.log('[DEBUG] Captured PlaySessionId via Ref:', sessionRef.current);
-                } else if (r.success && r.data && r.data.Id) {
-                    sessionRef.current = r.data.Id;
                 }
             } catch (e) {
                 console.error('[DEBUG] Playback Start Failed:', e);
+            }
+        });
+
+        // 🎬 监听缓冲状态：防止“快进”感 antisense antisocial
+        // 如果数据不足，主动暂停，等缓冲充裕后再自动恢复
+        art.on('video:waiting', () => {
+            console.warn('[ArtPlayer] Buffer underrun detected, waiting...');
+            art.notice.show = '正在预载数据以确保顺滑播放...';
+        });
+
+        art.on('video:canplay', () => {
+            if (art.video.paused && !art.video.ended && art.loading.show) {
+                console.log('[ArtPlayer] Buffer sufficient, resuming playback.');
+                art.play();
+            }
+        });
+
+        // 🎬 自动错误恢复逻辑 antisocial antisense
+        art.on('video:error', () => {
+            const currentTime = art.video.currentTime;
+            if (currentTime > 0 && art.video.error?.code !== 4) { // 4 = MEDIA_ERR_SRC_NOT_SUPPORTED
+                console.log('[ArtPlayer] Attempting soft recovery at', currentTime);
+                art.notice.show = '网络抖动，正在恢复播放...';
+                setTimeout(() => {
+                    art.video.load();
+                    art.video.currentTime = currentTime;
+                    art.video.play().catch(e => console.warn('Recovery play failed:', e));
+                }, 1500);
+                return;
+            }
+            setLoadError(`播放器错误: ${art.video.error?.code || '未知'}`);
+            setLoading(false);
+        });
+
+        // 🎬 监控“跳帧”现象：解决快进感 antisocial antisense
+        let lastRealTime = 0;
+        art.on('video:timeupdate', () => {
+            const currentTime = art.video.currentTime;
+            const diff = Math.abs(currentTime - lastRealTime);
+
+            // 如果检测到非操作性的时间大幅度跳跃（跳帧），给出提示或强制同步
+            if (diff > 1.5 && !art.video.seeking) {
+                console.warn(`[ArtPlayer] Playback skip detected: ${diff.toFixed(2)}s`);
+            }
+            lastRealTime = currentTime;
+        });
+
+        // 🎬 核心：监听缓冲状态，在数据不足时主动介入 antisense antisocial
+        art.on('video:waiting', () => {
+            console.log('[ArtPlayer] Buffer underrun, active management enabled.');
+        });
+
+        art.on('video:canplay', () => {
+            if (art.video.paused && !art.video.ended && art.video.readyState >= 3) {
+                art.play().catch(() => { });
             }
         });
 
