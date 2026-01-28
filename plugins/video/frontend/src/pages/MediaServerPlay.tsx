@@ -602,63 +602,79 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                 </div>
             </div>
 
-            {/* 下方：媒体详情 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-secondary rounded-xl p-5 border border-border-color space-y-4 shadow-sm">
-                        <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
-                            <i className="fas fa-info-circle text-blue-400"></i>
-                            媒体详情
-                        </h3>
+            {/* 下方：媒体详情 (全宽) */}
+            <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-4">
+                    <div className="bg-secondary rounded-xl p-5 border border-border-color shadow-sm flex flex-col md:flex-row gap-6">
+                        <div className="flex-1 space-y-4">
+                            <h3 className="text-primary font-bold flex items-center gap-2 border-b border-border-color pb-2">
+                                <i className="fas fa-info-circle text-blue-400"></i>
+                                媒体详情
+                            </h3>
 
-                        {detailLoading ? (
-                            <div className="py-10 flex justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">影片名称:</span>
-                                    <div className="text-primary text-xs sm:text-sm font-bold">{mediaDetail?.Name}</div>
+                            {detailLoading ? (
+                                <div className="py-10 flex justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">影片名称:</span>
+                                        <div className="text-primary text-xs sm:text-sm font-bold">{mediaDetail?.Name}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">发行年份:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{mediaDetail?.ProductionYear}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">分级:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{mediaDetail?.OfficialRating || '无'}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">时长:</span>
+                                        <div className="text-primary text-xs sm:text-sm">{formatDuration(mediaDetail?.RunTimeTicks)}</div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">类型:</span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {mediaDetail?.Genres?.map(g => (
+                                                <span key={g} className="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] font-medium border border-blue-500/20">#{g}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
+                                        <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">评分:</span>
+                                        <div className="text-yellow-500 font-bold">★ {mediaDetail?.CommunityRating || '0'}</div>
+                                    </div>
                                 </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">发行年份:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{mediaDetail?.ProductionYear}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">分级:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{mediaDetail?.OfficialRating || '无'}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">时长:</span>
-                                    <div className="text-primary text-xs sm:text-sm">{formatDuration(mediaDetail?.RunTimeTicks)}</div>
-                                </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">类型:</span>
-                                    <div className="flex flex-wrap gap-1">
-                                        {mediaDetail?.Genres?.map(g => (
-                                            <span key={g} className="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px] font-medium border border-blue-500/20">#{g}</span>
+                            )}
+
+                            {!detailLoading && mediaDetail?.People && (
+                                <div className="pt-4 border-t border-border-color">
+                                    <div className="text-secondary mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest opacity-60">
+                                        <i className="fas fa-users text-blue-500"></i>
+                                        主演阵容
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        {mediaDetail.People.slice(0, 10).map((person, idx) => (
+                                            <div key={idx} className="flex flex-col">
+                                                <span className="text-primary text-xs font-bold">{person.Name}</span>
+                                                <span className="text-white/30 text-[9px] uppercase">{person.Role || person.Type}</span>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-2 py-1.5 border-b border-white/[0.05]">
-                                    <span className="text-secondary w-20 flex-shrink-0 text-xs font-semibold">评分:</span>
-                                    <div className="text-yellow-500 font-bold">★ {mediaDetail?.CommunityRating || '0'}</div>
-                                </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
-                        {!detailLoading && mediaDetail?.People && (
-                            <div className="pt-4 border-t border-border-color">
-                                <div className="text-secondary mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest opacity-60">
-                                    <i className="fas fa-users text-blue-500"></i>
-                                    主演阵容
-                                </div>
-                                <div className="flex flex-wrap gap-3">
-                                    {mediaDetail.People.slice(0, 10).map((person, idx) => (
-                                        <div key={idx} className="flex flex-col">
-                                            <span className="text-primary text-xs font-bold">{person.Name}</span>
-                                            <span className="text-white/30 text-[9px] uppercase">{person.Role || person.Type}</span>
-                                        </div>
-                                    ))}
+                        {/* 🚀 封面图：内置到详情卡片右侧 */}
+                        {!detailLoading && (
+                            <div className="w-full md:w-48 lg:w-56 flex-shrink-0">
+                                <div className="rounded-lg overflow-hidden shadow-2xl border border-white/10">
+                                    <img
+                                        src={currentCover}
+                                        alt={currentTitle}
+                                        className="w-full h-auto object-cover"
+                                        onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -675,17 +691,6 @@ export function MediaServerPlay({ mediaServerId, vodId, title: initialTitle, str
                             </p>
                         </div>
                     )}
-                </div>
-
-                <div className="hidden lg:block">
-                    <div className="bg-secondary rounded-xl p-2 border border-border-color overflow-hidden shadow-lg sticky top-6 w-full">
-                        <img
-                            src={currentCover}
-                            alt={currentTitle}
-                            className="w-full h-auto rounded-lg shadow-2xl filter brightness-90 hover:brightness-100 transition-all"
-                            onError={e => (e.target as HTMLImageElement).src = '/poster-fallback.png'}
-                        />
-                    </div>
                 </div>
             </div>
 

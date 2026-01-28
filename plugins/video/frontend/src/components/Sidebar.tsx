@@ -161,7 +161,8 @@ export function Sidebar({
         if (id === 'home' && activeView === 'home') return true;
         if (id.startsWith('source-')) {
             const sid = parseInt(id.split('-')[1]);
-            return activeView !== 'home' && sid === selectedSourceId && activeView !== 'category';
+            // 🚀 修复补丁：在 category 视图（资源站二级分类）时也保持源项的高亮选中
+            return activeView !== 'home' && sid === selectedSourceId;
         }
         if (id.startsWith('netdisk-source-')) {
             const sid = parseInt(id.split('-')[1]);
@@ -607,10 +608,10 @@ export function Sidebar({
                         {[
                             { key: 'home', label: '首页', icon: 'fa-home' },
                             { key: 'sources', label: '资源站', icon: 'fa-database' },
-                            { key: 'tv', label: '电视', icon: 'fa-tv' },
-                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
                             { key: 'media_server', label: '影视库', icon: 'fa-film' },
                             { key: 'netdisk', label: '媒体库', icon: 'fa-cloud' },
+                            { key: 'tv', label: '电视', icon: 'fa-tv' },
+                            { key: 'live', label: '直播', icon: 'fa-broadcast-tower' },
                         ].map(item => (
                             <SidebarItem
                                 key={item.key}

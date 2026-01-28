@@ -254,8 +254,8 @@ export function Search({ initialKeyword, sourceId, netdiskPath, isMediaServer, _
 
             {/* 结果显示 */}
             {loading && results.length === 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
-                    {[...Array(12)].map((_, i) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                    {[...Array(16)].map((_, i) => (
                         <div key={i} className="aspect-[2/3] bg-secondary/20 rounded-2xl border border-border-color animate-pulse"></div>
                     ))}
                 </div>
@@ -263,7 +263,7 @@ export function Search({ initialKeyword, sourceId, netdiskPath, isMediaServer, _
                 results.length > 0 ? (
                     <div className="space-y-4">
                         <p className="text-secondary">找到 <span className="text-primary font-medium">{results.length}</span> 个相关结果</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                             {results.map((video, idx) => (
                                 <VideoCard
                                     key={`${video.source_id || 'nd'}-${video.vod_id}-${idx}`}

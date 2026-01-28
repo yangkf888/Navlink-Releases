@@ -261,6 +261,8 @@ export interface Settings {
     // 安全设置
     admin_password_enabled: boolean;
     admin_password: string;
+    site_password_enabled: boolean;
+    site_password: string;
 
     // TMDB 设置
     tmdb_api_key: string;

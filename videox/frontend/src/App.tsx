@@ -19,6 +19,7 @@ import { MediaServer } from './pages/MediaServer';
 import { MediaServerPlay } from './pages/MediaServerPlay';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { useAuth } from './contexts/AuthContext';
+import { SitePasswordGuard } from './components/SitePasswordGuard';
 
 // 设置网页标题
 document.title = "VideoX - 视频中心";
@@ -516,175 +517,177 @@ function VideoApp() {
     };
 
     return (
-        <NavigationProvider navigate={navigate}>
-            <Layout
-                sidebarProps={{
-                    sources,
-                    categoriesMap,
-                    selectedSourceId,
-                    onSourceChange: handleSourceChange,
+        <SitePasswordGuard>
+            <NavigationProvider navigate={navigate}>
+                <Layout
+                    sidebarProps={{
+                        sources,
+                        categoriesMap,
+                        selectedSourceId,
+                        onSourceChange: handleSourceChange,
 
-                    tvSources,
-                    selectedTvSourceId,
-                    onTvSourceChange: handleTvSourceChange,
-                    onPlayChannel: handlePlayChannel,
-                    currentChannelUrl: navParams.channelUrl,
-                    tvRefreshKey,
+                        tvSources,
+                        selectedTvSourceId,
+                        onTvSourceChange: handleTvSourceChange,
+                        onPlayChannel: handlePlayChannel,
+                        currentChannelUrl: navParams.channelUrl,
+                        tvRefreshKey,
 
-                    liveSources, // Pass live sources to sidebar
+                        liveSources, // Pass live sources to sidebar
 
-                    netdiskSources, // Pass netdisk sources to sidebar
-                    selectedNetdiskSourceId,
-                    onNetdiskSourceChange: (id: number) => setSelectedNetdiskSourceId(id),
+                        netdiskSources, // Pass netdisk sources to sidebar
+                        selectedNetdiskSourceId,
+                        onNetdiskSourceChange: (id: number) => setSelectedNetdiskSourceId(id),
 
-                    liveStatuses,   // 传递直播状态数据
+                        liveStatuses,   // 传递直播状态数据
 
-                    onNavigate: navigate,
-                    activeView,
-                    navParams,
-                    activeModule,
-                    onModuleChange: handleModuleChange,
+                        onNavigate: navigate,
+                        activeView,
+                        navParams,
+                        activeModule,
+                        onModuleChange: handleModuleChange,
 
-                    mediaServers,
-                    selectedMediaServerId,
-                    onMediaServerChange: handleMediaServerChange,
+                        mediaServers,
+                        selectedMediaServerId,
+                        onMediaServerChange: handleMediaServerChange,
 
-                    theme,
-                    onToggleTheme: toggleTheme,
-                    isAdminPasswordEnabled  // 传递安全设置状态
-                }}
-            >
-                {activeView === 'home' && (
-                    <Home />
-                )}
-                {activeView === 'category' && (
-                    isSourceVisible(navParams.sourceId) ? (
-                        <CategoryPage
-                            sourceId={navParams.sourceId}
-                            categoryId={navParams.categoryId}
-                            categoryName={navParams.categoryName}
-                            subCategories={navParams.subCategories}
-                            onNavigate={navigate}
-                            categories={categoriesMap[selectedSourceId || 0] || []}
-                        />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'source' && selectedSourceId && (
-                    isSourceVisible(selectedSourceId) ? (
-                        <SourceOverview
-                            sourceId={selectedSourceId}
-                            sourceName={sources.find(s => s.id === selectedSourceId)?.name}
-                            categories={categoriesMap[selectedSourceId] || []}
-                            onNavigate={navigate}
-                        />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'play' && navParams.sourceId && navParams.vodId && (
-                    isSourceVisible(navParams.sourceId) ? (
-                        <Play
-                            sourceId={navParams.sourceId}
-                            vodId={navParams.vodId}
-                            onNavigate={navigate}
-                            onGoBack={goBack}
-                        />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'tv_play' && (
-                    <TvPlayer
-                        tvSourceId={navParams.tvSourceId || selectedTvSourceId || undefined}
-                        channelUrl={navParams.channelUrl}
-                        onNavigate={navigate}
-                    />
-                )}
-                {activeView === 'live' && (
-                    <Live platform={navParams.platform} onPlay={(sourceId: number) => navigate('live_play', { liveSourceId: sourceId })} />
-                )}
-                {activeView === 'live_play' && (
-                    <LivePlayer
-                        sourceId={navParams.liveSourceId}
-                        onNavigate={navigate}
-                    />
-                )}
-                {activeView === 'netdisk' && (
-                    isNetdiskVisible(navParams.netdiskSourceId || selectedNetdiskSourceId || undefined) ? (
-                        <Netdisk
-                            sourceId={navParams.netdiskSourceId || selectedNetdiskSourceId || undefined}
-                            selectedPath={navParams.keyword || undefined}
-                            onPlay={(mediaId, sourceId, videoIndex) => {
-                                navigate('netdisk_play', { mediaId, sourceId, videoIndex });
-                            }}
-                        />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'netdisk_play' && navParams.mediaId && navParams.sourceId && (
-                    isNetdiskVisible(navParams.sourceId) ? (
-                        <NetdiskPlayer
-                            mediaId={navParams.mediaId}
-                            sourceId={navParams.sourceId}
-                            initialVideoIndex={navParams.videoIndex}
-                            onNavigate={navigate}
-                            onGoBack={goBack}
-                        />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'search' && (
-                    <Search
-                        initialKeyword={navParams.keyword}
-                        sourceId={navParams.sourceId ?? null}
-                        netdiskPath={navParams.netdiskPath}
-                        isMediaServer={navParams.isMediaServer}
-                        _t={navParams._t}
-                        sources={sources}
-                        onNavigate={navigate}
-                    />
-                )}
-                {activeView === 'media_server' && (
-                    isMediaServerVisible(navParams.mediaServerId || selectedMediaServerId || undefined) ? (
-                        <MediaServer
-                            serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
-                            categoryId={navParams.categoryId}
-                            categoryName={navParams.categoryName}
+                        theme,
+                        onToggleTheme: toggleTheme,
+                        isAdminPasswordEnabled  // 传递安全设置状态
+                    }}
+                >
+                    {activeView === 'home' && (
+                        <Home />
+                    )}
+                    {activeView === 'category' && (
+                        isSourceVisible(navParams.sourceId) ? (
+                            <CategoryPage
+                                sourceId={navParams.sourceId}
+                                categoryId={navParams.categoryId}
+                                categoryName={navParams.categoryName}
+                                subCategories={navParams.subCategories}
+                                onNavigate={navigate}
+                                categories={categoriesMap[selectedSourceId || 0] || []}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'source' && selectedSourceId && (
+                        isSourceVisible(selectedSourceId) ? (
+                            <SourceOverview
+                                sourceId={selectedSourceId}
+                                sourceName={sources.find(s => s.id === selectedSourceId)?.name}
+                                categories={categoriesMap[selectedSourceId] || []}
+                                onNavigate={navigate}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'play' && navParams.sourceId && navParams.vodId && (
+                        isSourceVisible(navParams.sourceId) ? (
+                            <Play
+                                sourceId={navParams.sourceId}
+                                vodId={navParams.vodId}
+                                onNavigate={navigate}
+                                onGoBack={goBack}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'tv_play' && (
+                        <TvPlayer
+                            tvSourceId={navParams.tvSourceId || selectedTvSourceId || undefined}
+                            channelUrl={navParams.channelUrl}
                             onNavigate={navigate}
                         />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'media_server_play' && navParams.mediaServerId && navParams.vodId && (
-                    isMediaServerVisible(navParams.mediaServerId) ? (
-                        <MediaServerPlay
-                            mediaServerId={navParams.mediaServerId}
-                            vodId={navParams.vodId}
-                            title={navParams.title || ''}
-                            streamUrl={navParams.url || ''}
-                            cover={navParams.cover || ''}
-                            onGoBack={goBack}
+                    )}
+                    {activeView === 'live' && (
+                        <Live platform={navParams.platform} onPlay={(sourceId: number) => navigate('live_play', { liveSourceId: sourceId })} />
+                    )}
+                    {activeView === 'live_play' && (
+                        <LivePlayer
+                            sourceId={navParams.liveSourceId}
+                            onNavigate={navigate}
                         />
-                    ) : <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (
-                    <AccessDenied onGoHome={() => navigate('home')} />
-                )}
-                {activeView === 'favorites' && isAuthenticated && (
-                    <Favorites
-                        onNavigate={navigate}
-                        sources={sources}
-                        netdiskSources={netdiskSources}
-                    />
-                )}
-                {activeView === 'history' && isAuthenticated && (
-                    <History
-                        onNavigate={navigate}
-                        sources={sources}
-                        netdiskSources={netdiskSources}
-                    />
-                )}
-                {activeView === 'admin' && isAuthenticated && (
-                    <Admin
-                        onNavigate={navigate}
-                        onSourcesChange={handleSourcesChangeSync}
-                    />
-                )}
-            </Layout>
-        </NavigationProvider>
+                    )}
+                    {activeView === 'netdisk' && (
+                        isNetdiskVisible(navParams.netdiskSourceId || selectedNetdiskSourceId || undefined) ? (
+                            <Netdisk
+                                sourceId={navParams.netdiskSourceId || selectedNetdiskSourceId || undefined}
+                                selectedPath={navParams.keyword || undefined}
+                                onPlay={(mediaId, sourceId, videoIndex) => {
+                                    navigate('netdisk_play', { mediaId, sourceId, videoIndex });
+                                }}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'netdisk_play' && navParams.mediaId && navParams.sourceId && (
+                        isNetdiskVisible(navParams.sourceId) ? (
+                            <NetdiskPlayer
+                                mediaId={navParams.mediaId}
+                                sourceId={navParams.sourceId}
+                                initialVideoIndex={navParams.videoIndex}
+                                onNavigate={navigate}
+                                onGoBack={goBack}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'search' && (
+                        <Search
+                            initialKeyword={navParams.keyword}
+                            sourceId={navParams.sourceId ?? null}
+                            netdiskPath={navParams.netdiskPath}
+                            isMediaServer={navParams.isMediaServer}
+                            _t={navParams._t}
+                            sources={sources}
+                            onNavigate={navigate}
+                        />
+                    )}
+                    {activeView === 'media_server' && (
+                        isMediaServerVisible(navParams.mediaServerId || selectedMediaServerId || undefined) ? (
+                            <MediaServer
+                                serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
+                                categoryId={navParams.categoryId}
+                                categoryName={navParams.categoryName}
+                                onNavigate={navigate}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'media_server_play' && navParams.mediaServerId && navParams.vodId && (
+                        isMediaServerVisible(navParams.mediaServerId) ? (
+                            <MediaServerPlay
+                                mediaServerId={navParams.mediaServerId}
+                                vodId={navParams.vodId}
+                                title={navParams.title || ''}
+                                streamUrl={navParams.url || ''}
+                                cover={navParams.cover || ''}
+                                onGoBack={goBack}
+                            />
+                        ) : <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (
+                        <AccessDenied onGoHome={() => navigate('home')} />
+                    )}
+                    {activeView === 'favorites' && isAuthenticated && (
+                        <Favorites
+                            onNavigate={navigate}
+                            sources={sources}
+                            netdiskSources={netdiskSources}
+                        />
+                    )}
+                    {activeView === 'history' && isAuthenticated && (
+                        <History
+                            onNavigate={navigate}
+                            sources={sources}
+                            netdiskSources={netdiskSources}
+                        />
+                    )}
+                    {activeView === 'admin' && isAuthenticated && (
+                        <Admin
+                            onNavigate={navigate}
+                            onSourcesChange={handleSourcesChangeSync}
+                        />
+                    )}
+                </Layout>
+            </NavigationProvider>
+        </SitePasswordGuard>
     );
 }
 

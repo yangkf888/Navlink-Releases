@@ -243,6 +243,8 @@ function VideoApp() {
         } else if (module === 'media_server') {
             // 影视库模块：由 Effect 统一处理自动跳转
             setActiveView('media_server');
+            // 🚀 修复补丁：清理可能存在的资源站分类参数，防止影视库页面显示错误标题和内容
+            setNavParams({});
         } else {
             // 预留模块：显示占位页面
             setActiveView('home'); // 临时使用 home 视图
@@ -362,7 +364,10 @@ function VideoApp() {
 
             // 处理影视库服务器
             if (mediaServersRes && mediaServersRes.success && mediaServersRes.data) {
-                const enabledServers = mediaServersRes.data.filter((s: any) => s.enabled);
+                // 如果开启了密码保护且未登录，则过滤掉隐藏的服务器
+                const enabledServers = mediaServersRes.data.filter((s: any) =>
+                    s.enabled && (isAuthenticated || !isAdminPasswordEnabled || !s.hidden)
+                );
                 setMediaServers(enabledServers);
 
                 if (selectedMediaServerId && !enabledServers.some((s: any) => s.id === selectedMediaServerId)) {
@@ -544,6 +549,12 @@ function VideoApp() {
         return netdiskSources.some(s => s.id === id);
     };
 
+    // 辅助函数：影视库服务器可见性
+    const isMediaServerVisible = (id?: number) => {
+        if (!id) return true;
+        return mediaServers.some(s => s.id === id);
+    };
+
     return (
         <NavigationProvider navigate={navigate}>
             <Layout
@@ -668,22 +679,26 @@ function VideoApp() {
                     />
                 )}
                 {activeView === 'media_server' && (
-                    <MediaServer
-                        serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
-                        categoryId={navParams.categoryId}
-                        categoryName={navParams.categoryName}
-                        onNavigate={navigate}
-                    />
+                    isMediaServerVisible(navParams.mediaServerId || selectedMediaServerId || undefined) ? (
+                        <MediaServer
+                            serverId={navParams.mediaServerId || selectedMediaServerId || undefined}
+                            categoryId={navParams.categoryId}
+                            categoryName={navParams.categoryName}
+                            onNavigate={navigate}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {activeView === 'media_server_play' && navParams.mediaServerId && navParams.vodId && (
-                    <MediaServerPlay
-                        mediaServerId={navParams.mediaServerId}
-                        vodId={navParams.vodId}
-                        title={navParams.title || ''}
-                        streamUrl={navParams.url || ''}
-                        cover={navParams.cover || ''}
-                        onGoBack={goBack}
-                    />
+                    isMediaServerVisible(navParams.mediaServerId) ? (
+                        <MediaServerPlay
+                            mediaServerId={navParams.mediaServerId}
+                            vodId={navParams.vodId}
+                            title={navParams.title || ''}
+                            streamUrl={navParams.url || ''}
+                            cover={navParams.cover || ''}
+                            onGoBack={goBack}
+                        />
+                    ) : <AccessDenied onGoHome={() => navigate('home')} />
                 )}
                 {(activeView === 'favorites' || activeView === 'history' || activeView === 'admin') && !isAuthenticated && (
                     <AccessDenied onGoHome={() => navigate('home')} />

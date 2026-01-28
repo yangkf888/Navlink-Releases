@@ -123,8 +123,8 @@ export function Admin({ onNavigate: _onNavigate, onSourcesChange }: AdminProps) 
                             onChange={e => setPassword(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="管理密码"
-                            className="w-full px-5 py-4 bg-white/5 text-primary rounded-2xl border border-border-color 
-                                     focus:border-blue-500/50 focus:bg-white/10 focus:outline-none text-center transition-all placeholder:opacity-30"
+                            className="w-full px-5 py-4 bg-white/10 text-white rounded-2xl border border-border-color 
+                                     focus:border-blue-500 focus:bg-white/20 focus:outline-none text-center transition-all placeholder:text-white/20"
                             autoFocus
                         />
 

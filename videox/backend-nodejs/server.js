@@ -17,7 +17,7 @@ async function startServer() {
         console.log('[videox] Initializing standalone backend...');
 
         // 初始化数据库
-        initDatabase();
+        const db = initDatabase();
 
         // 启动后台扫描服务
         try {
@@ -65,6 +65,43 @@ async function startServer() {
         app.use('/api/netdisk', require('./routes/netdisk'));
         app.use('/api/transcode', require('./routes/transcode'));
         app.use('/api/media-servers', require('./routes/media-servers'));
+
+        // 全站访问密码中间件
+        app.use(async (req, res, next) => {
+            // 排除健康检查等公开接口
+            if (req.path === '/api/health' || req.path === '/api/settings/verify-site-password') {
+                return next();
+            }
+
+            try {
+                const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'site_password_enabled'");
+                const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'site_password'");
+
+                // 兼容字符串和布尔值
+                const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
+
+                if (!isPasswordEnabled) {
+                    return next();
+                }
+
+                const sitePassword = req.headers['x-site-password'];
+                const storedPassword = passwordSetting?.value || '';
+
+                if (sitePassword === storedPassword) {
+                    return next();
+                }
+
+                console.warn(`[SiteGuard] Blocked request to ${req.path}. Password mismatch.`);
+                return res.status(401).json({
+                    success: false,
+                    error: 'SITE_LOCKED',
+                    message: '站点已锁定，请输入访问密码'
+                });
+            } catch (err) {
+                console.error('[videox] Site password middleware error:', err);
+                next();
+            }
+        });
 
         const PORT = 3100;
         app.listen(PORT, '0.0.0.0', () => {

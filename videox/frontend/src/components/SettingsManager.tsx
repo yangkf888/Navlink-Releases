@@ -345,6 +345,38 @@ export function SettingsManager({ onSettingsChange }: SettingsManagerProps) {
                         </div>
                     )}
                 </div>
+
+                <div className="h-px bg-border-color my-6"></div>
+
+                <p className="text-secondary text-sm mb-4">
+                    全站访问密码：开启后访问任何组件（包括主页）都需要输入密码（通常用于外网公开部署）
+                </p>
+
+                <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={settings.site_password_enabled || false}
+                            onChange={e => setSettings(prev => ({ ...prev, site_password_enabled: e.target.checked }))}
+                            className="w-5 h-5 rounded"
+                        />
+                        <span className="text-primary">启用全站访问密码</span>
+                    </label>
+
+                    {settings.site_password_enabled && (
+                        <div className="max-w-md">
+                            <label className="block text-secondary text-sm mb-2">设置全站密码</label>
+                            <input
+                                type="password"
+                                value={settings.site_password || ''}
+                                onChange={e => setSettings(prev => ({ ...prev, site_password: e.target.value }))}
+                                placeholder="输入全站访问密码"
+                                className="w-full px-4 py-2 bg-secondary text-primary rounded-lg border border-border-color 
+                                         focus:border-blue-500 focus:outline-none"
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* TMDB API 设置 */}

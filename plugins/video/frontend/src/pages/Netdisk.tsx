@@ -808,8 +808,8 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className="space-y-4">
                         <div className="h-6 bg-secondary rounded w-32"></div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
-                            {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 6)].map((_, j) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5">
+                            {[...Array(currentLevel === 'source' ? INITIAL_COUNT + 1 : 16)].map((_, j) => (
                                 <div key={j} className="aspect-[2/3] bg-secondary rounded-lg"></div>
                             ))}
                         </div>
@@ -930,7 +930,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                             <p>未发现以此维度聚合的内容</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-6 sm:gap-8 lg:gap-10">
                             {groupedData.map(group => renderCollectionCard(group))}
                         </div>
                     )
@@ -1072,7 +1072,7 @@ export function Netdisk({ sourceId, selectedPath, onPlay }: NetdiskProps) {
                                     style={{ height: 'calc(100vh - 200px)' }}
                                     totalCount={media.length}
                                     overscan={200}
-                                    listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
+                                    listClassName="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4 lg:gap-5"
                                     itemContent={(index) => renderMediaCard(media[index])}
                                     endReached={() => {
                                         if (hasMore && !loadingMore) {

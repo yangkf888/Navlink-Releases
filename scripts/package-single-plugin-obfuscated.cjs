@@ -36,6 +36,8 @@ const OBFUSCATE_IGNORE = [
     'websocket.js',        // 新增：VPS 终端和 SFTP 稳定对混淆敏感
     'vpsService.js',       // 新增：VPS 系统监控解析对混淆敏感
     'TvService.js',        // 新增：TV 订阅源抓取和 M3U 解析对混淆敏感
+    'TranscodeService.js',  // 新增：视频转码 spawn 调用和 HLS 分片逻辑对混淆敏感
+    'media-server-service.js', // 新增：Emby/Jellyfin API 动态参数和 Headers 构造对混淆敏感
     'obfuscate.js'        // 自身
 ];
 

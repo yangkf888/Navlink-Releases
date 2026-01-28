@@ -144,6 +144,38 @@ router.post('/verify-password', (req, res) => {
 });
 
 /**
+ * 验证全站访问密码
+ * POST /api/settings/verify-site-password
+ */
+router.post('/verify-site-password', (req, res) => {
+    try {
+        const { password } = req.body;
+        const db = getDatabase();
+
+        const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'site_password_enabled'");
+        const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'site_password'");
+
+        // 兼容字符串和布尔值
+        const isEnabled = String(enabledSetting?.value) === 'true';
+        const storedPassword = passwordSetting?.value || '';
+
+        console.log(`[Settings] Verifying site password. Enabled (Boolean): ${isEnabled}, Raw: ${enabledSetting?.value}`);
+
+        if (!isEnabled) {
+            return res.json({ success: true, valid: true });
+        }
+
+        const valid = password === storedPassword;
+        console.log(`[Settings] Verification: Submitted [${password}], Stored [${storedPassword}], Match: ${valid}`);
+        console.log(`[Settings] Site password result: ${valid ? 'SUCCESS' : 'FAILURE'}`);
+        res.json({ success: true, valid });
+    } catch (error) {
+        console.error('[settings] Failed to verify site password:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * 测试 TMDB API 连接
  * POST /api/settings/test-tmdb
  */

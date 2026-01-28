@@ -41,6 +41,7 @@ export async function apiRequest<T>(
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(adminPassword ? { 'X-Admin-Password': adminPassword } : {}),
+            ...(localStorage.getItem('videox_site_password') ? { 'X-Site-Password': localStorage.getItem('videox_site_password')! } : {}), // Added X-Site-Password
             ...options.headers
         };
 
@@ -50,8 +51,19 @@ export async function apiRequest<T>(
         });
 
         if (!response.ok) {
-            // 如果是 401 Unauthorized，说明 Token 过期或无效
+            // 如果是 401 Unauthorized
             if (response.status === 401) {
+                // 尝试解析错误信息，如果是 SITE_LOCKED，不触发登出重定向，交给调用方处理
+                try {
+                    const errorClone = response.clone();
+                    const errorData = await errorClone.json();
+                    if (errorData.error === 'SITE_LOCKED') {
+                        return errorData;
+                    }
+                } catch {
+                    // 解析失败则继续走默认 401 逻辑
+                }
+
                 console.warn('[API] Auth token expired or invalid. Redirecting to login...');
 
                 // 清除本地存储的登录相关信息

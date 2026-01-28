@@ -129,11 +129,16 @@ router.get('/search', async (req, res) => {
             // 逻辑：如果是全局搜索(!source_id && !isAllMediaServers)，或者显式搜索影视库
             if ((!source_id && !isAllMediaServers) || isSpecificMediaServer || isAllMediaServers) {
                 try {
-                    let mediaServers = [];
                     if (isSpecificMediaServer) {
                         mediaServers = await db.all('SELECT * FROM media_servers WHERE id = ? AND enabled = 1', [source_id]);
                     } else {
                         mediaServers = await db.all('SELECT * FROM media_servers WHERE enabled = 1');
+                    }
+
+                    // 权限检查：如果不是管理员，过滤掉隐藏的影视库
+                    const authorized = isAuthorized(req, db);
+                    if (!authorized) {
+                        mediaServers = mediaServers.filter(ms => !ms.hidden);
                     }
 
                     if (mediaServers.length > 0) {
@@ -328,6 +333,19 @@ router.get('/banner', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// 辅助函数：检查是否已授权（管理员）
+function isAuthorized(req, db) {
+    const adminPassword = req.headers['x-admin-password'];
+    const enabledSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password_enabled'");
+    const passwordSetting = db.get("SELECT value FROM settings WHERE key = 'admin_password'");
+
+    const isPasswordEnabled = enabledSetting?.value === 'true' || enabledSetting?.value === true;
+    if (!isPasswordEnabled) return true;
+
+    const storedPassword = passwordSetting?.value || '';
+    return adminPassword === storedPassword;
+}
 
 /**
  * 获取视频详情

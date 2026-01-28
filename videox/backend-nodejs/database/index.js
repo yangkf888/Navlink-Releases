@@ -566,6 +566,8 @@ function insertDefaultSettings(db) {
         // 安全设置
         ['admin_password_enabled', 'false'],
         ['admin_password', ''],
+        ['site_password_enabled', 'false'],
+        ['site_password', ''],
 
         // TMDB 设置
         ['tmdb_api_key', ''],

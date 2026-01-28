@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { apiGet } from '../utils/api';
 import { useAppNavigate } from '../contexts/NavigationContext';
 
@@ -42,12 +43,11 @@ interface HomeSection {
  * 🎬 Emby 首页动态视图组件
  * 核心：不再死板，Emby 首页有什么板块，这里同步拉取并展示什么板块
  */
-function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPlay: (item: any) => void, onNavigate: (view: string, params?: any) => void }) {
+function MediaServerHomeView({ server, onPlay, onNavigate, theme: _theme }: { server: any, onPlay: (item: any) => void, onNavigate: (view: string, params?: any) => void, theme?: string }) {
     const [resumeItems, setResumeItems] = useState<MediaItem[]>([]);
     const [sections, setSections] = useState<HomeSection[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // 🎨 引用与状态控制：用于横向滚动
     const resumeScrollRef = useRef<HTMLDivElement>(null);
     const sectionsScrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const [scrollStates, setScrollStates] = useState<{ [key: string]: number }>({ resume: 0 });
@@ -251,7 +251,7 @@ function MediaServerHomeView({ server, onPlay, onNavigate }: { server: any, onPl
     );
 }
 
-export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark' }: MediaServerProps) {
+export function MediaServer({ serverId, categoryId, categoryName }: MediaServerProps) {
     const onNavigate = useAppNavigate();
 
     console.info(`[MediaServer] Active. Server: ${serverId}, Library: ${categoryId}`);
@@ -271,6 +271,9 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
 
     // 二级视图状态
     const [subView, setSubView] = useState<{ type: 'genre' | 'tag' | 'boxset' | 'folder', id: string, name: string } | null>(null);
+
+    // 📱 移动端抽屉控制
+    const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
     // 当切换主 Tab 或库时，重置二级视图
     useEffect(() => {
@@ -506,7 +509,7 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
 
     const renderPosterCard = (item: MediaItem) => (
         <div key={item.Id} className="group relative cursor-pointer" onClick={() => handlePlay(item)}>
-            <div className={`aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/5 group-hover:border-blue-500/50 transition-all active:scale-95 ${theme === 'dark' ? 'shadow-xl' : 'shadow-md border-gray-100'}`}>
+            <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-border-color group-hover:border-blue-500/50 transition-all active:scale-95 shadow-md">
                 {/* 处理不同类型的内容展示 */}
                 {(activeTab === 'genres' || activeTab === 'tags') && !subView && !item.ImageTags?.Primary ? (
                     // 标签/类型卡片
@@ -590,7 +593,7 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
         if (items.length === 0) return renderEmptyState();
 
         return viewType === 'poster' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-x-4 gap-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-x-4 gap-y-6">
                 {items.map(item => renderPosterCard(item))}
             </div>
         ) : (
@@ -622,8 +625,8 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                             </h2>
                         </div>
 
-                        {/* 2. 中间：Tabs (改为胶囊样式跟随标题) */}
-                        <div className="flex-1 flex items-center gap-1 overflow-x-auto hide-scrollbar">
+                        {/* 2. 中间：Tabs (桌面端显示胶囊样式，移动端隐藏) */}
+                        <div className="flex-1 hidden md:flex items-center gap-1 overflow-x-auto hide-scrollbar">
                             {tabs.map(tab => (
                                 <button
                                     key={tab.id}
@@ -641,14 +644,24 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                             ))}
                         </div>
 
+
+                        {/* 移动端筛选按钮 - 移出条件块，确保始终显示 */}
+                        <button
+                            onClick={() => setShowMobileDrawer(true)}
+                            className="md:hidden h-8 px-3 rounded-lg flex items-center gap-2 text-xs transition-all shadow-sm active:scale-95 bg-secondary border border-border-color text-primary"
+                        >
+                            <i className="fas fa-sliders-h text-blue-500 text-[10px]"></i>
+                            <span className="font-bold">{tabs.find(t => t.id === activeTab)?.label || '筛选'}</span>
+                        </button>
+
                         {/* 3. 右侧：排序 & 视图 (条件显示) */}
                         {(subView || ['items', 'collections', 'favorites'].includes(activeTab)) && (
                             <div className="flex items-center gap-2 flex-shrink-0">
-                                {/* 排序菜单 */}
-                                <div className="relative">
+                                {/* 排序菜单 (桌面端显示) */}
+                                <div className="relative hidden md:block">
                                     <button
                                         onClick={() => setShowSortMenu(!showSortMenu)}
-                                        className={`h-8 px-3 rounded-lg flex items-center gap-2 text-xs text-secondary transition-all shadow-sm active:scale-95 ${theme === 'dark' ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-gray-100 hover:bg-gray-50'}`}
+                                        className="h-8 px-3 rounded-lg flex items-center gap-2 text-xs transition-all shadow-sm active:scale-95 bg-secondary border border-border-color text-primary hover:opacity-80"
                                     >
                                         <i className="fas fa-filter text-blue-500 text-[10px]"></i>
                                         <span className="max-w-[60px] truncate font-bold">{sortOptions.find(o => o.value === sortBy)?.label || '排序'}</span>
@@ -658,15 +671,18 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                                     {showSortMenu && (
                                         <>
                                             <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)}></div>
-                                            <div className={`
-                                            absolute z-50 right-0 top-full mt-2 w-48 rounded-xl shadow-2xl overflow-hidden
-                                            ${theme === 'dark' ? 'bg-[#1a1a1a] border border-white/10' : 'bg-white border border-gray-100'}
-                                        `}>
+                                            <div
+                                                className="absolute z-50 right-0 top-full mt-2 w-48 rounded-xl shadow-2xl overflow-hidden border border-border-color bg-secondary"
+                                                style={{ backgroundColor: 'var(--bg-secondary)' }}
+                                            >
                                                 <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
                                                     {sortOptions.map(opt => (
                                                         <button
                                                             key={opt.value}
-                                                            className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all flex items-center justify-between group ${sortBy === opt.value ? 'bg-blue-500/10 text-blue-500' : 'text-secondary hover:bg-white/5'}`}
+                                                            className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all flex items-center justify-between group 
+                                                                ${sortBy === opt.value
+                                                                    ? 'bg-blue-500/10 text-blue-500'
+                                                                    : 'text-secondary hover:bg-primary/5'}`}
                                                             onClick={() => {
                                                                 setSortBy(opt.value);
                                                                 setShowSortMenu(false);
@@ -677,9 +693,9 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                                                         </button>
                                                     ))}
                                                 </div>
-                                                <div className="p-2 border-t border-white/5">
+                                                <div className="p-2 border-t border-border-color">
                                                     <button
-                                                        className="w-full h-8 flex items-center justify-center gap-2 text-xs rounded-lg hover:bg-white/5 text-secondary"
+                                                        className="w-full h-8 flex items-center justify-center gap-2 text-xs rounded-lg transition-colors hover:bg-primary/5 text-secondary"
                                                         onClick={() => setSortOrder(sortOrder === 'Ascending' ? 'Descending' : 'Ascending')}
                                                     >
                                                         <i className={`fas ${sortOrder === 'Ascending' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up'}`}></i>
@@ -691,8 +707,10 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                                     )}
                                 </div>
 
-                                {/* 视图切换 */}
-                                <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
+                                {/* 排序菜单保留 */}
+
+                                {/* 视图切换 (桌面端显示) */}
+                                <div className="hidden md:flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
                                     <button
                                         className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${viewType === 'poster' ? 'bg-blue-500 text-white' : 'text-secondary hover:text-primary'}`}
                                         onClick={() => setViewType('poster')}
@@ -709,6 +727,115 @@ export function MediaServer({ serverId, categoryId, categoryName, theme = 'dark'
                             </div>
                         )}
                     </div>
+
+                    {/* 📱 移动端底部抽屉 Portal */}
+                    {showMobileDrawer && createPortal(
+                        <div className="fixed inset-0 z-[100]" onClick={() => setShowMobileDrawer(false)}>
+                            {/* 遮罩 */}
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+
+                            {/* 抽屉内容 */}
+                            <div
+                                className="absolute bottom-0 left-0 right-0 bg-secondary rounded-t-3xl max-h-[70vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-full duration-300"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                {/* 头部装饰条 */}
+                                <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-3 mb-1"></div>
+
+                                {/* 标题 */}
+                                <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+                                    <h3 className="text-lg font-black text-primary">选择视图</h3>
+                                    <button
+                                        onClick={() => setShowMobileDrawer(false)}
+                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-secondary"
+                                    >
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+
+                                {/* 列表区域 */}
+                                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-8">
+                                    {/* 1. 浏览板块 (调整到最前，并改为紧凑按钮) */}
+                                    <section>
+                                        <h4 className="px-2 mb-3 text-[10px] font-black uppercase tracking-widest text-secondary opacity-50 flex items-center gap-2">
+                                            <i className="fas fa-th-list"></i>
+                                            浏览板块
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {tabs.map(tab => (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => {
+                                                        setActiveTab(tab.id);
+                                                        setShowMobileDrawer(false);
+                                                    }}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-2 ${activeTab === tab.id
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                        : 'bg-white/5 border-white/5 text-primary active:scale-95'
+                                                        }`}
+                                                >
+                                                    <i className={`fas ${tab.id === 'items' ? 'fa-video' :
+                                                        tab.id === 'collections' ? 'fa-layer-group' :
+                                                            tab.id === 'genres' ? 'fa-tags' :
+                                                                tab.id === 'tags' ? 'fa-hashtag' : 'fa-star'
+                                                        } text-[10px]`}></i>
+                                                    <span>{tab.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </section>
+
+                                    {/* 2. 排序区块 */}
+                                    <section>
+                                        <h4 className="px-2 mb-3 text-[10px] font-black uppercase tracking-widest text-secondary opacity-50 flex items-center gap-2">
+                                            <i className="fas fa-sort-amount-down-alt"></i>
+                                            排序设置
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {sortOptions.map(opt => (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => setSortBy(opt.value)}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${sortBy === opt.value
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                        : 'bg-white/5 border-white/5 text-primary active:scale-95'
+                                                        }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            <button
+                                                onClick={() => setSortOrder('Ascending')}
+                                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border transition-all ${sortOrder === 'Ascending'
+                                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                                    : 'bg-white/5 border-white/5 text-secondary'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-sort-alpha-down"></i>
+                                                升序
+                                            </button>
+                                            <button
+                                                onClick={() => setSortOrder('Descending')}
+                                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border transition-all ${sortOrder === 'Descending'
+                                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                                    : 'bg-white/5 border-white/5 text-secondary'
+                                                    }`}
+                                            >
+                                                <i className="fas fa-sort-alpha-up"></i>
+                                                降序
+                                            </button>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                {/* 安全区填充 */}
+                                <div className="h-8"></div>
+                            </div>
+                        </div>,
+                        document.body
+                    )}
 
                     {renderContent()}
                 </>

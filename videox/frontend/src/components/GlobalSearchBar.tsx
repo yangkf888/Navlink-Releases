@@ -69,7 +69,7 @@ function PasswordModal({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose:
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="管理密码"
-                            className="w-full px-4 py-3 bg-tertiary text-primary rounded-xl border border-border-color focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono tracking-wider transition-all placeholder:text-secondary/50"
+                            className="w-full px-4 py-3 bg-white text-black rounded-xl border border-border-color focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono tracking-wider transition-all placeholder:text-gray-400"
                             autoFocus
                         />
                         {error && (
