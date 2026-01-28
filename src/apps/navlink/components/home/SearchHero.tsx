@@ -61,6 +61,7 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [hasUserInteracted, setHasUserInteracted] = useState(false); // 标记用户是否已开始输入
+    const [isComposing, setIsComposing] = useState(false); // 中文输入法组合状态
     const searchRef = useRef<HTMLDivElement>(null);
 
     const activeEngine = config.searchEngines?.find(e => e.id === activeEngineId) || (config.searchEngines && config.searchEngines[0]);
@@ -229,6 +230,9 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
 
     // 键盘导航
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        // 中文输入法组合期间忽略回车键（防止输入法确认被误触发为搜索）
+        if (isComposing) return;
+
         const totalItems = historyResults.length + searchResults.length;
 
         if (e.key === 'ArrowDown') {
@@ -341,6 +345,8 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                                 setShowDropdown(true);
                             }
                         }}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={() => setIsComposing(false)}
                         className="w-full h-[54px] pl-6 pr-32 rounded-xl bg-white text-gray-700 outline-none shadow-2xl focus:ring-4 focus:ring-white/30 transition-all"
                     />
                     {/* 搜索按钮 */}
