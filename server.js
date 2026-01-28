@@ -534,9 +534,19 @@ import siteConfigDAO from './server/database/dao/SiteConfigDAO.js';
  *               type: object
  */
 // 获取配置 - 添加缓存 (缩短为 60s 以提高同步灵敏度)
+// 🛡️ 安全修复：过滤掉敏感的 AI API Key，防止泄漏
 app.get('/api/config', cacheMiddleware({ ttl: 60, keyPrefix: 'config:' }), async (req, res) => {
     try {
         const configData = await siteConfigDAO.getConfig();
+        if (configData) {
+            // 🔑 过滤敏感信息：移除 AI 配置中的 apiKey
+            if (configData.aiConfig && Array.isArray(configData.aiConfig.providers)) {
+                configData.aiConfig.providers = configData.aiConfig.providers.map(provider => {
+                    const { apiKey, ...safeProvider } = provider;
+                    return safeProvider;
+                });
+            }
+        }
         res.json(configData || {});
     } catch (error) {
         serverLogger.error('Failed to get config:', error);
@@ -545,12 +555,33 @@ app.get('/api/config', cacheMiddleware({ ttl: 60, keyPrefix: 'config:' }), async
 });
 
 // 保存配置 - 失效缓存
+// 🛡️ 安全修复：保存时保留原有的 AI API Key（因为返回给前端的配置中 apiKey 已被过滤）
 app.post('/api/config', authenticateToken, requireAdmin, invalidateCacheMiddleware(['config:*']), async (req, res) => {
     try {
-        const success = await siteConfigDAO.save(req.body);
+        const newConfig = req.body;
+
+        // 🔑 关键修复：从数据库读取现有配置，保留 AI API Key
+        if (newConfig.aiConfig && Array.isArray(newConfig.aiConfig.providers)) {
+            const existingConfig = await siteConfigDAO.getConfig();
+            const existingProviders = existingConfig?.aiConfig?.providers || [];
+
+            // 为每个 provider 补回缺失的 apiKey
+            newConfig.aiConfig.providers = newConfig.aiConfig.providers.map(provider => {
+                // 如果新配置中没有 apiKey，尝试从现有配置中恢复
+                if (!provider.apiKey) {
+                    const existingProvider = existingProviders.find(p => p.id === provider.id);
+                    if (existingProvider && existingProvider.apiKey) {
+                        return { ...provider, apiKey: existingProvider.apiKey };
+                    }
+                }
+                return provider;
+            });
+        }
+
+        const success = await siteConfigDAO.save(newConfig);
         if (success) {
             // 🎉 触发后台同步以更新 SQL 表（items, categories 等）
-            syncService.syncConfigToSQL(req.body).catch(err => {
+            syncService.syncConfigToSQL(newConfig).catch(err => {
                 console.error('[Sync] Background sync failed:', err);
             });
             res.json({ success: true });

@@ -103,13 +103,18 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                 return;
             }
 
-            // 构造请求
-            const baseUrl = provider.baseUrl || 'https://api.openai.com/v1';
-            const apiUrl = `${baseUrl}/chat/completions`;
+            // ⚠️ 安全修复：使用后端代理，避免 API Key 在前端暴露
+            const apiUrl = '/api/ai/chat';
+            const token = localStorage.getItem('auth_token');
+
+            if (!token) {
+                throw new Error('请先登录后再使用 AI 功能');
+            }
 
             // 使用配置的模型
             let modelName = provider.model;
             if (!modelName) {
+                const baseUrl = provider.baseUrl || '';
                 if (baseUrl.includes('deepseek')) {
                     modelName = 'deepseek-chat';
                 } else {
@@ -131,14 +136,15 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                 ],
                 temperature: 0.7,
                 max_tokens: 2000,
-                stream: true  // 🔥 启用流式输出
+                stream: true,
+                providerId: provider.id  // 传给后端以识别使用哪个 provider
             };
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${provider.apiKey}`
+                    'Authorization': `Bearer ${token}`  // 使用系统 Token 过后端鉴权
                 },
                 body: JSON.stringify(requestBody)
             });
@@ -283,8 +289,8 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                                                     setShowProviderMenu(false);
                                                 }}
                                                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${(selectedProviderId === provider.id || (!selectedProviderId && config.aiConfig?.defaultProvider === provider.id))
-                                                        ? 'bg-blue-50 text-blue-600'
-                                                        : 'text-gray-700 hover:bg-gray-50'
+                                                    ? 'bg-blue-50 text-blue-600'
+                                                    : 'text-gray-700 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between">
@@ -342,8 +348,8 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                                         >
                                             <div
                                                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user'
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'bg-white text-gray-900 border border-gray-200'
+                                                    ? 'bg-blue-500 text-white'
+                                                    : 'bg-white text-gray-900 border border-gray-200'
                                                     }`}
                                             >
                                                 <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
