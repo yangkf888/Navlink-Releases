@@ -59,3 +59,11 @@ data/transcode_cache/
 data/transcode/
 plugins/video/data/transcode_cache/
 videox/backend-build/
+
+# VideoX 运行时文件
+videox/backend-nodejs/data/*.db-shm
+videox/backend-nodejs/data/*.db-wal
+videox/backend-nodejs/data/.!*!*
+videox/backend-nodejs/backend.log
+videox/frontend/frontend.log
+videox/*.pid
