@@ -9,6 +9,7 @@ build/
 
 # IDE 与 AI 工具
 .agent/
+.shared/
 .vscode/
 .idea/
 *.swp
