@@ -5,6 +5,7 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import AdmZip from 'adm-zip';
 import { licenseService } from './LicenseService.js';
+import config from '../config/env.js';
 
 /**
  * 插件市场服务
@@ -16,8 +17,7 @@ export class PluginMarketService {
         this.pluginManager = pluginManager;
 
         // 插件仓库配置 (GitHub或自定义服务器)
-        this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
-            'https://auth.webxx.top/api/registry.json';
+        this.registryUrl = config.services.pluginRegistry;
 
         // 本地缓存
         this.cachedRegistry = null;

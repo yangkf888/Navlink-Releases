@@ -2,6 +2,7 @@ import https from 'https';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import config from '../config/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,15 +14,13 @@ const __dirname = path.dirname(__filename);
 export class UpdateService {
     constructor() {
         // GitHub 仓库配置
-        this.owner = 'txwebroot';
-        this.repo = 'Navlink-Releases';
-        // 检查更新的 URL (指向公共发布仓库)
-        this.latestReleaseUrl = 'https://api.github.com/repos/txwebroot/Navlink-Releases/releases/latest';
-        this.githubApiBase = 'https://api.github.com';
+        this.owner = config.services.update.owner;
+        this.repo = config.services.update.repo;
+        this.githubApiBase = config.services.update.apiBase;
 
         // Docker 镜像配置
-        this.imageRegistry = 'ghcr.io';
-        this.imageName = `${this.imageRegistry}/${this.owner.toLowerCase()}/navlink-releases`;
+        this.imageRegistry = config.services.update.imageRegistry;
+        this.imageName = `${this.imageRegistry}/${this.owner.toLowerCase()}/${this.repo.toLowerCase()}`;
 
         // 缓存配置
         this.cachedRelease = null;

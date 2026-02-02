@@ -1,43 +1,83 @@
 services:
-  navlink2:
-    container_name: navlink2-app
-    build: .
+  navlink:
+    # 使用 GitHub Container Registry 镜像 (公共发布版)
+    image: ghcr.io/txwebroot/navlink-releases:latest
+    container_name: navlink-app
+    hostname: navlink-app #固定hostname,防止在线升级指纹变化需要重新激活
     restart: unless-stopped
-    # 加载 .env 文件中的环境变量（包括 PLUGIN_REGISTRY_URL 等）
+
+    # 加载 .env 文件中的环境变量
     env_file:
       - .env
+
     ports:
-      - "3001:3001"
+      - "8000:${PORT}"
+
     environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-please-change-in-production}
-      - SESSION_SECRET=${SESSION_SECRET:-your-super-secret-session-key-please-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your-32-character-encryption-key}
-      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
-      # 应用商城 GitHub Token（访问私有仓库）
-      # 如果您的插件仓库是公开的，可以删除此行
-      - PLUGIN_REGISTRY_TOKEN=${PLUGIN_REGISTRY_TOKEN:-}
+      # 核心配置
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+
+      # 外部服务地址
+      AUTH_SERVER_URL: ${AUTH_SERVER_URL}
+      PLUGIN_REGISTRY_URL: ${PLUGIN_REGISTRY_URL}
+      UPDATE_OWNER: ${UPDATE_OWNER}
+      UPDATE_REPO: ${UPDATE_REPO}
+      SKIP_LICENSE: ${SKIP_LICENSE}
+
+      # 安全密钥
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # 默认管理员账号
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+
       # Redis Configuration
-      - REDIS_ENABLED=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      REDIS_ENABLED: ${REDIS_ENABLED}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+
+      # Backup Configuration
+      BACKUP_ENABLED: ${BACKUP_ENABLED}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+      BACKUP_PATH: ${BACKUP_PATH}
+
     volumes:
-      # 使用相对路径 - 数据存储在当前目录（navlink2卷）
+      # 持久化数据存储在当前目录
       - ./data:/app/data
       - ./plugins:/app/plugins
       - ./logs:/app/logs
       # Docker socket挂载 - 允许Docker插件管理宿主机Docker
-      # ⚠️ 安全警告：这会给容器完全的Docker控制权限
       - /var/run/docker.sock:/var/run/docker.sock
 
   redis:
     image: redis:alpine
     container_name: navlink-redis
     restart: unless-stopped
+    command: redis-server --loglevel warning
     volumes:
-      - redis_data:/data
-
-volumes:
-  redis_data:
+      - ./redis_data:/data
+    # ========================================
+    # 部署说明
+    # ========================================
+    #
+    # 1. 拉取镜像 (公共镜像无需登录)：
+    #    docker-compose pull
+    #
+    # 3. 启动服务：
+    #    docker-compose up -d
+    #
+    # 4. 访问应用：
+    #    http://localhost:3001
+    #
+    # 5. 默认账号：
+    #    用户名: admin
+    #    密码: admin123
+    #
+    # ⚠️ 安全提示：
+    # - 首次登录后请立即修改管理员密码
+    # - 建议在生产环境中修改 .env 中的 JWT_SECRET 等密钥

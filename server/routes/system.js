@@ -3,6 +3,7 @@ import { updateService } from '../services/UpdateService.js';
 import { upgradeService } from '../services/UpgradeService.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { licenseService } from '../services/LicenseService.js';
+import config from '../config/env.js';
 
 const router = express.Router();
 
@@ -323,7 +324,7 @@ router.post('/license/activate', async (req, res) => {
             throw new Error('请输入激活码和邮箱');
         }
 
-        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || config.services.auth;
         const result = await licenseService.activate(code, email, serverUrl);
         res.json(result);
     } catch (error) {
@@ -348,7 +349,7 @@ router.post('/license/request-migrate', authenticateToken, requireAdmin, async (
             throw new Error('请输入邮箱');
         }
 
-        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || config.services.auth;
         const result = await licenseService.requestNewCode(email, serverUrl);
         res.json(result);
     } catch (error) {
@@ -396,7 +397,7 @@ router.post('/license/recover', async (req, res) => {
             throw new Error('请输入邮箱');
         }
 
-        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || 'https://auth.webxx.top';
+        const serverUrl = navmanageUrl || process.env.NAVMANAGE_URL || config.services.auth;
 
         // 调用 navmanage 的 recover API
         const response = await fetch(`${serverUrl}/api/activation/recover`, {

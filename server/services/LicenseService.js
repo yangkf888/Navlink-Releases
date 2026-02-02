@@ -6,6 +6,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { fingerprintService } from './FingerprintService.js';
+import config from '../config/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,16 +74,14 @@ class LicenseService {
      */
     checkLicense() {
         try {
-            const db = this.getDb();
-            const license = db.prepare('SELECT * FROM license_auth LIMIT 1').get();
-
-            if (!license) {
-                // 无授权记录 → 需要激活
-                this.isValid = false;
-                this.licenseInfo = null;
-                console.log('[LicenseService] No license found, activation required');
+            if (config.features.skipLicense) {
+                this.isValid = true;
+                this.licenseInfo = { email: 'offline-user@navlink.local', activatedAt: new Date().toISOString() };
+                console.log('[LicenseService] License check skipped (Offline Mode)');
                 return;
             }
+
+            const db = this.getDb();
 
             // 对比硬件指纹
             const currentFp = this.fingerprint.hash;
@@ -205,7 +204,7 @@ class LicenseService {
         const licenseInfo = this.licenseInfo;
 
         // 未激活
-        if (!licenseInfo?.email) {
+        if (!licenseInfo?.email && !config.features.skipLicense) {
             return {
                 valid: false,
                 status: 'not_activated',
@@ -214,7 +213,16 @@ class LicenseService {
             };
         }
 
-        const authUrl = process.env.AUTH_SERVER_URL || 'https://auth.webxx.top';
+        if (config.features.skipLicense) {
+            return {
+                valid: true,
+                status: 'skipped',
+                shouldClear: false,
+                message: '已开启免激活模式'
+            };
+        }
+
+        const authUrl = config.services.auth;
 
         try {
             const controller = new AbortController();

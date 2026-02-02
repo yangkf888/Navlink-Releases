@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Navlink-Next Docker 镜像一键安装脚本
+# Navlink-Releases Docker 镜像一键安装脚本
 # 使用方法: ./install-from-ghcr.sh [GitHub用户名]
 
 set -e
@@ -13,12 +13,12 @@ NC='\033[0m' # No Color
 
 # 默认配置
 GITHUB_USERNAME="${1:-txwebroot}"
-IMAGE_NAME="navlink-next"
+IMAGE_NAME="navlink-releases"
 IMAGE_TAG="${2:-latest}"
 INSTALL_DIR="${3:-./navlink-deployment}"
 
 echo -e "${GREEN}======================================${NC}"
-echo -e "${GREEN}Navlink-Next Docker 镜像安装脚本${NC}"
+echo -e "${GREEN}Navlink-Releases Docker 镜像安装脚本${NC}"
 echo -e "${GREEN}======================================${NC}"
 echo ""
 

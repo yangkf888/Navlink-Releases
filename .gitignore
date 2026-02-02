@@ -1,69 +1,70 @@
-# Dependencies
+# 依赖项
 node_modules/
 package-lock.json
 
-# Build outputs
+# 构建产物
 dist/
+dist-server/
 build/
 
-# Environment variables
-.env
-.env.local
-.env.production
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Database
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
-
-# Backups
-backups/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
+# IDE 与 AI 工具
+.agent/
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Plugin builds
+# 环境变量
+.env
+.env.local
+.env.production
+.env.backup
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+
+# 用户数据 (排除所有本地数据，仅保留目录结构)
+data/*
+!data/.gitkeep
+# 为了安全，显式忽略数据库内部文件
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 本地实例信息
+data/instance.id
+data/license.key
+
+# 插件与离线包
+# 允许提交插件源代码，但排除每个插件内部的依赖、构建产物和私有数据
 plugins/*/node_modules/
 plugins/*/dist/
 plugins/*/build/
+plugins/*/data/
+plugins/*/logs/
+plugins/*/*.log
+plugins/*/*.zip
 plugins/*/*.exe
 plugins/*/*.bin
-plugins/*/vps
-plugins/*/sub
 
-# Temporary files
+# 排除特定的本地缓存目录
+dist-plugins/
+Navlink-plugins/
+tmp_packages/
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# 临时文件与缓存
 tmp/
 temp/
 *.tmp
-dist-plugins/
-
-# Cache
 data/cache/
 data/transcode_cache/
 data/transcode/
-plugins/video/data/transcode_cache/
-videox/backend-build/
-
-# VideoX 运行时文件
-videox/backend-nodejs/data/*.db-shm
-videox/backend-nodejs/data/*.db-wal
-videox/backend-nodejs/data/.!*!*
-videox/backend-nodejs/backend.log
-videox/frontend/frontend.log
-videox/*.pid
+data/uploads/

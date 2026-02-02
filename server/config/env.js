@@ -107,7 +107,25 @@ export const config = {
         registration: process.env.ENABLE_REGISTRATION === 'true',
         multiTenant: process.env.ENABLE_MULTI_TENANT !== 'false',
         metrics: process.env.ENABLE_METRICS !== 'false',
-        swaggerDocs: process.env.ENABLE_SWAGGER_DOCS === 'true'
+        swaggerDocs: process.env.ENABLE_SWAGGER_DOCS === 'true',
+        skipLicense: process.env.SKIP_LICENSE === 'true'
+    },
+
+    // External Services URLs
+    services: {
+        // Authorization & License Server
+        auth: process.env.AUTH_SERVER_URL || 'https://auth.webxx.top',
+
+        // Plugin Market Registry
+        pluginRegistry: process.env.PLUGIN_REGISTRY_URL || 'https://auth.webxx.top/api/registry.json',
+
+        // Update Service (GitHub)
+        update: {
+            owner: process.env.UPDATE_OWNER || 'txwebroot',
+            repo: process.env.UPDATE_REPO || 'Navlink-Releases',
+            apiBase: process.env.GITHUB_API_BASE || 'https://api.github.com',
+            imageRegistry: process.env.IMAGE_REGISTRY || 'ghcr.io'
+        }
     }
 };
 

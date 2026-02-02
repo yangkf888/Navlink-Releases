@@ -1,7 +1,0 @@
-{
-    "name": "navlink-website",
-    "compatibility_date": "2024-12-30",
-    "assets": {
-        "directory": "docs/.vitepress/dist"
-    }
-}

@@ -6,7 +6,7 @@ set -e
 # 配置
 REGISTRY="${REGISTRY:-ghcr.io}"  # 默认使用 GitHub Container Registry
 GITHUB_USERNAME="${GITHUB_USERNAME:-txwebroot}"  # 修改为您的 GitHub 用户名
-GITHUB_TOKEN="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" # GitHub Personal Access Token
+GITHUB_TOKEN="${GITHUB_TOKEN:-}" # ⚠️ 请通过环境变量传入，不要硬编码在此
 IMAGE_NAME="navlink-releases"
 # 默认从 package.json 读取版本号
 DEFAULT_VERSION=$(node -p "require('./package.json').version")
@@ -33,6 +33,13 @@ fi
 echo "✅ 前端编译完成"
 echo "✅ 后端代码混淆完成"
 echo ""
+
+# 检查 Token 是否存在
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "❌ 错误: 未发现 GITHUB_TOKEN"
+    echo "   请在运行前设置环境变量: export GITHUB_TOKEN=你的Token"
+    exit 1
+fi
 
 # 检查并执行登录
 echo "🔐 正在自动登录 GitHub Container Registry..."
@@ -115,7 +122,6 @@ echo ""
 echo "🔐 安全信息:"
 echo "   ✓ 后端代码已混淆 (46个文件)"
 echo "   ✓ 源代码未打包进镜像"
-echo "   ✓ 破解难度: ⭐⭐⭐"
 echo ""
 echo "📋 镜像信息:"
 echo "   $FULL_IMAGE"
