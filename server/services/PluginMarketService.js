@@ -5,7 +5,6 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import AdmZip from 'adm-zip';
 import { licenseService } from './LicenseService.js';
-import config from '../config/env.js';
 
 /**
  * 插件市场服务
@@ -17,7 +16,8 @@ export class PluginMarketService {
         this.pluginManager = pluginManager;
 
         // 插件仓库配置 (GitHub或自定义服务器)
-        this.registryUrl = config.services.pluginRegistry;
+        this.registryUrl = process.env.PLUGIN_REGISTRY_URL ||
+            'https://auth.webxx.top/api/registry.json';
 
         // 本地缓存
         this.cachedRegistry = null;
@@ -195,12 +195,19 @@ export class PluginMarketService {
                 const backendDir = path.join(pluginDir, 'backend-nodejs');
                 const packageJsonPath = path.join(backendDir, 'package.json');
 
-                // 检查是否有 package.json
+                // 先检查 package.json 是否存在
+                let hasPackageJson = false;
                 try {
                     await fs.access(packageJsonPath);
+                    hasPackageJson = true;
+                } catch {
+                    console.warn(`[PluginMarket] No package.json found for ${pluginId}, skipping npm install`);
+                }
+
+                // 如果有 package.json，执行 npm install
+                if (hasPackageJson) {
                     console.log(`[PluginMarket] Installing dependencies for ${pluginId}...`);
 
-                    // 运行 npm install
                     const { spawn } = await import('child_process');
                     await new Promise((resolve, reject) => {
                         const npm = spawn('npm', ['install', '--production'], {
@@ -208,19 +215,29 @@ export class PluginMarketService {
                             shell: true
                         });
 
+                        // 记录 npm 输出用于诊断
+                        let stdout = '';
+                        let stderr = '';
+                        npm.stdout?.on('data', (data) => { stdout += data.toString(); });
+                        npm.stderr?.on('data', (data) => { stderr += data.toString(); });
+
                         npm.on('close', (code) => {
                             if (code === 0) {
                                 console.log(`[PluginMarket] ✓ Dependencies installed for ${pluginId}`);
                                 resolve();
                             } else {
-                                reject(new Error(`npm install failed with code ${code}`));
+                                console.error(`[PluginMarket] npm install failed for ${pluginId} (exit code: ${code})`);
+                                if (stderr) console.error(`[PluginMarket] npm stderr: ${stderr.slice(-500)}`);
+                                if (stdout) console.log(`[PluginMarket] npm stdout: ${stdout.slice(-500)}`);
+                                reject(new Error(`npm install failed for plugin ${pluginId} with exit code ${code}. Check logs for details.`));
                             }
                         });
 
-                        npm.on('error', reject);
+                        npm.on('error', (err) => {
+                            console.error(`[PluginMarket] Failed to spawn npm for ${pluginId}:`, err.message);
+                            reject(err);
+                        });
                     });
-                } catch (err) {
-                    console.warn(`[PluginMarket] No package.json found for ${pluginId}, skipping npm install`);
                 }
             }
 

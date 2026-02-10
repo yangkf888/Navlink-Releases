@@ -162,6 +162,46 @@ export class PluginManager {
                 try {
                     logger.info(`加载进程内插件: ${pluginId}`);
 
+                    // 🔧 依赖自动恢复：检查 node_modules 是否存在
+                    const backendDir = path.join(plugin.dir, 'backend-nodejs');
+                    const packageJsonPath = path.join(backendDir, 'package.json');
+                    const nodeModulesPath = path.join(backendDir, 'node_modules');
+
+                    try {
+                        await fs.access(packageJsonPath);
+                        try {
+                            await fs.access(nodeModulesPath);
+                        } catch {
+                            // node_modules 不存在，尝试自动安装
+                            logger.info(`插件 ${pluginId} 缺少 node_modules，正在自动安装依赖...`);
+                            const { spawn } = await import('child_process');
+                            await new Promise((resolve, reject) => {
+                                const npm = spawn('npm', ['install', '--production'], {
+                                    cwd: backendDir,
+                                    shell: true
+                                });
+                                let stderr = '';
+                                npm.stderr?.on('data', (data) => { stderr += data.toString(); });
+                                npm.on('close', (code) => {
+                                    if (code === 0) {
+                                        logger.info(`✓ 插件 ${pluginId} 依赖自动安装成功`);
+                                        resolve();
+                                    } else {
+                                        logger.error(`✗ 插件 ${pluginId} 依赖自动安装失败 (exit code: ${code})`);
+                                        if (stderr) logger.error(`npm stderr: ${stderr.slice(-500)}`);
+                                        reject(new Error(`自动安装依赖失败 (exit code: ${code})，请手动执行: cd ${backendDir} && npm install --production`));
+                                    }
+                                });
+                                npm.on('error', reject);
+                            });
+                        }
+                    } catch (depErr) {
+                        if (depErr.message.includes('自动安装依赖失败')) {
+                            throw depErr;
+                        }
+                        // package.json 不存在，跳过检查
+                    }
+
                     // 阶段2: 启动
                     this.emitStartupProgress(pluginId, 'STARTING');
 

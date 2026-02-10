@@ -13,7 +13,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install docker-cli for self-upgrade capabilities
-RUN apk add --no-cache docker-cli
+# Install build tools for native npm modules (better-sqlite3, sqlite3, sharp, ssh2 etc.)
+RUN apk add --no-cache docker-cli python3 make g++
 
 # Install production dependencies only
 COPY package*.json ./
